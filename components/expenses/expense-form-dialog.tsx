@@ -43,6 +43,14 @@ const FREQUENCIES = [
   { value: "CUSTOM", label: "Personalizzata" },
 ];
 
+/** Convert ISO date string or Date to yyyy-MM-dd for HTML date input */
+function toDateInput(value: unknown): string {
+  if (!value) return "";
+  const s = String(value);
+  if (s.length >= 10) return s.slice(0, 10);
+  return s;
+}
+
 interface ExpenseFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -60,32 +68,51 @@ export function ExpenseFormDialog({
   onSubmit,
   isPending,
 }: ExpenseFormDialogProps) {
-  const { data: costCenters = [] } = useCostCenters();
+  const { data: costCenters = [] } = useCostCenters("COST");
   const ccItems = costCenters as Array<{ id: string; name: string; color: string }>;
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: {},
-  } = useForm({
-    defaultValues: {
-      name: "",
-      category: "OTHER",
-      amount: "",
-      vatIncluded: true,
-      costCenterId: "",
-      description: "",
-      counterpart: "",
-      ...(type === "recurring"
-        ? { frequency: "MONTHLY", startDate: "", endDate: "" }
-        : { date: "", isPaid: false }),
-      ...defaultValues,
-    } as Record<string, unknown>,
-  });
-
   const isEdit = !!defaultValues?.id;
+
+  // Prepare defaults with properly formatted dates and nulls → ""
+  const prepared = defaultValues
+    ? {
+        name: defaultValues.name ?? "",
+        category: defaultValues.category ?? "OTHER",
+        amount: defaultValues.amount ?? "",
+        vatIncluded: defaultValues.vatIncluded ?? true,
+        costCenterId:
+          (defaultValues.costCenter as { id: string } | null)?.id ??
+          defaultValues.costCenterId ??
+          "",
+        description: defaultValues.description ?? "",
+        counterpart: defaultValues.counterpart ?? "",
+        ...(type === "recurring"
+          ? {
+              frequency: defaultValues.frequency ?? "MONTHLY",
+              startDate: toDateInput(defaultValues.startDate),
+              endDate: toDateInput(defaultValues.endDate),
+            }
+          : {
+              date: toDateInput(defaultValues.date),
+              isPaid: defaultValues.isPaid ?? false,
+            }),
+      }
+    : {
+        name: "",
+        category: "OTHER",
+        amount: "",
+        vatIncluded: true,
+        costCenterId: "",
+        description: "",
+        counterpart: "",
+        ...(type === "recurring"
+          ? { frequency: "MONTHLY", startDate: "", endDate: "" }
+          : { date: "", isPaid: false }),
+      };
+
+  const { register, handleSubmit, setValue, watch } = useForm({
+    defaultValues: prepared as Record<string, unknown>,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -166,6 +193,13 @@ export function ExpenseFormDialog({
                   {...register("startDate", { required: "Obbligatorio" })}
                 />
               </div>
+            </div>
+          )}
+
+          {type === "recurring" && (
+            <div className="space-y-2">
+              <Label htmlFor="endDate">Data Fine (opzionale)</Label>
+              <Input id="endDate" type="date" {...register("endDate")} />
             </div>
           )}
 

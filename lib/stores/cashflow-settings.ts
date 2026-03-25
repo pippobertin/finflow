@@ -2,11 +2,13 @@ import { create } from "zustand";
 import type { ScenarioType, WhatIfParams } from "@/lib/types/cashflow";
 
 interface CashflowSettingsState {
-  days: number;
+  viewRange: [number, number];
+  historyLength: number;
   scenario: ScenarioType;
   threshold: number;
   whatIf: WhatIfParams;
-  setDays: (days: number) => void;
+  setViewRange: (range: [number, number]) => void;
+  setHistoryLength: (n: number) => void;
   setScenario: (scenario: ScenarioType) => void;
   setThreshold: (threshold: number) => void;
   setWhatIfExtraExpense: (amount: number) => void;
@@ -24,11 +26,13 @@ const DEFAULT_WHAT_IF: WhatIfParams = {
 };
 
 export const useCashflowSettings = create<CashflowSettingsState>((set) => ({
-  days: 90,
+  viewRange: [0, 90] as [number, number],
+  historyLength: 0,
   scenario: "base",
   threshold: 0,
   whatIf: { ...DEFAULT_WHAT_IF },
-  setDays: (days) => set({ days }),
+  setViewRange: (range) => set({ viewRange: range }),
+  setHistoryLength: (n) => set({ historyLength: n }),
   setScenario: (scenario) => set({ scenario }),
   setThreshold: (threshold) => set({ threshold }),
   setWhatIfExtraExpense: (amount) =>

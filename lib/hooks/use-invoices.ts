@@ -53,10 +53,12 @@ export function useUpdateInvoice() {
       invoiceId,
       costCenterId,
       status,
+      paidAt,
     }: {
       invoiceId: string;
       costCenterId?: string | null;
       status?: string;
+      paidAt?: string | null;
     }) =>
       fetchJson(`/api/invoices/${invoiceId}`, {
         method: "PATCH",
@@ -64,6 +66,7 @@ export function useUpdateInvoice() {
         body: JSON.stringify({
           ...(costCenterId !== undefined && { costCenterId }),
           ...(status !== undefined && { status }),
+          ...(paidAt !== undefined && { paidAt }),
         }),
       }),
     onSuccess: () => {
@@ -79,11 +82,19 @@ export const useReassignInvoice = useUpdateInvoice;
 export function useBulkUpdateStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ invoiceIds, status }: { invoiceIds: string[]; status: string }) =>
+    mutationFn: ({
+      invoiceIds,
+      status,
+      paidAtMap,
+    }: {
+      invoiceIds: string[];
+      status: string;
+      paidAtMap?: Record<string, string>;
+    }) =>
       fetchJson<{ updated: number }>("/api/invoices/bulk-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceIds, status }),
+        body: JSON.stringify({ invoiceIds, status, ...(paidAtMap && { paidAtMap }) }),
       }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
@@ -93,6 +104,38 @@ export function useBulkUpdateStatus() {
     onError: (err) => {
       toast.error(err.message);
     },
+  });
+}
+
+export function useDeleteInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) =>
+      fetchJson(`/api/invoices/${invoiceId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["overview"] });
+      toast.success("Fattura eliminata");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+export function useBulkDeleteInvoices() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceIds: string[]) =>
+      fetchJson<{ deleted: number }>("/api/invoices/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceIds }),
+      }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["overview"] });
+      toast.success(`${data.deleted} fatture eliminate`);
+    },
+    onError: (err) => toast.error(err.message),
   });
 }
 

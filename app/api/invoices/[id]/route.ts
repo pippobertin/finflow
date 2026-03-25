@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/helpers/auth-guard";
-import { updateInvoice } from "@/lib/queries/invoices";
+import { updateInvoice, deleteInvoice } from "@/lib/queries/invoices";
 import { invoiceUpdateSchema } from "@/lib/validations/invoices";
 
 type Params = { params: Promise<{ id: string }> };
@@ -24,4 +24,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return Response.json({ error: "Fattura non trovata" }, { status: 404 });
   }
   return Response.json(data);
+}
+
+export async function DELETE(_request: NextRequest, { params }: Params) {
+  const { error, organizationId } = await getAdminSession();
+  if (error) return error;
+
+  const { id } = await params;
+  const deleted = await deleteInvoice(id, organizationId);
+  if (!deleted) {
+    return Response.json({ error: "Fattura non trovata" }, { status: 404 });
+  }
+  return Response.json({ success: true });
 }

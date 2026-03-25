@@ -1,21 +1,27 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { IncomeExpenseBarChart } from "@/components/charts/income-expense-bar-chart";
-import type { CategoryChartPoint } from "@/lib/queries/overview";
+import { ExpenseDonutChart } from "@/components/charts/expense-donut-chart";
+import type { RevenueDistributionSlice } from "@/lib/queries/overview";
 
-interface CategoryChartSectionProps {
-  data: CategoryChartPoint[];
+interface RevenueChartSectionProps {
+  data: RevenueDistributionSlice[];
 }
 
-export function CategoryChartSection({ data }: CategoryChartSectionProps) {
+export function CategoryChartSection({ data }: RevenueChartSectionProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Entrate vs Uscite per Categoria</CardTitle>
+        <CardTitle>Distribuzione Entrate per Centro di Ricavo</CardTitle>
       </CardHeader>
       <CardContent>
-        <IncomeExpenseBarChart data={data} />
+        {data.length > 0 ? (
+          <ExpenseDonutChart data={data} />
+        ) : (
+          <p className="text-muted-foreground py-12 text-center text-sm">
+            Nessuna entrata associata a centri di ricavo.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

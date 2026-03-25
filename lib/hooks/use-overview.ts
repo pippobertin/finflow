@@ -4,19 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 import { useCostCenterFilter } from "@/lib/stores/cost-center-filter";
 import type { OverviewData } from "@/lib/queries/overview";
 
-export function useOverview(initialData?: OverviewData) {
+export function useOverview(initialData?: OverviewData, dateFrom?: string, dateTo?: string) {
   const { selectedIds } = useCostCenterFilter();
 
-  const params = selectedIds.length ? `?costCenterIds=${selectedIds.join(",")}` : "";
+  const sp = new URLSearchParams();
+  if (selectedIds.length) sp.set("costCenterIds", selectedIds.join(","));
+  if (dateFrom) sp.set("dateFrom", dateFrom);
+  if (dateTo) sp.set("dateTo", dateTo);
+  const qs = sp.toString();
 
   return useQuery<OverviewData>({
-    queryKey: ["overview", selectedIds],
+    queryKey: ["overview", selectedIds, dateFrom, dateTo],
     queryFn: async () => {
-      const res = await fetch(`/api/analysis/overview${params}`);
+      const res = await fetch(`/api/analysis/overview${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error("Errore caricamento dati");
       return res.json();
     },
-    initialData: selectedIds.length === 0 ? initialData : undefined,
+    initialData: selectedIds.length === 0 && !dateFrom && !dateTo ? initialData : undefined,
   });
 }
 

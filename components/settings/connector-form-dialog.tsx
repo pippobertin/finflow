@@ -20,7 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { connectorCreateSchema, type ConnectorCreateInput } from "@/lib/validations/connector";
+import {
+  connectorCreateSchema,
+  connectorUpdateSchema,
+  type ConnectorCreateInput,
+  type ConnectorUpdateInput,
+} from "@/lib/validations/connector";
 import { useFicCompanies } from "@/lib/hooks/use-connectors";
 import { Loader2, ExternalLink } from "lucide-react";
 
@@ -29,7 +34,7 @@ interface ConnectorFormDialogProps {
   onOpenChange: (open: boolean) => void;
   editId?: string;
   defaultValues?: Partial<ConnectorCreateInput>;
-  onSubmit: (data: ConnectorCreateInput) => void;
+  onSubmit: (data: ConnectorCreateInput | ConnectorUpdateInput) => void;
   isPending?: boolean;
 }
 
@@ -64,7 +69,7 @@ export function ConnectorFormDialog({
     setValue,
     formState: { errors },
   } = useForm<ConnectorCreateInput>({
-    resolver: zodResolver(connectorCreateSchema) as never,
+    resolver: zodResolver(isEdit ? connectorUpdateSchema : connectorCreateSchema) as never,
     defaultValues: {
       name: defaultValues?.name ?? "",
       type: defaultValues?.type ?? "FATTURE_IN_CLOUD",

@@ -6,6 +6,7 @@ import { Navbar } from "@/components/dashboard/navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -24,10 +25,12 @@ import {
   useCreateRecurringExpense,
   useUpdateRecurringExpense,
   useDeleteRecurringExpense,
+  useBulkDeleteRecurringExpenses,
   useOneOffExpenses,
   useCreateOneOffExpense,
   useUpdateOneOffExpense,
   useDeleteOneOffExpense,
+  useBulkDeleteOneOffExpenses,
 } from "@/lib/hooks/use-expenses";
 import { toast } from "sonner";
 
@@ -69,26 +72,55 @@ export function ExpensesClient() {
   const [tab, setTab] = useState("recurring");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<ExpenseItem | null>(null);
+  const [dialogKey, setDialogKey] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const recurringQuery = useRecurringExpenses();
   const oneOffQuery = useOneOffExpenses();
   const createRecurring = useCreateRecurringExpense();
   const updateRecurring = useUpdateRecurringExpense();
   const deleteRecurring = useDeleteRecurringExpense();
+  const bulkDeleteRecurring = useBulkDeleteRecurringExpenses();
   const createOneOff = useCreateOneOffExpense();
   const updateOneOff = useUpdateOneOffExpense();
   const deleteOneOff = useDeleteOneOffExpense();
+  const bulkDeleteOneOff = useBulkDeleteOneOffExpenses();
 
   const recurring = (recurringQuery.data ?? []) as ExpenseItem[];
   const oneOff = (oneOffQuery.data ?? []) as ExpenseItem[];
 
+  // Clear selection when switching tabs
+  function handleTabChange(v: string) {
+    setTab(v ?? "recurring");
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll(items: ExpenseItem[]) {
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((i) => i.id)));
+    }
+  }
+
   function openCreate() {
     setEditItem(null);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
   function openEdit(item: ExpenseItem) {
     setEditItem(item);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
@@ -152,6 +184,20 @@ export function ExpensesClient() {
     }
   }
 
+  function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+
+    const mutation = tab === "recurring" ? bulkDeleteRecurring : bulkDeleteOneOff;
+    mutation.mutate(ids, {
+      onSuccess: () => {
+        toast.success(`${ids.length} spese eliminate`);
+        setSelectedIds(new Set());
+      },
+      onError: (e) => toast.error(e.message),
+    });
+  }
+
   const isLoading = tab === "recurring" ? recurringQuery.isLoading : oneOffQuery.isLoading;
   const items = tab === "recurring" ? recurring : oneOff;
   const isPending =
@@ -159,26 +205,40 @@ export function ExpensesClient() {
     updateRecurring.isPending ||
     createOneOff.isPending ||
     updateOneOff.isPending;
+  const isBulkDeleting = bulkDeleteRecurring.isPending || bulkDeleteOneOff.isPending;
 
   return (
     <>
       <Navbar title="Spese" />
       <div className="space-y-4 p-6">
-        <Tabs value={tab} onValueChange={(v) => setTab(v ?? "recurring")}>
+        <Tabs value={tab} onValueChange={handleTabChange}>
           <div className="flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="recurring">Ricorrenti</TabsTrigger>
               <TabsTrigger value="one-off">Una Tantum</TabsTrigger>
             </TabsList>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              Aggiungi
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {isBulkDeleting ? "Eliminazione..." : `Elimina (${selectedIds.size})`}
+                </Button>
+              )}
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="mr-2 h-4 w-4" />
+                Aggiungi
+              </Button>
+            </div>
           </div>
 
           <TabsContent value={tab} className="mt-4">
             {isLoading ? (
-              <DataTableSkeleton columns={tab === "recurring" ? 6 : 7} />
+              <DataTableSkeleton columns={tab === "recurring" ? 7 : 8} />
             ) : items.length === 0 ? (
               <EmptyState
                 icon={Receipt}
@@ -195,6 +255,12 @@ export function ExpensesClient() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={selectedIds.size === items.length && items.length > 0}
+                        onCheckedChange={() => toggleSelectAll(items)}
+                      />
+                    </TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Categoria</TableHead>
                     {tab === "recurring" && <TableHead>Frequenza</TableHead>}
@@ -207,7 +273,16 @@ export function ExpensesClient() {
                 </TableHeader>
                 <TableBody>
                   {items.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow
+                      key={item.id}
+                      data-state={selectedIds.has(item.id) ? "selected" : undefined}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(item.id)}
+                          onCheckedChange={() => toggleSelect(item.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">
@@ -272,6 +347,7 @@ export function ExpensesClient() {
       </div>
 
       <ExpenseFormDialog
+        key={dialogKey}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         type={tab === "recurring" ? "recurring" : "one-off"}

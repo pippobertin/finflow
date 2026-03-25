@@ -81,6 +81,15 @@ enum ExpenseCategory {
   @@schema("public")
 }
 
+enum ReceivableStatus {
+  PENDING
+  INVOICED
+  CANCELLED
+
+  @@map("fin_receivable_status")
+  @@schema("public")
+}
+
 // ─── Models ─────────────────────────────────────────────────
 
 model Organization {
@@ -107,6 +116,7 @@ model Organization {
   bankStatements     BankStatement[]
   cashflowSnapshots  CashflowSnapshot[]
   forecastScenarios  ForecastScenario[]
+  futureReceivables  FutureReceivable[]
 
   @@map("fin_organization")
   @@schema("public")
@@ -203,12 +213,13 @@ model CostCenter {
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  invoices          Invoice[]
-  invoiceLines      InvoiceLine[]
-  recurringExpenses RecurringExpense[]
-  oneOffExpenses    OneOffExpense[]
-  bankStatements    BankStatement[]
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices           Invoice[]
+  invoiceLines       InvoiceLine[]
+  recurringExpenses  RecurringExpense[]
+  oneOffExpenses     OneOffExpense[]
+  bankStatements     BankStatement[]
+  futureReceivables  FutureReceivable[]
 
   @@unique([organizationId, name])
   @@map("fin_cost_center")
@@ -236,10 +247,11 @@ model Invoice {
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  costCenter     CostCenter?     @relation(fields: [costCenterId], references: [id])
-  lines          InvoiceLine[]
-  bankStatements BankStatement[]
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  costCenter         CostCenter?        @relation(fields: [costCenterId], references: [id])
+  lines              InvoiceLine[]
+  bankStatements     BankStatement[]
+  futureReceivables  FutureReceivable[]
 
   @@index([organizationId, direction])
   @@index([organizationId, status])
@@ -321,6 +333,7 @@ model BankStatement {
   balance               Decimal      @db.Decimal(12, 2)
   costCenterId          String?      @map("cost_center_id")
   reference             String?
+  sourceFile            String?      @map("source_file")
   isReconciled          Boolean      @default(false) @map("is_reconciled")
   reconciledInvoiceId   String?      @map("reconciled_invoice_id")
   reconciledAt          DateTime?    @map("reconciled_at") @db.Timestamptz(6)
@@ -366,5 +379,30 @@ model ForecastScenario {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("fin_forecast_scenario")
+  @@schema("public")
+}
+
+model FutureReceivable {
+  id                  String           @id @default(cuid())
+  organizationId      String           @map("organization_id")
+  description         String
+  counterpart         String
+  estimatedAmount     Decimal          @map("estimated_amount") @db.Decimal(12, 2)
+  expectedInvoiceDate DateTime?        @map("expected_invoice_date")
+  expectedPaymentDate DateTime?        @map("expected_payment_date")
+  status              ReceivableStatus @default(PENDING)
+  costCenterId        String?          @map("cost_center_id")
+  invoiceId           String?          @map("invoice_id")
+  notes               String?
+  includeInForecast   Boolean          @default(true) @map("include_in_forecast")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  costCenter   CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  invoice      Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@map("fin_future_receivable")
   @@schema("public")
 }

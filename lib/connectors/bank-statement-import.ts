@@ -12,6 +12,7 @@ interface BankStatementImportOptions {
   dateFormat?: string;
   decimalSeparator?: "," | ".";
   skipRows?: number;
+  sourceFile?: string;
 }
 
 export interface BankStatementImportResult {
@@ -66,6 +67,7 @@ export async function importBankStatements(
     dateFormat = "dd/MM/yyyy",
     decimalSeparator = ",",
     skipRows = 0,
+    sourceFile,
   } = options;
 
   let rows: Record<string, string>[];
@@ -149,6 +151,7 @@ export async function importBankStatements(
           amount,
           balance,
           reference: ref || null,
+          sourceFile: sourceFile || null,
         },
       });
 

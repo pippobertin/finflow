@@ -8,6 +8,7 @@ import {
   FileText,
   Landmark,
   Receipt,
+  HandCoins,
   FolderKanban,
   Upload,
   Building2,
@@ -25,6 +26,7 @@ const mainNavItems = [
   { href: "/invoices", label: "Fatture", icon: FileText },
   { href: "/bank-statements", label: "Estratti Conto", icon: Landmark },
   { href: "/expenses", label: "Spese", icon: Receipt },
+  { href: "/future-receivables", label: "Incassi Futuri", icon: HandCoins },
   { href: "/cost-centers", label: "Centri di Costo", icon: FolderKanban },
   { href: "/import", label: "Importa", icon: Upload },
 ];

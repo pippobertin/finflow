@@ -7,9 +7,10 @@ import type { OverviewKpis } from "@/lib/queries/overview";
 
 interface KpiGridProps {
   kpis: OverviewKpis;
+  rangeLabel?: string;
 }
 
-export function KpiGrid({ kpis }: KpiGridProps) {
+export function KpiGrid({ kpis, rangeLabel }: KpiGridProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KpiCard
@@ -20,18 +21,21 @@ export function KpiGrid({ kpis }: KpiGridProps) {
       />
       <KpiCard
         title="Crediti in Scadenza"
+        subtitle={rangeLabel}
         value={formatEUR(kpis.pendingCredits)}
         icon={ArrowUpRight}
         accentColor="green"
       />
       <KpiCard
         title="Debiti in Scadenza"
+        subtitle={rangeLabel}
         value={formatEUR(kpis.pendingDebits)}
         icon={ArrowDownRight}
         accentColor="red"
       />
       <KpiCard
         title="Saldo Proiettato"
+        subtitle={rangeLabel}
         value={formatEUR(kpis.projectedBalance)}
         icon={TrendingUp}
         accentColor="purple"

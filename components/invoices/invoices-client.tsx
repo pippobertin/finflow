@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Tags, FileText, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Tags, FileText, X, Trash2 } from "lucide-react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -15,9 +15,17 @@ import {
 } from "@/components/ui/select";
 import { InvoiceFilters } from "./invoice-filters";
 import { InvoiceTable } from "./invoice-table";
+import { BulkPaidDialog } from "./bulk-paid-dialog";
 import { DataTableSkeleton } from "@/components/dashboard/data-table-skeleton";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { useInvoices, useAutoTag, useBulkUpdateStatus } from "@/lib/hooks/use-invoices";
+import { Pagination } from "@/components/dashboard/pagination";
+import {
+  useInvoices,
+  useAutoTag,
+  useBulkUpdateStatus,
+  useBulkDeleteInvoices,
+} from "@/lib/hooks/use-invoices";
+import { formatEUR } from "@/lib/helpers/format";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 50;
@@ -36,6 +44,7 @@ export function InvoicesClient() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<string>("");
+  const [showBulkPaidDialog, setShowBulkPaidDialog] = useState(false);
 
   const direction = tab === "ACTIVE" ? "ACTIVE" : tab === "PASSIVE" ? "PASSIVE" : undefined;
   const needsTagging = tab === "UNTAGGED" ? true : undefined;
@@ -51,10 +60,13 @@ export function InvoicesClient() {
 
   const autoTag = useAutoTag();
   const bulkUpdate = useBulkUpdateStatus();
+  const bulkDelete = useBulkDeleteInvoices();
 
   const invoices = useMemo(() => (data as { data: unknown[] } | undefined)?.data ?? [], [data]);
   const total = (data as { total: number } | undefined)?.total ?? 0;
   const totalPages = (data as { totalPages: number } | undefined)?.totalPages ?? 1;
+  const totalGrossAmount =
+    (data as { totalGrossAmount: number } | undefined)?.totalGrossAmount ?? 0;
   const untaggedCount = tab === "UNTAGGED" ? total : undefined;
 
   function resetSelection() {
@@ -120,11 +132,36 @@ export function InvoicesClient() {
 
   function handleBulkUpdate() {
     if (!bulkStatus || selectedIds.size === 0) return;
+    if (bulkStatus === "PAID") {
+      setShowBulkPaidDialog(true);
+      return;
+    }
     bulkUpdate.mutate(
       { invoiceIds: Array.from(selectedIds), status: bulkStatus },
       { onSuccess: () => resetSelection() },
     );
   }
+
+  function handleBulkPaidConfirm(paidAtMap: Record<string, string>) {
+    bulkUpdate.mutate(
+      { invoiceIds: Array.from(selectedIds), status: "PAID", paidAtMap },
+      {
+        onSuccess: () => {
+          setShowBulkPaidDialog(false);
+          resetSelection();
+        },
+      },
+    );
+  }
+
+  // Invoices selected for bulk paid dialog
+  const selectedInvoicesForDialog = useMemo(
+    () =>
+      (invoices as Array<{ id: string; number: string; counterpart: string }>).filter((inv) =>
+        selectedIds.has(inv.id),
+      ),
+    [invoices, selectedIds],
+  );
 
   return (
     <>
@@ -187,6 +224,20 @@ export function InvoicesClient() {
               >
                 {bulkUpdate.isPending ? "Aggiornamento..." : "Aggiorna stato"}
               </Button>
+              <div className="bg-border mx-1 h-5 w-px" />
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() =>
+                  bulkDelete.mutate(Array.from(selectedIds), {
+                    onSuccess: () => resetSelection(),
+                  })
+                }
+                disabled={bulkDelete.isPending}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                {bulkDelete.isPending ? "Eliminazione..." : "Elimina"}
+              </Button>
               <Button size="sm" variant="ghost" onClick={resetSelection}>
                 <X className="h-4 w-4" />
               </Button>
@@ -209,40 +260,44 @@ export function InvoicesClient() {
                   selectedIds={selectedIds}
                   onSelectionChange={handleSelectionChange}
                   onSelectAll={handleSelectAll}
+                  direction={direction as "ACTIVE" | "PASSIVE" | undefined}
                 />
 
-                {totalPages > 1 && (
-                  <div className="mt-4 flex items-center justify-between border-t pt-4">
-                    <p className="text-muted-foreground text-sm">
-                      {total} fatture — pagina {page} di {totalPages}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(Math.max(1, page - 1))}
-                        disabled={page <= 1}
-                      >
-                        <ChevronLeft className="mr-1 h-4 w-4" />
-                        Precedente
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
-                        disabled={page >= totalPages}
-                      >
-                        Successiva
-                        <ChevronRight className="ml-1 h-4 w-4" />
-                      </Button>
-                    </div>
+                {/* Totals row */}
+                {(tab === "ACTIVE" || tab === "PASSIVE") && total > 0 && (
+                  <div className="bg-muted/30 mt-2 flex items-center justify-between rounded-lg border px-4 py-3">
+                    <span className="text-sm font-medium">
+                      Totale {total} fattur{total === 1 ? "a" : "e"} filtrat
+                      {total === 1 ? "a" : "e"}
+                    </span>
+                    <span className="text-base font-semibold">{formatEUR(totalGrossAmount)}</span>
                   </div>
+                )}
+
+                {totalPages > 1 && (
+                  <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    total={total}
+                    itemLabel="fatture"
+                    onPageChange={handlePageChange}
+                  />
                 )}
               </>
             )}
           </TabsContent>
         </Tabs>
       </div>
+
+      {showBulkPaidDialog && (
+        <BulkPaidDialog
+          open={showBulkPaidDialog}
+          onOpenChange={setShowBulkPaidDialog}
+          invoices={selectedInvoicesForDialog}
+          onConfirm={handleBulkPaidConfirm}
+          isPending={bulkUpdate.isPending}
+        />
+      )}
     </>
   );
 }

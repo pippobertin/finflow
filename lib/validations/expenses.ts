@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Transforms empty strings to null (HTML form inputs send "" for empty optional fields)
+const emptyToNull = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (v === "" ? null : v), schema);
+
 const expenseCategories = [
   "RENT",
   "UTILITIES",
@@ -23,13 +27,13 @@ export const recurringExpenseCreateSchema = z.object({
   frequency: z.enum(expenseFrequencies),
   amount: z.coerce.number().positive("L'importo deve essere positivo"),
   vatIncluded: z.boolean().default(true),
-  costCenterId: z.string().cuid().optional().nullable(),
+  costCenterId: emptyToNull(z.string().cuid().nullable()).optional(),
   startDate: z.coerce.date(),
-  endDate: z.coerce.date().optional().nullable(),
-  dayOfMonth: z.coerce.number().int().min(1).max(31).optional().nullable(),
-  customDays: z.coerce.number().int().positive().optional().nullable(),
-  description: z.string().max(500).optional().nullable(),
-  counterpart: z.string().max(200).optional().nullable(),
+  endDate: emptyToNull(z.coerce.date().nullable()).optional(),
+  dayOfMonth: emptyToNull(z.coerce.number().int().min(1).max(31).nullable()).optional(),
+  customDays: emptyToNull(z.coerce.number().int().positive().nullable()).optional(),
+  description: emptyToNull(z.string().max(500).nullable()).optional(),
+  counterpart: emptyToNull(z.string().max(200).nullable()).optional(),
 });
 
 export const recurringExpenseUpdateSchema = recurringExpenseCreateSchema.partial();
@@ -39,15 +43,19 @@ export const oneOffExpenseCreateSchema = z.object({
   category: z.enum(expenseCategories),
   amount: z.coerce.number().positive("L'importo deve essere positivo"),
   vatIncluded: z.boolean().default(true),
-  costCenterId: z.string().cuid().optional().nullable(),
+  costCenterId: emptyToNull(z.string().cuid().nullable()).optional(),
   date: z.coerce.date(),
   isPaid: z.boolean().default(false),
-  paidAt: z.coerce.date().optional().nullable(),
-  description: z.string().max(500).optional().nullable(),
-  counterpart: z.string().max(200).optional().nullable(),
+  paidAt: emptyToNull(z.coerce.date().nullable()).optional(),
+  description: emptyToNull(z.string().max(500).nullable()).optional(),
+  counterpart: emptyToNull(z.string().max(200).nullable()).optional(),
 });
 
 export const oneOffExpenseUpdateSchema = oneOffExpenseCreateSchema.partial();
+
+export const expenseBulkDeleteSchema = z.object({
+  ids: z.array(z.string().cuid()).min(1, "Seleziona almeno una spesa"),
+});
 
 export type RecurringExpenseCreateInput = z.infer<typeof recurringExpenseCreateSchema>;
 export type RecurringExpenseUpdateInput = z.infer<typeof recurringExpenseUpdateSchema>;

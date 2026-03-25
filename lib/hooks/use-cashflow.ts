@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useCostCenterFilter } from "@/lib/stores/cost-center-filter";
-import type { CashflowProjectionResult } from "@/lib/types/cashflow";
+import type { CashflowTimelineResult } from "@/lib/types/cashflow";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -13,14 +13,14 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json();
 }
 
-export function useCashflowProjection(initialData?: CashflowProjectionResult) {
+export function useCashflowProjection(initialData?: CashflowTimelineResult) {
   const { selectedIds } = useCostCenterFilter();
 
   return useQuery({
     queryKey: ["cashflow-projection", selectedIds],
     queryFn: () => {
       const params = selectedIds.length ? `?costCenterIds=${selectedIds.join(",")}` : "";
-      return fetchJson<CashflowProjectionResult>(`/api/analysis/cashflow-projection${params}`);
+      return fetchJson<CashflowTimelineResult>(`/api/analysis/cashflow-projection${params}`);
     },
     initialData,
   });

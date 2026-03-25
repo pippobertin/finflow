@@ -1,11 +1,15 @@
 import { addDays, format } from "date-fns";
-import type { DailyProjectionPoint, WhatIfParams } from "@/lib/types/cashflow";
+import type { DailyProjectionPoint, DailyItemDetail, WhatIfParams } from "@/lib/types/cashflow";
+
+const INFLOW_TYPES = new Set(["activeInvoice", "futureReceivable"]);
 
 /**
  * Apply what-if parameters to projection data:
  * 1. Inject extra expense on a specific date
- * 2. Reduce activeInvoices by missedCollectionPct
- * 3. Shift activeInvoices forward by dsoAdjustment days vs base avgDso
+ * 2. Reduce all inflows by missedCollectionPct
+ * 3. Shift all inflows (activeInvoices + futureReceivables) by DSO difference
+ *
+ * Details arrays are kept in sync so the detail panel shows correct items.
  */
 export function applyWhatIf(
   projection: DailyProjectionPoint[],
@@ -22,14 +26,23 @@ export function applyWhatIf(
     return projection;
   }
 
-  // Build a working copy
-  const adjusted = projection.map((p) => ({ ...p }));
+  // Deep-copy: clone each point AND its details array
+  const adjusted = projection.map((p) => ({
+    ...p,
+    details: p.details.map((d) => ({ ...d })),
+  }));
 
   // 1. Inject extra expense
   if (hasExtraExpense) {
     const idx = adjusted.findIndex((p) => p.date === params.extraExpenseDate);
     if (idx >= 0) {
       adjusted[idx].oneOffExpenses += params.extraExpense;
+      adjusted[idx].details.push({
+        id: "whatif-extra",
+        type: "oneOffExpense",
+        label: "Spesa extra (what-if)",
+        amount: params.extraExpense,
+      });
     }
   }
 
@@ -38,30 +51,69 @@ export function applyWhatIf(
     const factor = 1 - params.missedCollectionPct / 100;
     for (const point of adjusted) {
       point.activeInvoices = Math.round(point.activeInvoices * factor * 100) / 100;
+      point.futureReceivables = Math.round(point.futureReceivables * factor * 100) / 100;
+      // Scale detail amounts too
+      for (const d of point.details) {
+        if (INFLOW_TYPES.has(d.type)) {
+          d.amount = Math.round(d.amount * factor * 100) / 100;
+        }
+      }
     }
   }
 
-  // 3. Shift active invoices by DSO difference
+  // 3. Shift all inflows by DSO difference.
+  //    Moves both numeric totals AND detail items to the new date.
+  //    Dates that fall before the projection window are clamped to the first date.
   if (hasDsoShift && Math.abs(dsoShift) > 0) {
-    // Collect all active invoice amounts by date, then redistribute shifted
-    const shiftedInflows = new Map<string, number>();
+    const firstDate = adjusted[0]?.date;
+    const dateSet = new Set(adjusted.map((p) => p.date));
+
+    // Collect amounts + detail items to redistribute
+    const shiftedActive = new Map<string, number>();
+    const shiftedReceivables = new Map<string, number>();
+    const shiftedDetails = new Map<string, DailyItemDetail[]>();
+
+    function resolveKey(origDate: string): string {
+      const newDate = addDays(new Date(origDate), dsoShift);
+      let key = format(newDate, "yyyy-MM-dd");
+      if (!dateSet.has(key) && key < firstDate) key = firstDate;
+      return key;
+    }
 
     for (const point of adjusted) {
+      const newKey = resolveKey(point.date);
+
       if (point.activeInvoices > 0) {
-        const originalDate = new Date(point.date);
-        const newDate = addDays(originalDate, dsoShift);
-        const newKey = format(newDate, "yyyy-MM-dd");
-        shiftedInflows.set(newKey, (shiftedInflows.get(newKey) ?? 0) + point.activeInvoices);
+        shiftedActive.set(newKey, (shiftedActive.get(newKey) ?? 0) + point.activeInvoices);
         point.activeInvoices = 0;
+      }
+      if (point.futureReceivables > 0) {
+        shiftedReceivables.set(
+          newKey,
+          (shiftedReceivables.get(newKey) ?? 0) + point.futureReceivables,
+        );
+        point.futureReceivables = 0;
+      }
+
+      // Move inflow details to the new date
+      const inflowDetails = point.details.filter((d) => INFLOW_TYPES.has(d.type));
+      if (inflowDetails.length > 0) {
+        const existing = shiftedDetails.get(newKey) ?? [];
+        existing.push(...inflowDetails);
+        shiftedDetails.set(newKey, existing);
+        // Keep only non-inflow details on the original date
+        point.details = point.details.filter((d) => !INFLOW_TYPES.has(d.type));
       }
     }
 
-    // Re-apply shifted inflows
+    // Re-apply shifted amounts + details
     for (const point of adjusted) {
-      const shifted = shiftedInflows.get(point.date);
-      if (shifted) {
-        point.activeInvoices += shifted;
-      }
+      const sa = shiftedActive.get(point.date);
+      if (sa) point.activeInvoices += sa;
+      const sr = shiftedReceivables.get(point.date);
+      if (sr) point.futureReceivables += sr;
+      const sd = shiftedDetails.get(point.date);
+      if (sd) point.details.push(...sd);
     }
   }
 
@@ -69,7 +121,11 @@ export function applyWhatIf(
   let runningBalance = startingBalance;
   for (const point of adjusted) {
     point.netFlow =
-      point.activeInvoices - point.passiveInvoices - point.recurringExpenses - point.oneOffExpenses;
+      point.activeInvoices +
+      point.futureReceivables -
+      point.passiveInvoices -
+      point.recurringExpenses -
+      point.oneOffExpenses;
     runningBalance += point.netFlow;
     point.balance = Math.round(runningBalance * 100) / 100;
   }

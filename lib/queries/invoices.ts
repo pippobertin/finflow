@@ -49,7 +49,7 @@ export async function listInvoices(params: InvoiceListParams) {
     }),
   };
 
-  const [data, total] = await Promise.all([
+  const [data, total, agg] = await Promise.all([
     prisma.invoice.findMany({
       where,
       include: {
@@ -60,11 +60,16 @@ export async function listInvoices(params: InvoiceListParams) {
       take: pageSize,
     }),
     prisma.invoice.count({ where }),
+    prisma.invoice.aggregate({
+      where,
+      _sum: { grossAmount: true },
+    }),
   ]);
 
   return {
     data,
     total,
+    totalGrossAmount: Number(agg._sum.grossAmount ?? 0),
     page,
     pageSize,
     totalPages: Math.ceil(total / pageSize),
@@ -74,7 +79,7 @@ export async function listInvoices(params: InvoiceListParams) {
 export async function updateInvoice(
   invoiceId: string,
   organizationId: string,
-  updates: { costCenterId?: string | null; status?: InvoiceStatus },
+  updates: { costCenterId?: string | null; status?: InvoiceStatus; paidAt?: Date | null },
 ) {
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, organizationId },
@@ -90,7 +95,11 @@ export async function updateInvoice(
 
   if (updates.status !== undefined) {
     data.status = updates.status;
-    data.paidAt = updates.status === "PAID" ? new Date() : null;
+    if (updates.status === "PAID") {
+      data.paidAt = updates.paidAt ?? new Date();
+    } else {
+      data.paidAt = null;
+    }
   }
 
   return prisma.invoice.update({
@@ -112,7 +121,20 @@ export async function bulkUpdateInvoiceStatus(
   invoiceIds: string[],
   organizationId: string,
   status: InvoiceStatus,
+  paidAtMap?: Record<string, Date>,
 ) {
+  // When status=PAID with per-invoice dates, do individual updates
+  if (status === "PAID" && paidAtMap && Object.keys(paidAtMap).length > 0) {
+    const updates = invoiceIds.map((id) =>
+      prisma.invoice.updateMany({
+        where: { id, organizationId },
+        data: { status, paidAt: paidAtMap[id] ?? new Date() },
+      }),
+    );
+    const results = await Promise.all(updates);
+    return results.reduce((sum, r) => sum + r.count, 0);
+  }
+
   const result = await prisma.invoice.updateMany({
     where: {
       id: { in: invoiceIds },
@@ -124,6 +146,35 @@ export async function bulkUpdateInvoiceStatus(
     },
   });
 
+  return result.count;
+}
+
+export async function deleteInvoice(invoiceId: string, organizationId: string) {
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: invoiceId, organizationId },
+  });
+  if (!invoice) return null;
+
+  // Clear reconciliation references from bank statements
+  await prisma.bankStatement.updateMany({
+    where: { reconciledInvoiceId: invoiceId },
+    data: { reconciledInvoiceId: null, isReconciled: false, reconciledAt: null },
+  });
+
+  // InvoiceLines cascade-delete automatically
+  return prisma.invoice.delete({ where: { id: invoiceId } });
+}
+
+export async function bulkDeleteInvoices(invoiceIds: string[], organizationId: string) {
+  // Clear reconciliation references
+  await prisma.bankStatement.updateMany({
+    where: { reconciledInvoiceId: { in: invoiceIds } },
+    data: { reconciledInvoiceId: null, isReconciled: false, reconciledAt: null },
+  });
+
+  const result = await prisma.invoice.deleteMany({
+    where: { id: { in: invoiceIds }, organizationId },
+  });
   return result.count;
 }
 

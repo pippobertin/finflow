@@ -16,7 +16,7 @@ import {
   useTestConnection,
   useSyncConnector,
 } from "@/lib/hooks/use-connectors";
-import type { ConnectorCreateInput } from "@/lib/validations/connector";
+import type { ConnectorCreateInput, ConnectorUpdateInput } from "@/lib/validations/connector";
 import { Plug, Plus, RefreshCw, Zap, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -53,29 +53,28 @@ export function ConnectorsClient() {
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
 
-  function handleCreate(data: ConnectorCreateInput) {
-    createConnector.mutate(data, {
-      onSuccess: () => {
-        toast.success("Connettore creato");
-        setDialogOpen(false);
-      },
-      onError: (err) => toast.error(err.message),
-    });
-  }
-
-  function handleUpdate(data: ConnectorCreateInput) {
-    if (!editingId) return;
-    updateConnector.mutate(
-      { id: editingId, data: { name: data.name, config: data.config } },
-      {
+  function handleSubmit(data: ConnectorCreateInput | ConnectorUpdateInput) {
+    if (editingId) {
+      updateConnector.mutate(
+        { id: editingId, data: { name: data.name, config: data.config } },
+        {
+          onSuccess: () => {
+            toast.success("Connettore aggiornato");
+            setDialogOpen(false);
+            setEditingId(undefined);
+          },
+          onError: (err) => toast.error(err.message),
+        },
+      );
+    } else {
+      createConnector.mutate(data as ConnectorCreateInput, {
         onSuccess: () => {
-          toast.success("Connettore aggiornato");
+          toast.success("Connettore creato");
           setDialogOpen(false);
-          setEditingId(undefined);
         },
         onError: (err) => toast.error(err.message),
-      },
-    );
+      });
+    }
   }
 
   function handleEdit(conn: ConnectorItem) {
@@ -266,7 +265,7 @@ export function ConnectorsClient() {
         }}
         editId={editingId}
         defaultValues={editDefaults}
-        onSubmit={editingId ? handleUpdate : handleCreate}
+        onSubmit={handleSubmit}
         isPending={createConnector.isPending || updateConnector.isPending}
       />
     </>

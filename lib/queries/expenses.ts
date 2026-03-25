@@ -112,3 +112,19 @@ export async function deleteOneOffExpense(id: string, organizationId: string) {
 
   return prisma.oneOffExpense.delete({ where: { id } });
 }
+
+// ── Bulk Delete ─────────────────────────────────────────────
+
+export async function bulkDeleteRecurringExpenses(ids: string[], organizationId: string) {
+  const result = await prisma.recurringExpense.deleteMany({
+    where: { id: { in: ids }, organizationId },
+  });
+  return result.count;
+}
+
+export async function bulkDeleteOneOffExpenses(ids: string[], organizationId: string) {
+  const result = await prisma.oneOffExpense.deleteMany({
+    where: { id: { in: ids }, organizationId },
+  });
+  return result.count;
+}

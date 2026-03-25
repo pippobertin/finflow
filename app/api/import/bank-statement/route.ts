@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       mapping: parsed.data.mapping,
       dateFormat: parsed.data.dateFormat,
       decimalSeparator: parsed.data.decimalSeparator,
+      sourceFile: file.name,
     });
   } else {
     const csvContent = await file.text();
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       dateFormat: parsed.data.dateFormat,
       decimalSeparator: parsed.data.decimalSeparator,
       skipRows: parsed.data.skipRows,
+      sourceFile: file.name,
     });
   }
 

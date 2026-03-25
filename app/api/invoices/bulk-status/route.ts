@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     parsed.data.invoiceIds,
     organizationId,
     parsed.data.status,
+    parsed.data.paidAtMap,
   );
 
   return Response.json({ updated });

@@ -1,15 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { Landmark, ChevronLeft, ChevronRight } from "lucide-react";
+import { Landmark, Trash2, FileText } from "lucide-react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { BankStatementTable } from "./bank-statement-table";
+import { Pagination } from "@/components/dashboard/pagination";
 import { DataTableSkeleton } from "@/components/dashboard/data-table-skeleton";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { useBankStatements } from "@/lib/hooks/use-bank-statements";
+import {
+  useBankStatements,
+  useBankStatementUploads,
+  useDeleteBankStatementUpload,
+} from "@/lib/hooks/use-bank-statements";
+import { formatDateShort } from "@/lib/helpers/format";
 
 const PAGE_SIZE = 50;
 
@@ -26,6 +33,9 @@ export function BankStatementsClient() {
     page,
     pageSize: PAGE_SIZE,
   });
+
+  const { data: uploads } = useBankStatementUploads();
+  const deleteUpload = useDeleteBankStatementUpload();
 
   const statements = (data as { data: unknown[] } | undefined)?.data ?? [];
   const total = (data as { total: number } | undefined)?.total ?? 0;
@@ -50,58 +60,90 @@ export function BankStatementsClient() {
             <TabsTrigger value="ALL">Tutti</TabsTrigger>
             <TabsTrigger value="RECONCILED">Riconciliati</TabsTrigger>
             <TabsTrigger value="UNRECONCILED">Non riconciliati</TabsTrigger>
+            <TabsTrigger value="UPLOADS">Documenti caricati</TabsTrigger>
           </TabsList>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Input
-              placeholder="Cerca per descrizione, riferimento..."
-              value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-72"
-            />
-          </div>
+          {tab !== "UPLOADS" && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Input
+                placeholder="Cerca per descrizione, riferimento..."
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-72"
+              />
+            </div>
+          )}
 
-          <TabsContent value={tab} className="mt-4">
-            {isLoading ? (
-              <DataTableSkeleton columns={8} rows={8} />
-            ) : statements.length === 0 ? (
+          {/* Movements tabs */}
+          {tab !== "UPLOADS" && (
+            <TabsContent value={tab} className="mt-4">
+              {isLoading ? (
+                <DataTableSkeleton columns={8} rows={8} />
+              ) : statements.length === 0 ? (
+                <EmptyState
+                  icon={Landmark}
+                  title="Nessun movimento"
+                  description="Non ci sono movimenti bancari che corrispondono ai filtri selezionati."
+                />
+              ) : (
+                <>
+                  <BankStatementTable statements={statements as never[]} />
+
+                  {totalPages > 1 && (
+                    <Pagination
+                      page={page}
+                      totalPages={totalPages}
+                      total={total}
+                      itemLabel="movimenti"
+                      onPageChange={setPage}
+                    />
+                  )}
+                </>
+              )}
+            </TabsContent>
+          )}
+
+          {/* Uploads tab */}
+          <TabsContent value="UPLOADS" className="mt-4">
+            {!uploads || uploads.length === 0 ? (
               <EmptyState
-                icon={Landmark}
-                title="Nessun movimento"
-                description="Non ci sono movimenti bancari che corrispondono ai filtri selezionati."
+                icon={FileText}
+                title="Nessun documento caricato"
+                description="Importa un estratto conto dalla sezione Import per visualizzarlo qui."
               />
             ) : (
-              <>
-                <BankStatementTable statements={statements as never[]} />
-
-                {totalPages > 1 && (
-                  <div className="mt-4 flex items-center justify-between border-t pt-4">
-                    <p className="text-muted-foreground text-sm">
-                      {total} movimenti — pagina {page} di {totalPages}
-                    </p>
-                    <div className="flex items-center gap-2">
+              <div className="space-y-3">
+                {uploads.map((upload, i) => (
+                  <Card key={i}>
+                    <CardContent className="flex items-center justify-between py-4">
+                      <div className="flex items-center gap-4">
+                        <FileText className="text-muted-foreground h-8 w-8" />
+                        <div>
+                          <p className="font-medium">
+                            {upload.sourceFile ?? "Import senza nome file"}
+                          </p>
+                          <p className="text-muted-foreground text-sm">
+                            Periodo: {formatDateShort(upload.periodFrom)} —{" "}
+                            {formatDateShort(upload.periodTo)}
+                            {" · "}
+                            {upload.count} moviment{upload.count === 1 ? "o" : "i"}
+                            {" · "}Importato il {formatDateShort(upload.importedAt)}
+                          </p>
+                        </div>
+                      </div>
                       <Button
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page <= 1}
+                        onClick={() => deleteUpload.mutate(upload.sourceFile)}
+                        disabled={deleteUpload.isPending}
                       >
-                        <ChevronLeft className="mr-1 h-4 w-4" />
-                        Precedente
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        Elimina
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page >= totalPages}
-                      >
-                        Successiva
-                        <ChevronRight className="ml-1 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </TabsContent>
         </Tabs>

@@ -26,6 +26,15 @@ export function useRecurringExpenses() {
   });
 }
 
+function invalidateExpensesAndCashflow(
+  qc: ReturnType<typeof useQueryClient>,
+  type: "recurring" | "one-off",
+) {
+  qc.invalidateQueries({ queryKey: ["expenses", type] });
+  qc.invalidateQueries({ queryKey: ["cashflow-projection"] });
+  qc.invalidateQueries({ queryKey: ["overview"] });
+}
+
 export function useCreateRecurringExpense() {
   const qc = useQueryClient();
   return useMutation({
@@ -35,7 +44,7 @@ export function useCreateRecurringExpense() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses", "recurring"] }),
+    onSuccess: () => invalidateExpensesAndCashflow(qc, "recurring"),
   });
 }
 
@@ -48,7 +57,7 @@ export function useUpdateRecurringExpense() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses", "recurring"] }),
+    onSuccess: () => invalidateExpensesAndCashflow(qc, "recurring"),
   });
 }
 
@@ -56,7 +65,20 @@ export function useDeleteRecurringExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => fetchJson(`/api/expenses/recurring/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses", "recurring"] }),
+    onSuccess: () => invalidateExpensesAndCashflow(qc, "recurring"),
+  });
+}
+
+export function useBulkDeleteRecurringExpenses() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      fetchJson("/api/expenses/recurring/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      }),
+    onSuccess: () => invalidateExpensesAndCashflow(qc, "recurring"),
   });
 }
 
@@ -78,7 +100,7 @@ export function useCreateOneOffExpense() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses", "one-off"] }),
+    onSuccess: () => invalidateExpensesAndCashflow(qc, "one-off"),
   });
 }
 
@@ -91,7 +113,7 @@ export function useUpdateOneOffExpense() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses", "one-off"] }),
+    onSuccess: () => invalidateExpensesAndCashflow(qc, "one-off"),
   });
 }
 
@@ -99,6 +121,19 @@ export function useDeleteOneOffExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => fetchJson(`/api/expenses/one-off/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses", "one-off"] }),
+    onSuccess: () => invalidateExpensesAndCashflow(qc, "one-off"),
+  });
+}
+
+export function useBulkDeleteOneOffExpenses() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      fetchJson("/api/expenses/one-off/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      }),
+    onSuccess: () => invalidateExpensesAndCashflow(qc, "one-off"),
   });
 }

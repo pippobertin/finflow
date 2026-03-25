@@ -42,6 +42,39 @@ export function useBankStatements(filters: BankStatementFilters = {}) {
   });
 }
 
+export interface BankStatementUpload {
+  sourceFile: string | null;
+  count: number;
+  periodFrom: string;
+  periodTo: string;
+  importedAt: string;
+}
+
+export function useBankStatementUploads() {
+  return useQuery<BankStatementUpload[]>({
+    queryKey: ["bank-statement-uploads"],
+    queryFn: () => fetchJson("/api/bank-statements/uploads"),
+  });
+}
+
+export function useDeleteBankStatementUpload() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sourceFile: string | null) =>
+      fetchJson<{ deleted: number }>("/api/bank-statements/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceFile }),
+      }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["bank-statements"] });
+      qc.invalidateQueries({ queryKey: ["bank-statement-uploads"] });
+      toast.success(`${data.deleted} movimenti eliminati`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
 export function useReassignBankStatement() {
   const qc = useQueryClient();
   return useMutation({

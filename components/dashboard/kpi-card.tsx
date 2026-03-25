@@ -29,6 +29,7 @@ type AccentColor = keyof typeof accentMap;
 
 interface KpiCardProps {
   title: string;
+  subtitle?: string;
   value: string;
   icon: LucideIcon;
   trend?: { value: string; positive: boolean };
@@ -38,6 +39,7 @@ interface KpiCardProps {
 
 export function KpiCard({
   title,
+  subtitle,
   value,
   icon: Icon,
   trend,
@@ -52,6 +54,7 @@ export function KpiCard({
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-medium">{title}</p>
+            {subtitle && <p className="text-muted-foreground text-[11px]">{subtitle}</p>}
             <p className="text-3xl font-extrabold tracking-tight">{value}</p>
             {trend && (
               <p
