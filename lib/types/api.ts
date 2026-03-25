@@ -29,3 +29,18 @@ export interface ImportError {
   field?: string;
   message: string;
 }
+
+export interface FatturapaInvoiceSummary {
+  number: string;
+  counterpart: string;
+  grossAmount: number;
+  documentType: string;
+}
+
+export interface FatturapaImportResult extends ImportResult {
+  skipped: number;
+  warnings: Array<{ file: string; message: string }>;
+  importedDetails: FatturapaInvoiceSummary[];
+  skippedDetails: FatturapaInvoiceSummary[];
+  taggedDetails: FatturapaInvoiceSummary[];
+}

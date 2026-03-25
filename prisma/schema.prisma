@@ -244,6 +244,7 @@ model Invoice {
   needsTagging   Boolean          @default(false) @map("needs_tagging")
   paidAt         DateTime?        @map("paid_at")
   connectorRef   String?          @map("connector_ref")
+  documentType   String?          @map("document_type")
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
