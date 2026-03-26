@@ -79,7 +79,17 @@ export async function listInvoices(params: InvoiceListParams) {
 export async function updateInvoice(
   invoiceId: string,
   organizationId: string,
-  updates: { costCenterId?: string | null; status?: InvoiceStatus; paidAt?: Date | null },
+  updates: {
+    costCenterId?: string | null;
+    status?: InvoiceStatus;
+    paidAt?: Date | null;
+    expectedCollectionDate?: Date | null;
+    counterpartCustomDso?: number | null;
+    isDiscountedAtBank?: boolean;
+    bankDiscountType?: string | null;
+    bankLiquidationDate?: Date | null;
+    bankDiscountFee?: number | null;
+  },
 ) {
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, organizationId },
@@ -97,9 +107,31 @@ export async function updateInvoice(
     data.status = updates.status;
     if (updates.status === "PAID") {
       data.paidAt = updates.paidAt ?? new Date();
-    } else {
+    } else if (updates.status !== "PARTIALLY_PAID") {
       data.paidAt = null;
     }
+  }
+
+  // DSO override fields
+  if (updates.expectedCollectionDate !== undefined) {
+    data.expectedCollectionDate = updates.expectedCollectionDate;
+  }
+  if (updates.counterpartCustomDso !== undefined) {
+    data.counterpartCustomDso = updates.counterpartCustomDso;
+  }
+
+  // Bank operations fields
+  if (updates.isDiscountedAtBank !== undefined) {
+    data.isDiscountedAtBank = updates.isDiscountedAtBank;
+  }
+  if (updates.bankDiscountType !== undefined) {
+    data.bankDiscountType = updates.bankDiscountType;
+  }
+  if (updates.bankLiquidationDate !== undefined) {
+    data.bankLiquidationDate = updates.bankLiquidationDate;
+  }
+  if (updates.bankDiscountFee !== undefined) {
+    data.bankDiscountFee = updates.bankDiscountFee;
   }
 
   return prisma.invoice.update({

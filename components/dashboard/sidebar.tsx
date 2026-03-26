@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  TrendingUp,
   FileText,
   Landmark,
   Receipt,
@@ -15,6 +14,8 @@ import {
   Plug,
   SlidersHorizontal,
   LogOut,
+  FlaskConical,
+  TableProperties,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,8 @@ import { Button } from "@/components/ui/button";
 
 const mainNavItems = [
   { href: "/overview", label: "Panoramica", icon: LayoutDashboard },
-  { href: "/cashflow", label: "Previsione", icon: TrendingUp },
+  { href: "/cashflow", label: "What If", icon: FlaskConical },
+  { href: "/financial-detail", label: "Dettaglio Finanziario", icon: TableProperties },
   { href: "/invoices", label: "Fatture", icon: FileText },
   { href: "/bank-statements", label: "Estratti Conto", icon: Landmark },
   { href: "/expenses", label: "Spese", icon: Receipt },
@@ -41,15 +43,31 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground flex h-full w-64 shrink-0 flex-col border-r">
-      <div className="border-sidebar-border flex h-16 items-center gap-2 border-b px-6">
-        <div className="bg-sidebar-primary text-sidebar-primary-foreground flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold">
+    <aside
+      className="flex h-full w-64 shrink-0 flex-col border-r border-white/[0.06]"
+      style={{
+        background: "linear-gradient(180deg, #1E1B4B 0%, #312E81 100%)",
+      }}
+    >
+      {/* Logo */}
+      <div className="flex h-16 items-center gap-3 border-b border-white/[0.08] px-6">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sm font-bold text-white">
           F
         </div>
-        <span className="text-lg font-semibold text-white">FinFlow</span>
+        <span
+          className="text-lg font-bold"
+          style={{
+            background: "linear-gradient(135deg, #818CF8, #22D3EE)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          FinFlow
+        </span>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+      {/* Nav */}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {mainNavItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -57,10 +75,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                  ? "bg-white/[0.12] text-white shadow-sm"
+                  : "text-white/60 hover:bg-white/[0.06] hover:text-white/90",
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -71,8 +89,8 @@ export function Sidebar() {
 
         {/* Settings separator */}
         <div className="pt-4 pb-2">
-          <div className="border-sidebar-border border-t" />
-          <p className="text-sidebar-foreground/50 px-3 pt-3 text-xs font-semibold tracking-wider uppercase">
+          <div className="border-t border-white/[0.08]" />
+          <p className="px-3 pt-3 text-xs font-semibold tracking-wider text-white/40 uppercase">
             Impostazioni
           </p>
         </div>
@@ -84,10 +102,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                  ? "bg-white/[0.12] text-white shadow-sm"
+                  : "text-white/60 hover:bg-white/[0.06] hover:text-white/90",
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -97,11 +115,12 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-sidebar-border border-t p-4">
+      {/* Logout */}
+      <div className="border-t border-white/[0.08] p-3">
         <Button
           variant="ghost"
           size="sm"
-          className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground w-full justify-start gap-3"
+          className="w-full justify-start gap-3 text-white/60 hover:bg-white/[0.06] hover:text-white/90"
           onClick={() => signOut({ callbackUrl: "/login" })}
         >
           <LogOut className="h-4 w-4" />

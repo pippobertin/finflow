@@ -25,21 +25,30 @@ export async function getOrganization(organizationId: string) {
   return {
     ...org,
     currentBalance: (settings.currentBalance as number) ?? null,
+    vatPeriodicity: (settings.vatPeriodicity as string) ?? "quarterly",
   };
 }
 
 export async function updateOrganization(organizationId: string, data: OrganizationUpdateInput) {
-  const { currentBalance, ...orgData } = data;
+  const { currentBalance, vatPeriodicity, ...orgData } = data;
 
-  // If currentBalance is provided, merge it into the settings JSONB
-  if (currentBalance !== undefined) {
+  // Merge settings fields into the JSONB if provided
+  const hasSettingsUpdate = currentBalance !== undefined || vatPeriodicity !== undefined;
+
+  if (hasSettingsUpdate) {
     const org = await prisma.organization.findUnique({
       where: { id: organizationId },
       select: { settings: true },
     });
     const settings = (org?.settings as Record<string, unknown>) ?? {};
-    settings.currentBalance = currentBalance;
-    settings.currentBalanceUpdatedAt = new Date().toISOString();
+
+    if (currentBalance !== undefined) {
+      settings.currentBalance = currentBalance;
+      settings.currentBalanceUpdatedAt = new Date().toISOString();
+    }
+    if (vatPeriodicity !== undefined) {
+      settings.vatPeriodicity = vatPeriodicity;
+    }
 
     return prisma.organization.update({
       where: { id: organizationId },

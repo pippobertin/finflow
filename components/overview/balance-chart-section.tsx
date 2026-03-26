@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BalanceLineChart } from "@/components/charts/balance-line-chart";
 import { useForecast } from "@/lib/hooks/use-overview";
@@ -37,13 +38,19 @@ export function BalanceChartSection({ historicalData }: BalanceChartSectionProps
   ];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Andamento Saldo</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <BalanceLineChart data={chartData} />
-      </CardContent>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.2, ease: "easeOut" }}
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle>Andamento Saldo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BalanceLineChart data={chartData} />
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

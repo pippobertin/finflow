@@ -5,14 +5,26 @@ import type {
   CashflowTimelineResult,
   DailyProjectionPoint,
 } from "@/lib/types/cashflow";
+import {
+  generateVatPeriods,
+  calculateVatForYear,
+  getVatOutflows,
+  type VatPeriodicity,
+} from "@/lib/vat/vat-engine";
 
 const PROJECTION_DAYS = 365;
 const HISTORY_DAYS = 90;
 
 /**
- * Build a daily cashflow projection for up to 180 days.
+ * Build a daily cashflow projection for up to 365 days.
  * Sources: bank statements (starting balance), pending invoices (by dueDate),
- * active recurring expenses (expanded), unpaid one-off expenses.
+ * active recurring expenses (expanded), unpaid one-off expenses,
+ * payment events, and VAT due dates.
+ *
+ * DSO priority (highest → lowest):
+ *   1. expectedCollectionDate (per-invoice override)
+ *   2. counterpartCustomDso (per-counterpart DSO)
+ *   3. Global avgDso (calculated from historical paid invoices)
  */
 export async function buildDailyProjection(
   organizationId: string,
@@ -22,113 +34,275 @@ export async function buildDailyProjection(
   const endDate = addDays(today, PROJECTION_DAYS);
   const ccFilter = costCenterIds?.length ? { costCenterId: { in: costCenterIds } } : {};
 
-  // 7 queries in parallel
-  const [
-    org,
-    lastBankStatement,
-    activeInvoices,
-    passiveInvoices,
-    recurringExpenses,
-    oneOffExpenses,
-    futureReceivables,
-  ] = await Promise.all([
-    // Manual balance override from settings
-    prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: { settings: true },
-    }),
+  // Types for invoice/expense results (paymentEvents may be absent)
+  type InvoiceWithPE = {
+    id: string;
+    number: string;
+    counterpart: string;
+    grossAmount: unknown;
+    dueDate: Date | null;
+    date: Date;
+    paidAt?: Date | null;
+    expectedCollectionDate?: Date | null;
+    counterpartCustomDso?: number | null;
+    paymentEvents: { amount: unknown }[];
+  };
+  type OneOffWithPE = {
+    id: string;
+    name: string;
+    amount: unknown;
+    date: Date;
+    paymentEvents: { amount: unknown }[];
+  };
+  type ScheduledPE = {
+    id: string;
+    amount: unknown;
+    eventDate: Date;
+    invoiceId: string | null;
+    oneOffExpenseId: string | null;
+    notes: string | null;
+  };
 
-    // Last bank statement for starting balance (fallback)
-    prisma.bankStatement.findFirst({
-      where: { organizationId, ...ccFilter },
-      orderBy: { date: "desc" },
-      select: { balance: true, date: true },
-    }),
+  // Statuses to filter — PARTIALLY_PAID may not exist in DB enum
+  const pendingStatuses = ["PENDING", "OVERDUE"] as const;
+  const phase2Statuses = ["PENDING", "PARTIALLY_PAID", "OVERDUE"] as const;
 
-    // Unpaid ACTIVE invoices (PENDING + OVERDUE)
-    prisma.invoice.findMany({
-      where: {
-        organizationId,
-        direction: "ACTIVE",
-        status: { in: ["PENDING", "OVERDUE"] },
-        ...ccFilter,
-      },
-      select: {
-        id: true,
-        number: true,
-        counterpart: true,
-        grossAmount: true,
-        dueDate: true,
-        date: true,
-        paidAt: true,
-      },
-    }),
+  type RecurringExpRow = {
+    id: string;
+    name: string;
+    amount: unknown;
+    frequency: string;
+    customDays: number | null;
+    startDate: Date;
+    endDate: Date | null;
+  };
+  type FutureRecRow = {
+    id: string;
+    description: string;
+    counterpart: string;
+    estimatedAmount: unknown;
+    expectedInvoiceDate: Date | null;
+    expectedPaymentDate: Date | null;
+  };
 
-    // Unpaid PASSIVE invoices (PENDING + OVERDUE)
-    prisma.invoice.findMany({
-      where: {
-        organizationId,
-        direction: "PASSIVE",
-        status: { in: ["PENDING", "OVERDUE"] },
-        ...ccFilter,
-      },
-      select: {
-        id: true,
-        number: true,
-        counterpart: true,
-        grossAmount: true,
-        dueDate: true,
-        date: true,
-      },
-    }),
+  let org: { settings: unknown } | null = null;
+  let lastBankStatement: { balance: unknown; date: Date } | null = null;
+  let recurringExpenses: RecurringExpRow[] = [];
+  let futureReceivables: FutureRecRow[] = [];
+  let allInvoicesForVat: { direction: string; vatAmount: unknown; date: Date }[] = [];
+  let activeInvoices: InvoiceWithPE[] = [];
+  let passiveInvoices: InvoiceWithPE[] = [];
+  let oneOffExpenses: OneOffWithPE[] = [];
+  let paymentEvents: ScheduledPE[] = [];
 
-    // Active recurring expenses
-    prisma.recurringExpense.findMany({
-      where: {
-        organizationId,
-        ...ccFilter,
-        OR: [{ endDate: null }, { endDate: { gte: today } }],
-      },
-      select: {
-        id: true,
-        name: true,
-        amount: true,
-        frequency: true,
-        customDays: true,
-        startDate: true,
-        endDate: true,
-      },
-    }),
-
-    // Unpaid one-off expenses
-    prisma.oneOffExpense.findMany({
-      where: {
-        organizationId,
-        isPaid: false,
-        date: { gte: today, lte: endDate },
-        ...ccFilter,
-      },
-      select: { id: true, name: true, amount: true, date: true },
-    }),
-
-    // Future receivables (PENDING + includeInForecast)
-    prisma.futureReceivable.findMany({
-      where: {
-        organizationId,
-        status: "PENDING",
-        includeInForecast: true,
-        ...ccFilter,
-      },
-      select: {
-        id: true,
-        description: true,
-        counterpart: true,
-        estimatedAmount: true,
-        expectedInvoiceDate: true,
-        expectedPaymentDate: true,
-      },
-    }),
-  ]);
+  // ── Attempt 1: Full Phase 2 (all columns + paymentEvents + PARTIALLY_PAID) ──
+  try {
+    const results = await Promise.all([
+      prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { settings: true },
+      }),
+      prisma.bankStatement.findFirst({
+        where: { organizationId, ...ccFilter },
+        orderBy: { date: "desc" },
+        select: { balance: true, date: true },
+      }),
+      prisma.invoice.findMany({
+        where: {
+          organizationId,
+          direction: "ACTIVE",
+          status: { in: [...phase2Statuses] },
+          ...ccFilter,
+        },
+        select: {
+          id: true,
+          number: true,
+          counterpart: true,
+          grossAmount: true,
+          dueDate: true,
+          date: true,
+          paidAt: true,
+          expectedCollectionDate: true,
+          counterpartCustomDso: true,
+          paymentEvents: { where: { isActual: true }, select: { amount: true } },
+        },
+      }),
+      prisma.invoice.findMany({
+        where: {
+          organizationId,
+          direction: "PASSIVE",
+          status: { in: [...phase2Statuses] },
+          ...ccFilter,
+        },
+        select: {
+          id: true,
+          number: true,
+          counterpart: true,
+          grossAmount: true,
+          dueDate: true,
+          date: true,
+          paymentEvents: { where: { isActual: true }, select: { amount: true } },
+        },
+      }),
+      prisma.recurringExpense.findMany({
+        where: {
+          organizationId,
+          ...ccFilter,
+          OR: [{ endDate: null }, { endDate: { gte: today } }],
+        },
+        select: {
+          id: true,
+          name: true,
+          amount: true,
+          frequency: true,
+          customDays: true,
+          startDate: true,
+          endDate: true,
+        },
+      }),
+      prisma.oneOffExpense.findMany({
+        where: { organizationId, isPaid: false, date: { gte: today, lte: endDate }, ...ccFilter },
+        select: {
+          id: true,
+          name: true,
+          amount: true,
+          date: true,
+          paymentEvents: { where: { isActual: true }, select: { amount: true } },
+        },
+      }),
+      prisma.futureReceivable.findMany({
+        where: { organizationId, status: "PENDING", includeInForecast: true, ...ccFilter },
+        select: {
+          id: true,
+          description: true,
+          counterpart: true,
+          estimatedAmount: true,
+          expectedInvoiceDate: true,
+          expectedPaymentDate: true,
+        },
+      }),
+      prisma.paymentEvent.findMany({
+        where: { organizationId, isActual: false, eventDate: { gte: today, lte: endDate } },
+        select: {
+          id: true,
+          amount: true,
+          eventDate: true,
+          invoiceId: true,
+          oneOffExpenseId: true,
+          notes: true,
+        },
+      }),
+      prisma.invoice.findMany({
+        where: { organizationId, date: { gte: new Date(today.getFullYear(), 0, 1), lte: endDate } },
+        select: { direction: true, vatAmount: true, date: true },
+      }),
+    ]);
+    [org, lastBankStatement] = results;
+    activeInvoices = results[2];
+    passiveInvoices = results[3];
+    recurringExpenses = results[4];
+    oneOffExpenses = results[5];
+    futureReceivables = results[6];
+    paymentEvents = results[7];
+    allInvoicesForVat = results[8];
+  } catch {
+    // ── Attempt 2: Base schema only (no paymentEvents, no phase-2 columns, no PARTIALLY_PAID) ──
+    try {
+      const results = await Promise.all([
+        prisma.organization.findUnique({
+          where: { id: organizationId },
+          select: { settings: true },
+        }),
+        prisma.bankStatement.findFirst({
+          where: { organizationId, ...ccFilter },
+          orderBy: { date: "desc" },
+          select: { balance: true, date: true },
+        }),
+        prisma.invoice.findMany({
+          where: {
+            organizationId,
+            direction: "ACTIVE",
+            status: { in: [...pendingStatuses] },
+            ...ccFilter,
+          },
+          select: {
+            id: true,
+            number: true,
+            counterpart: true,
+            grossAmount: true,
+            dueDate: true,
+            date: true,
+            paidAt: true,
+          },
+        }),
+        prisma.invoice.findMany({
+          where: {
+            organizationId,
+            direction: "PASSIVE",
+            status: { in: [...pendingStatuses] },
+            ...ccFilter,
+          },
+          select: {
+            id: true,
+            number: true,
+            counterpart: true,
+            grossAmount: true,
+            dueDate: true,
+            date: true,
+          },
+        }),
+        prisma.recurringExpense.findMany({
+          where: {
+            organizationId,
+            ...ccFilter,
+            OR: [{ endDate: null }, { endDate: { gte: today } }],
+          },
+          select: {
+            id: true,
+            name: true,
+            amount: true,
+            frequency: true,
+            customDays: true,
+            startDate: true,
+            endDate: true,
+          },
+        }),
+        prisma.oneOffExpense.findMany({
+          where: { organizationId, isPaid: false, date: { gte: today, lte: endDate }, ...ccFilter },
+          select: { id: true, name: true, amount: true, date: true },
+        }),
+        prisma.futureReceivable.findMany({
+          where: { organizationId, status: "PENDING", includeInForecast: true, ...ccFilter },
+          select: {
+            id: true,
+            description: true,
+            counterpart: true,
+            estimatedAmount: true,
+            expectedInvoiceDate: true,
+            expectedPaymentDate: true,
+          },
+        }),
+        prisma.invoice.findMany({
+          where: {
+            organizationId,
+            date: { gte: new Date(today.getFullYear(), 0, 1), lte: endDate },
+          },
+          select: { direction: true, vatAmount: true, date: true },
+        }),
+      ]);
+      [org, lastBankStatement] = results;
+      activeInvoices = results[2] as InvoiceWithPE[];
+      passiveInvoices = results[3] as InvoiceWithPE[];
+      recurringExpenses = results[4];
+      oneOffExpenses = results[5] as OneOffWithPE[];
+      futureReceivables = results[6];
+      allInvoicesForVat = results[7];
+      paymentEvents = [];
+    } catch (e) {
+      console.error("[cashflow-projection] Both query attempts failed:", e);
+      throw e;
+    }
+  }
 
   const settings = (org?.settings as Record<string, unknown>) ?? {};
   const manualBalance =
@@ -136,7 +310,7 @@ export async function buildDailyProjection(
   const startingBalance =
     manualBalance ?? (lastBankStatement ? Number(lastBankStatement.balance) : 0);
 
-  // Calculate avgDso from paid ACTIVE invoices
+  // ── Calculate global avgDso from paid ACTIVE invoices ──
   const paidInvoices = await prisma.invoice.findMany({
     where: {
       organizationId,
@@ -149,7 +323,7 @@ export async function buildDailyProjection(
     orderBy: { paidAt: "desc" },
   });
 
-  let avgDso = 60; // default
+  let avgDso = 60;
   if (paidInvoices.length > 0) {
     const totalDays = paidInvoices.reduce((sum, inv) => {
       if (!inv.paidAt) return sum;
@@ -158,7 +332,7 @@ export async function buildDailyProjection(
     avgDso = Math.round(totalDays / paidInvoices.length);
   }
 
-  // Build daily map
+  // ── Build daily map ──
   const dayMap = new Map<string, DailyProjectionPoint>();
   for (let d = 0; d < PROJECTION_DAYS; d++) {
     const date = addDays(today, d);
@@ -171,19 +345,35 @@ export async function buildDailyProjection(
       recurringExpenses: 0,
       oneOffExpenses: 0,
       futureReceivables: 0,
+      vatPayments: 0,
       netFlow: 0,
       details: [],
     });
   }
 
-  // Distribute active invoices (inflows) on expected collection date
-  // Use invoice date + avgDso as best estimate (reflects actual payment behavior)
-  // If that date is still in the past, project from today
+  // ── Distribute active invoices (inflows) — DSO 3-level priority ──
   let totalPendingActiveGross = 0;
   for (const inv of activeInvoices) {
-    const amount = Number(inv.grossAmount);
+    const grossAmount = Number(inv.grossAmount);
+    // Subtract already-paid partial amounts
+    const paidSoFar = (inv.paymentEvents ?? []).reduce((sum, pe) => sum + Number(pe.amount), 0);
+    const amount = grossAmount - paidSoFar;
+    if (amount <= 0) continue;
+
     totalPendingActiveGross += amount;
-    const expectedCollection = startOfDay(addDays(inv.date, avgDso));
+
+    // DSO priority: 1. expectedCollectionDate, 2. counterpartCustomDso, 3. dueDate, 4. avgDso
+    let expectedCollection: Date;
+    if (inv.expectedCollectionDate) {
+      expectedCollection = startOfDay(inv.expectedCollectionDate);
+    } else if (inv.dueDate) {
+      expectedCollection = startOfDay(inv.dueDate);
+    } else if (inv.counterpartCustomDso) {
+      expectedCollection = startOfDay(addDays(inv.date, inv.counterpartCustomDso));
+    } else {
+      expectedCollection = startOfDay(addDays(inv.date, avgDso));
+    }
+
     const projected = isBefore(expectedCollection, today) ? today : expectedCollection;
     const key = format(projected, "yyyy-MM-dd");
     const point = dayMap.get(key);
@@ -199,10 +389,13 @@ export async function buildDailyProjection(
     }
   }
 
-  // Distribute passive invoices (outflows) on expected payment date
-  // For overdue invoices, project payment from today
+  // ── Distribute passive invoices (outflows) — subtract partial payments ──
   for (const inv of passiveInvoices) {
-    const amount = Number(inv.grossAmount);
+    const grossAmount = Number(inv.grossAmount);
+    const paidSoFar = (inv.paymentEvents ?? []).reduce((sum, pe) => sum + Number(pe.amount), 0);
+    const amount = grossAmount - paidSoFar;
+    if (amount <= 0) continue;
+
     const expectedDate = inv.dueDate ?? addDays(inv.date, 30);
     const projected = isBefore(startOfDay(expectedDate), today) ? today : startOfDay(expectedDate);
     const key = format(projected, "yyyy-MM-dd");
@@ -219,12 +412,11 @@ export async function buildDailyProjection(
     }
   }
 
-  // Expand recurring expenses into daily entries
+  // ── Expand recurring expenses into daily entries ──
   for (const exp of recurringExpenses) {
     const amount = Number(exp.amount);
     const start = startOfDay(exp.startDate);
     const end = exp.endDate ? startOfDay(exp.endDate) : endDate;
-    // Billing day: always the day-of-month from startDate
     const targetDay = start.getDate();
 
     let current = start;
@@ -243,7 +435,6 @@ export async function buildDailyProjection(
         }
       }
 
-      // Advance to next occurrence, preserving the target billing day
       switch (exp.frequency) {
         case "MONTHLY": {
           const next = addMonths(current, 1);
@@ -275,9 +466,13 @@ export async function buildDailyProjection(
     }
   }
 
-  // One-off expenses
+  // ── One-off expenses (subtract partial payments) ──
   for (const exp of oneOffExpenses) {
-    const amount = Number(exp.amount);
+    const grossAmount = Number(exp.amount);
+    const paidSoFar = (exp.paymentEvents ?? []).reduce((sum, pe) => sum + Number(pe.amount), 0);
+    const amount = grossAmount - paidSoFar;
+    if (amount <= 0) continue;
+
     const key = format(startOfDay(exp.date), "yyyy-MM-dd");
     const point = dayMap.get(key);
     if (point) {
@@ -291,8 +486,7 @@ export async function buildDailyProjection(
     }
   }
 
-  // Future receivables (inflows)
-  // Priority: expectedPaymentDate > expectedInvoiceDate + avgDso > skip
+  // ── Future receivables (inflows) ──
   for (const rec of futureReceivables) {
     const amount = Number(rec.estimatedAmount);
     let paymentDate: Date;
@@ -301,7 +495,7 @@ export async function buildDailyProjection(
     } else if (rec.expectedInvoiceDate) {
       paymentDate = startOfDay(addDays(rec.expectedInvoiceDate, avgDso));
     } else {
-      continue; // no date available, skip
+      continue;
     }
     const projected = isBefore(paymentDate, today) ? today : paymentDate;
     const key = format(projected, "yyyy-MM-dd");
@@ -318,7 +512,66 @@ export async function buildDailyProjection(
     }
   }
 
-  // Calculate running balance and netFlow
+  // ── Scheduled payment events (predicted future installments) ──
+  for (const pe of paymentEvents) {
+    const amount = Number(pe.amount);
+    const key = format(startOfDay(pe.eventDate), "yyyy-MM-dd");
+    const point = dayMap.get(key);
+    if (point) {
+      // Determine if it's an inflow or outflow based on the linked entity
+      if (pe.invoiceId) {
+        // We don't know direction here, treat as generic detail
+        point.details.push({
+          id: pe.id,
+          type: "activeInvoice",
+          label: pe.notes ?? "Pagamento previsto",
+          amount,
+        });
+      } else if (pe.oneOffExpenseId) {
+        point.oneOffExpenses += amount;
+        point.details.push({
+          id: pe.id,
+          type: "oneOffExpense",
+          label: pe.notes ?? "Rata spesa",
+          amount,
+        });
+      }
+    }
+  }
+
+  // ── IVA: calculate VAT outflows ──
+  const vatPeriodicity = (settings.vatPeriodicity as VatPeriodicity) ?? "quarterly";
+  const currentYear = today.getFullYear();
+
+  // Generate periods for current and next year
+  const vatPeriods = [
+    ...generateVatPeriods(currentYear, vatPeriodicity),
+    ...generateVatPeriods(currentYear + 1, vatPeriodicity),
+  ];
+
+  const vatInvoices = allInvoicesForVat.map((inv) => ({
+    direction: inv.direction,
+    vatAmount: Number(inv.vatAmount),
+    date: inv.date,
+  }));
+
+  const vatCalcs = calculateVatForYear(vatPeriods, vatInvoices);
+  const vatOutflows = getVatOutflows(vatCalcs, today);
+
+  for (const vat of vatOutflows) {
+    const point = dayMap.get(vat.date);
+    if (point) {
+      point.vatPayments = (point.vatPayments ?? 0) + vat.amount;
+      point.details.push({
+        id: `vat-${vat.date}`,
+        type: "vatPayment",
+        label: vat.label,
+        amount: vat.amount,
+      });
+    }
+  }
+
+  // ── Calculate running balance and netFlow ──
   const projection: DailyProjectionPoint[] = [];
   let runningBalance = startingBalance;
 
@@ -328,7 +581,8 @@ export async function buildDailyProjection(
       point.futureReceivables -
       point.passiveInvoices -
       point.recurringExpenses -
-      point.oneOffExpenses;
+      point.oneOffExpenses -
+      (point.vatPayments ?? 0);
     runningBalance += point.netFlow;
     point.balance = Math.round(runningBalance * 100) / 100;
     projection.push(point);
@@ -344,7 +598,7 @@ export async function buildDailyProjection(
 }
 
 /**
- * Build historical timeline from real data (bank statements + paid invoices/expenses).
+ * Build historical timeline from real data.
  */
 async function buildHistoricalTimeline(
   organizationId: string,
@@ -362,7 +616,6 @@ async function buildHistoricalTimeline(
     recurringExpenses,
     paidOneOffExpenses,
   ] = await Promise.all([
-    // Bank statements in the historical window
     prisma.bankStatement.findMany({
       where: {
         organizationId,
@@ -373,7 +626,6 @@ async function buildHistoricalTimeline(
       select: { balance: true, date: true },
     }),
 
-    // Paid ACTIVE invoices (collections received)
     prisma.invoice.findMany({
       where: {
         organizationId,
@@ -385,7 +637,6 @@ async function buildHistoricalTimeline(
       select: { id: true, number: true, counterpart: true, grossAmount: true, paidAt: true },
     }),
 
-    // Paid PASSIVE invoices (payments made)
     prisma.invoice.findMany({
       where: {
         organizationId,
@@ -397,7 +648,6 @@ async function buildHistoricalTimeline(
       select: { id: true, number: true, counterpart: true, grossAmount: true, paidAt: true },
     }),
 
-    // Recurring expenses with occurrences in the period
     prisma.recurringExpense.findMany({
       where: {
         organizationId,
@@ -416,7 +666,6 @@ async function buildHistoricalTimeline(
       },
     }),
 
-    // Paid one-off expenses in the period
     prisma.oneOffExpense.findMany({
       where: {
         organizationId,
@@ -428,7 +677,6 @@ async function buildHistoricalTimeline(
     }),
   ]);
 
-  // Build daily map for historical days
   const dayMap = new Map<string, DailyProjectionPoint>();
   for (let d = 0; d < daysBack; d++) {
     const date = addDays(startDate, d);
@@ -441,19 +689,18 @@ async function buildHistoricalTimeline(
       recurringExpenses: 0,
       oneOffExpenses: 0,
       futureReceivables: 0,
+      vatPayments: 0,
       netFlow: 0,
       details: [],
     });
   }
 
-  // Build balance lookup from bank statements
   const balanceByDate = new Map<string, number>();
   for (const bs of bankStatements) {
     const key = format(startOfDay(bs.date), "yyyy-MM-dd");
     balanceByDate.set(key, Number(bs.balance));
   }
 
-  // Distribute paid active invoices
   for (const inv of paidActiveInvoices) {
     if (!inv.paidAt) continue;
     const key = format(startOfDay(inv.paidAt), "yyyy-MM-dd");
@@ -471,7 +718,6 @@ async function buildHistoricalTimeline(
     }
   }
 
-  // Distribute paid passive invoices
   for (const inv of paidPassiveInvoices) {
     if (!inv.paidAt) continue;
     const key = format(startOfDay(inv.paidAt), "yyyy-MM-dd");
@@ -489,7 +735,6 @@ async function buildHistoricalTimeline(
     }
   }
 
-  // Expand recurring expenses into historical daily entries
   for (const exp of recurringExpenses) {
     const amount = Number(exp.amount);
     const expStart = startOfDay(exp.startDate);
@@ -543,7 +788,6 @@ async function buildHistoricalTimeline(
     }
   }
 
-  // Paid one-off expenses
   for (const exp of paidOneOffExpenses) {
     const key = format(startOfDay(exp.date), "yyyy-MM-dd");
     const point = dayMap.get(key);
@@ -559,7 +803,6 @@ async function buildHistoricalTimeline(
     }
   }
 
-  // Calculate netFlow and assign balance (from bank statements, with interpolation)
   const history: DailyProjectionPoint[] = [];
   let lastKnownBalance: number | null = null;
 
@@ -576,7 +819,6 @@ async function buildHistoricalTimeline(
       point.balance = bsBalance;
       lastKnownBalance = bsBalance;
     } else if (lastKnownBalance !== null) {
-      // Interpolate from last known balance + cumulative netFlow
       lastKnownBalance += point.netFlow;
       point.balance = Math.round(lastKnownBalance * 100) / 100;
     } else {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { Navbar } from "@/components/dashboard/navbar";
@@ -9,6 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useOrganization, useUpdateOrganization } from "@/lib/hooks/use-organization";
 import {
   organizationUpdateSchema,
@@ -26,6 +33,7 @@ export function OrganizationClient() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isDirty },
   } = useForm<OrganizationUpdateInput>({
     resolver: zodResolver(organizationUpdateSchema),
@@ -43,6 +51,7 @@ export function OrganizationClient() {
         email: (org.email as string) ?? null,
         phone: (org.phone as string) ?? null,
         currentBalance: (org.currentBalance as number) ?? null,
+        vatPeriodicity: (org.vatPeriodicity as "monthly" | "quarterly") ?? "quarterly",
       });
     }
   }, [org, reset]);
@@ -171,6 +180,40 @@ export function OrganizationClient() {
                 <p className="text-muted-foreground text-xs">
                   Questo valore viene usato come saldo iniziale nella dashboard e nelle previsioni
                   cashflow.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Regime IVA</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="max-w-sm space-y-2">
+                <Label htmlFor="vatPeriodicity">Periodicità liquidazione IVA</Label>
+                <Controller
+                  name="vatPeriodicity"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ?? "quarterly"}
+                      onValueChange={field.onChange}
+                      disabled={isViewer}
+                    >
+                      <SelectTrigger id="vatPeriodicity">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Mensile</SelectItem>
+                        <SelectItem value="quarterly">Trimestrale</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Determina le scadenze di versamento IVA: mensile (entro il 16 del mese successivo)
+                  o trimestrale (con maggiorazione 1% sul IV trimestre).
                 </p>
               </div>
             </CardContent>

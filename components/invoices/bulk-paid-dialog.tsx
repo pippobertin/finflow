@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { getPaymentDateLabel } from "@/lib/helpers/invoice-labels";
 
 interface InvoiceEntry {
   id: string;
@@ -24,6 +25,7 @@ interface BulkPaidDialogProps {
   invoices: InvoiceEntry[];
   onConfirm: (paidAtMap: Record<string, string>) => void;
   isPending?: boolean;
+  direction?: string;
 }
 
 function buildTodayMap(invoices: InvoiceEntry[]): Record<string, string> {
@@ -37,9 +39,10 @@ export function BulkPaidDialog({
   invoices,
   onConfirm,
   isPending,
+  direction,
 }: BulkPaidDialogProps) {
-  // Component is conditionally mounted by parent, so initial state is always fresh
   const [dates, setDates] = useState<Record<string, string>>(() => buildTodayMap(invoices));
+  const dateLabel = getPaymentDateLabel(direction);
 
   function setAllToday() {
     setDates(buildTodayMap(invoices));
@@ -49,9 +52,9 @@ export function BulkPaidDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Data di pagamento</DialogTitle>
+          <DialogTitle>{dateLabel}</DialogTitle>
           <DialogDescription>
-            Seleziona la data di pagamento per ciascuna fattura.
+            Seleziona la {dateLabel.toLowerCase()} per ciascuna fattura.
           </DialogDescription>
         </DialogHeader>
 
@@ -61,7 +64,7 @@ export function BulkPaidDialog({
               <tr className="border-b text-left">
                 <th className="py-2 font-medium">Fattura</th>
                 <th className="py-2 font-medium">Controparte</th>
-                <th className="py-2 text-right font-medium">Data pagamento</th>
+                <th className="py-2 text-right font-medium">{dateLabel}</th>
               </tr>
             </thead>
             <tbody>

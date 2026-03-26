@@ -40,6 +40,7 @@ export function AdvancedClient() {
     defaultForecastHorizonMonths: 6,
     currentBalance: null,
     currentBalanceUpdatedAt: null,
+    vatPeriodicity: "quarterly",
   });
 
   useEffect(() => {

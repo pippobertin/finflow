@@ -18,6 +18,7 @@ export const organizationSettingsSchema = z.object({
   defaultForecastHorizonMonths: z.number().int().min(1).max(24).default(6),
   currentBalance: z.number().nullable().default(null),
   currentBalanceUpdatedAt: z.string().nullable().default(null),
+  vatPeriodicity: z.enum(["monthly", "quarterly"]).default("quarterly"),
 });
 
 export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;

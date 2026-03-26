@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCostCenterFilter } from "@/lib/stores/cost-center-filter";
 import type { OverviewData } from "@/lib/queries/overview";
+import type { CashflowTimelineResult } from "@/lib/types/cashflow";
 
 export function useOverview(initialData?: OverviewData, dateFrom?: string, dateTo?: string) {
   const { selectedIds } = useCostCenterFilter();
@@ -37,6 +38,25 @@ export function useForecast(months: 3 | 6 | 12 = 3) {
       if (!res.ok) throw new Error("Errore caricamento previsioni");
       return res.json();
     },
+  });
+}
+
+export function useCashflowForecast() {
+  const { selectedIds } = useCostCenterFilter();
+
+  const params = new URLSearchParams();
+  if (selectedIds.length) params.set("costCenterIds", selectedIds.join(","));
+  const qs = params.toString();
+
+  return useQuery<CashflowTimelineResult>({
+    queryKey: ["cashflow-forecast", selectedIds],
+    queryFn: async () => {
+      const res = await fetch(`/api/analysis/cashflow-projection${qs ? `?${qs}` : ""}`);
+      if (!res.ok) throw new Error("Errore caricamento proiezione cashflow");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 }
 

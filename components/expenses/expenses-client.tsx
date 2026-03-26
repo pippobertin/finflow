@@ -297,7 +297,7 @@ export function ExpensesClient() {
                       {tab === "one-off" && (
                         <TableCell>{item.date ? formatDateShort(item.date) : "-"}</TableCell>
                       )}
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="font-numeric text-right font-medium tabular-nums">
                         {formatEUR(item.amount)}
                       </TableCell>
                       {tab === "one-off" && (

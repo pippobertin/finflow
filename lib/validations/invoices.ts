@@ -1,11 +1,19 @@
 import { z } from "zod";
 
-const invoiceStatusEnum = z.enum(["PAID", "PENDING", "OVERDUE", "DRAFT"]);
+const invoiceStatusEnum = z.enum(["PAID", "PARTIALLY_PAID", "PENDING", "OVERDUE", "DRAFT"]);
 
 export const invoiceUpdateSchema = z.object({
   costCenterId: z.string().cuid().nullable().optional(),
   status: invoiceStatusEnum.optional(),
   paidAt: z.coerce.date().nullable().optional(),
+  // DSO override fields
+  expectedCollectionDate: z.coerce.date().nullable().optional(),
+  counterpartCustomDso: z.number().int().min(0).nullable().optional(),
+  // Bank operations fields
+  isDiscountedAtBank: z.boolean().optional(),
+  bankDiscountType: z.string().nullable().optional(),
+  bankLiquidationDate: z.coerce.date().nullable().optional(),
+  bankDiscountFee: z.number().min(0).nullable().optional(),
 });
 
 /** @deprecated Use invoiceUpdateSchema */

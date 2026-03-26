@@ -5,7 +5,8 @@ export interface DailyItemDetail {
     | "passiveInvoice"
     | "recurringExpense"
     | "oneOffExpense"
-    | "futureReceivable";
+    | "futureReceivable"
+    | "vatPayment";
   label: string;
   counterpart?: string;
   amount: number;
@@ -19,6 +20,7 @@ export interface DailyProjectionPoint {
   recurringExpenses: number;
   oneOffExpenses: number;
   futureReceivables: number;
+  vatPayments?: number;
   netFlow: number;
   details: DailyItemDetail[];
 }
@@ -38,6 +40,23 @@ export interface CashflowTimelineResult extends CashflowProjectionResult {
 }
 
 export type ScenarioType = "base" | "optimistic" | "pessimistic";
+
+export interface WhatIfEvent {
+  id: string;
+  type:
+    | "extraIncome"
+    | "extraExpense"
+    | "temporaryRecurring"
+    | "missedCollection"
+    | "vatAnticipation";
+  name: string;
+  amount: number;
+  date?: string;
+  endDate?: string;
+  frequency?: string;
+  percentage?: number;
+  enabled: boolean;
+}
 
 export interface WhatIfParams {
   extraExpense: number;

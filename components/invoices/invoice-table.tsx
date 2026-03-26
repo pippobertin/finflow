@@ -30,6 +30,13 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { it } from "date-fns/locale";
 import { formatEUR, formatDateShort } from "@/lib/helpers/format";
+import {
+  getStatusLabel,
+  getStatusOptions,
+  getPaymentDateLabel,
+  getPaidSuccessMessage,
+  statusColors,
+} from "@/lib/helpers/invoice-labels";
 import { useUpdateInvoice, useDeleteInvoice } from "@/lib/hooks/use-invoices";
 import { useCostCenters } from "@/lib/hooks/use-cost-centers";
 import { toast } from "sonner";
@@ -56,27 +63,6 @@ interface InvoiceTableProps {
   direction?: "ACTIVE" | "PASSIVE";
 }
 
-const statusLabels: Record<string, string> = {
-  PAID: "Pagata",
-  PENDING: "In attesa",
-  OVERDUE: "Scaduta",
-  DRAFT: "Bozza",
-};
-
-const statusOptions = [
-  { value: "PAID", label: "Pagata" },
-  { value: "PENDING", label: "In attesa" },
-  { value: "OVERDUE", label: "Scaduta" },
-  { value: "DRAFT", label: "Bozza" },
-];
-
-const statusColors: Record<string, string> = {
-  PAID: "bg-primary text-primary-foreground",
-  PENDING: "bg-secondary text-secondary-foreground",
-  OVERDUE: "bg-destructive text-destructive-foreground",
-  DRAFT: "border border-input bg-background text-muted-foreground",
-};
-
 const UNASSIGNED = "__none__";
 
 export function InvoiceTable({
@@ -89,7 +75,11 @@ export function InvoiceTable({
   const updateInvoice = useUpdateInvoice();
   const deleteInvoice = useDeleteInvoice();
   const { data: costCenters = [] } = useCostCenters();
-  const [paidPicker, setPaidPicker] = useState<{ invoiceId: string; date: Date } | null>(null);
+  const [paidPicker, setPaidPicker] = useState<{
+    invoiceId: string;
+    date: Date;
+    invoiceDirection: string;
+  } | null>(null);
 
   const ccItems = costCenters as Array<{ id: string; name: string; color: string; type: string }>;
   const costItems = ccItems.filter((cc) => cc.type === "COST");
@@ -116,15 +106,16 @@ export function InvoiceTable({
     });
   }
 
-  function handleStatusChange(invoiceId: string, status: string) {
+  function handleStatusChange(invoiceId: string, status: string, invoiceDirection: string) {
     if (status === "PAID") {
-      setPaidPicker({ invoiceId, date: new Date() });
+      setPaidPicker({ invoiceId, date: new Date(), invoiceDirection });
       return;
     }
     updateInvoice.mutate(
       { invoiceId, status },
       {
-        onSuccess: () => toast.success(`Stato aggiornato a "${statusLabels[status]}"`),
+        onSuccess: () =>
+          toast.success(`Stato aggiornato a "${getStatusLabel(status, invoiceDirection)}"`),
         onError: (err) => toast.error(err.message),
       },
     );
@@ -140,7 +131,7 @@ export function InvoiceTable({
       },
       {
         onSuccess: () => {
-          toast.success('Stato aggiornato a "Pagata"');
+          toast.success(getPaidSuccessMessage(paidPicker.invoiceDirection));
           setPaidPicker(null);
         },
         onError: (err) => toast.error(err.message),
@@ -171,7 +162,11 @@ export function InvoiceTable({
         </TableHeader>
         <TableBody>
           {invoices.map((inv) => (
-            <TableRow key={inv.id} data-state={selectedIds.has(inv.id) ? "selected" : undefined}>
+            <TableRow
+              key={inv.id}
+              data-state={selectedIds.has(inv.id) ? "selected" : undefined}
+              className="transition-colors duration-150"
+            >
               <TableCell>
                 <Checkbox
                   checked={selectedIds.has(inv.id)}
@@ -181,27 +176,29 @@ export function InvoiceTable({
               <TableCell className="font-medium">{inv.number}</TableCell>
               <TableCell>{formatDateShort(inv.date)}</TableCell>
               <TableCell>{inv.counterpart}</TableCell>
-              <TableCell className="text-right font-medium">{formatEUR(inv.grossAmount)}</TableCell>
+              <TableCell className="font-numeric text-right font-medium tabular-nums">
+                {formatEUR(inv.grossAmount)}
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1.5">
                   <Select
                     value={inv.status}
-                    onValueChange={(v) => v && handleStatusChange(inv.id, v)}
+                    onValueChange={(v) => v && handleStatusChange(inv.id, v, inv.direction)}
                   >
-                    <SelectTrigger className="h-7 w-28 border-0 p-0 text-xs shadow-none">
+                    <SelectTrigger className="h-7 w-32 border-0 p-0 text-xs shadow-none">
                       <SelectValue>
                         <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[inv.status] ?? "border-input border"}`}
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColors[inv.status] ?? "border-input"}`}
                         >
-                          {statusLabels[inv.status] ?? inv.status}
+                          {getStatusLabel(inv.status, inv.direction)}
                         </span>
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {statusOptions.map((opt) => (
+                      {getStatusOptions(inv.direction).map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[opt.value]}`}
+                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColors[opt.value]}`}
                           >
                             {opt.label}
                           </span>
@@ -280,9 +277,10 @@ export function InvoiceTable({
       <Dialog open={!!paidPicker} onOpenChange={(open) => !open && setPaidPicker(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Data di pagamento</DialogTitle>
+            <DialogTitle>{getPaymentDateLabel(paidPicker?.invoiceDirection)}</DialogTitle>
             <DialogDescription>
-              Seleziona la data di pagamento per questa fattura.
+              Seleziona la {getPaymentDateLabel(paidPicker?.invoiceDirection).toLowerCase()} per
+              questa fattura.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-2">

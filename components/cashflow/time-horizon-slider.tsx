@@ -26,6 +26,13 @@ export function TimeHorizonSlider({
     startRange: [number, number];
   } | null>(null);
   const [dragging, setDragging] = useState<DragTarget>(null);
+  // Suppresses the click that fires on the track after a drag release
+  const justDragged = useRef(false);
+  // Mutable ref so handleTrackClick always reads latest viewRange
+  const rangeRef = useRef(viewRange);
+  useEffect(() => {
+    rangeRef.current = viewRange;
+  }, [viewRange]);
 
   const maxIdx = timelineLength - 1;
   const minSpan = 7;
@@ -55,30 +62,28 @@ export function TimeHorizonSlider({
     [maxIdx],
   );
 
-  const handlePointerDown = useCallback(
-    (target: DragTarget, e: React.PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-      dragRef.current = {
-        target,
-        startX: e.clientX,
-        startRange: [viewRange[0], viewRange[1]],
-      };
-      setDragging(target);
-    },
-    [viewRange],
-  );
+  const handlePointerDown = useCallback((target: DragTarget, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = {
+      target,
+      startX: e.clientX,
+      startRange: [rangeRef.current[0], rangeRef.current[1]],
+    };
+    setDragging(target);
+  }, []);
 
-  const handlePointerMove = useCallback(
-    (e: PointerEvent) => {
+  useEffect(() => {
+    if (!dragging) return;
+
+    function onMove(e: PointerEvent) {
       const drag = dragRef.current;
       if (!drag || !trackRef.current) return;
 
       const rect = trackRef.current.getBoundingClientRect();
       const deltaX = e.clientX - drag.startX;
-      const deltaPct = deltaX / rect.width;
-      const deltaIdx = Math.round(deltaPct * maxIdx);
+      const deltaIdx = Math.round((deltaX / rect.width) * maxIdx);
 
       if (drag.target === "range") {
         const span = drag.startRange[1] - drag.startRange[0];
@@ -94,37 +99,40 @@ export function TimeHorizonSlider({
         }
         setViewRange([newStart, newEnd]);
       } else if (drag.target === "left") {
-        const newStart = Math.max(0, Math.min(viewRange[1] - minSpan, posToIdx(e.clientX)));
-        setViewRange([newStart, viewRange[1]]);
+        const anchor = drag.startRange[1];
+        const newStart = Math.max(0, Math.min(anchor - minSpan, posToIdx(e.clientX)));
+        setViewRange([newStart, anchor]);
       } else if (drag.target === "right") {
-        const newEnd = Math.min(maxIdx, Math.max(viewRange[0] + minSpan, posToIdx(e.clientX)));
-        setViewRange([viewRange[0], newEnd]);
+        const anchor = drag.startRange[0];
+        const newEnd = Math.min(maxIdx, Math.max(anchor + minSpan, posToIdx(e.clientX)));
+        setViewRange([anchor, newEnd]);
       }
-    },
-    [maxIdx, minSpan, posToIdx, setViewRange, viewRange],
-  );
-
-  const handlePointerUp = useCallback(() => {
-    dragRef.current = null;
-    setDragging(null);
-  }, []);
-
-  useEffect(() => {
-    if (dragging) {
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-      return () => {
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", handlePointerUp);
-      };
     }
-  }, [dragging, handlePointerMove, handlePointerUp]);
+
+    function onUp() {
+      dragRef.current = null;
+      setDragging(null);
+      // Block the click event that fires right after pointerup
+      justDragged.current = true;
+      requestAnimationFrame(() => {
+        justDragged.current = false;
+      });
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [dragging, maxIdx, minSpan, posToIdx, setViewRange]);
 
   const handleTrackClick = useCallback(
     (e: React.MouseEvent) => {
-      if (dragRef.current) return;
+      if (justDragged.current) return;
       const idx = posToIdx(e.clientX);
-      const span = viewRange[1] - viewRange[0];
+      const current = rangeRef.current;
+      const span = current[1] - current[0];
       const halfSpan = Math.floor(span / 2);
       let newStart = idx - halfSpan;
       let newEnd = newStart + span;
@@ -138,7 +146,7 @@ export function TimeHorizonSlider({
       }
       setViewRange([newStart, newEnd]);
     },
-    [maxIdx, posToIdx, setViewRange, viewRange],
+    [maxIdx, posToIdx, setViewRange],
   );
 
   return (
@@ -152,13 +160,13 @@ export function TimeHorizonSlider({
         <span>{labels.end}</span>
       </div>
 
-      {/* Slider area with vertical space for thumbs */}
-      <div className="relative px-2.5 py-3">
-        {/* "Oggi" marker — contained within track height */}
+      {/* Slider area */}
+      <div className="relative py-3">
+        {/* "Oggi" marker */}
         <div
           className="pointer-events-none absolute z-20 flex flex-col items-center"
           style={{
-            left: `calc(${todayPct}% + 10px)`,
+            left: `${todayPct}%`,
             transform: "translateX(-50%)",
             top: 0,
             bottom: 0,
@@ -174,17 +182,14 @@ export function TimeHorizonSlider({
           className="relative h-2 w-full cursor-pointer rounded-full bg-neutral-200 dark:bg-neutral-700"
           onClick={handleTrackClick}
         >
-          {/* Active range bar — draggable to translate */}
+          {/* Active range bar */}
           <div
             className={`absolute top-0 h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 shadow-sm transition-shadow ${
               dragging === "range"
                 ? "cursor-grabbing shadow-md shadow-blue-500/30"
                 : "cursor-grab hover:shadow-md hover:shadow-blue-500/20"
             }`}
-            style={{
-              left: `${leftPct}%`,
-              width: `${rightPct - leftPct}%`,
-            }}
+            style={{ left: `${leftPct}%`, width: `${rightPct - leftPct}%` }}
             onPointerDown={(e) => handlePointerDown("range", e)}
           />
 

@@ -9,7 +9,6 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  Brush,
   ResponsiveContainer,
 } from "recharts";
 import { ChartTooltip } from "./chart-tooltip";
@@ -37,15 +36,15 @@ export function BalanceLineChart({ data }: BalanceLineChartProps) {
       <ComposedChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
         <defs>
           <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#818cf8" stopOpacity={0.4} />
-            <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.05} />
+            <stop offset="0%" stopColor="#4F46E5" stopOpacity={0.35} />
+            <stop offset="100%" stopColor="#4F46E5" stopOpacity={0.03} />
           </linearGradient>
           <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10b981" stopOpacity={0.15} />
-            <stop offset="100%" stopColor="#10b981" stopOpacity={0.03} />
+            <stop offset="0%" stopColor="#059669" stopOpacity={0.15} />
+            <stop offset="100%" stopColor="#059669" stopOpacity={0.03} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" strokeOpacity={0.5} />
         <XAxis
           dataKey="date"
           tickFormatter={(v) => {
@@ -55,9 +54,15 @@ export function BalanceLineChart({ data }: BalanceLineChartProps) {
               return v;
             }
           }}
-          className="text-xs"
+          tick={{ fontSize: 11, fill: "#64748B" }}
+          stroke="#E2E8F0"
         />
-        <YAxis tickFormatter={(v) => formatEURCompact(v)} className="text-xs" width={80} />
+        <YAxis
+          tickFormatter={(v) => formatEURCompact(v)}
+          tick={{ fontSize: 11, fill: "#64748B" }}
+          width={80}
+          stroke="#E2E8F0"
+        />
         <Tooltip content={<ChartTooltip />} />
         <Legend />
 
@@ -69,6 +74,7 @@ export function BalanceLineChart({ data }: BalanceLineChartProps) {
           fillOpacity={1}
           name="Intervallo sup."
           connectNulls={false}
+          animationDuration={1200}
         />
         <Area
           dataKey="lower"
@@ -77,6 +83,7 @@ export function BalanceLineChart({ data }: BalanceLineChartProps) {
           fillOpacity={1}
           name="Intervallo inf."
           connectNulls={false}
+          animationDuration={1200}
         />
 
         {/* Historical balance area */}
@@ -84,34 +91,25 @@ export function BalanceLineChart({ data }: BalanceLineChartProps) {
           dataKey="balance"
           fill="url(#balanceGradient)"
           fillOpacity={1}
-          stroke="#6366f1"
+          stroke="#4F46E5"
           strokeWidth={2.5}
+          strokeLinecap="round"
           name="Saldo"
           connectNulls
+          animationDuration={1200}
         />
 
         {/* Forecast dashed line */}
         <Line
           dataKey="projected"
-          stroke="#10b981"
+          stroke="#059669"
           strokeWidth={2.5}
           strokeDasharray="5 5"
+          strokeLinecap="round"
           dot={false}
           name="Proiezione"
           connectNulls={false}
-        />
-
-        <Brush
-          dataKey="date"
-          height={30}
-          stroke="hsl(var(--border))"
-          tickFormatter={(v) => {
-            try {
-              return formatDateChart(new Date(v + "-01"));
-            } catch {
-              return v;
-            }
-          }}
+          animationDuration={1200}
         />
       </ComposedChart>
     </ResponsiveContainer>

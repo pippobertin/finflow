@@ -11,6 +11,14 @@ export async function GET(request: NextRequest) {
     ? costCenterIdsParam.split(",").filter(Boolean)
     : undefined;
 
-  const result = await buildFullTimeline(organizationId, costCenterIds);
-  return Response.json(result);
+  try {
+    const result = await buildFullTimeline(organizationId, costCenterIds);
+    return Response.json(result);
+  } catch (err) {
+    console.error("[cashflow-projection] Error:", err);
+    return Response.json(
+      { error: "Errore nel calcolo della proiezione cashflow" },
+      { status: 500 },
+    );
+  }
 }

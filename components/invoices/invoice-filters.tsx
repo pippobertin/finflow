@@ -8,12 +8,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getStatusLabel, ALL_STATUSES } from "@/lib/helpers/invoice-labels";
 
 interface InvoiceFiltersProps {
   search: string;
   onSearchChange: (v: string) => void;
   status: string;
   onStatusChange: (v: string) => void;
+  direction?: string;
 }
 
 export function InvoiceFilters({
@@ -21,6 +23,7 @@ export function InvoiceFilters({
   onSearchChange,
   status,
   onStatusChange,
+  direction,
 }: InvoiceFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -36,10 +39,11 @@ export function InvoiceFilters({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="ALL">Tutti gli stati</SelectItem>
-          <SelectItem value="PAID">Pagata</SelectItem>
-          <SelectItem value="PENDING">In attesa</SelectItem>
-          <SelectItem value="OVERDUE">Scaduta</SelectItem>
-          <SelectItem value="DRAFT">Bozza</SelectItem>
+          {ALL_STATUSES.map((s) => (
+            <SelectItem key={s} value={s}>
+              {getStatusLabel(s, direction)}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </div>

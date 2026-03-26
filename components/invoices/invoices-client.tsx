@@ -25,17 +25,11 @@ import {
   useBulkUpdateStatus,
   useBulkDeleteInvoices,
 } from "@/lib/hooks/use-invoices";
+import { getStatusOptions } from "@/lib/helpers/invoice-labels";
 import { formatEUR } from "@/lib/helpers/format";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 50;
-
-const statusOptions = [
-  { value: "PAID", label: "Pagata" },
-  { value: "PENDING", label: "In attesa" },
-  { value: "OVERDUE", label: "Scaduta" },
-  { value: "DRAFT", label: "Bozza" },
-];
 
 export function InvoicesClient() {
   const [tab, setTab] = useState("ALL");
@@ -68,6 +62,8 @@ export function InvoicesClient() {
   const totalGrossAmount =
     (data as { totalGrossAmount: number } | undefined)?.totalGrossAmount ?? 0;
   const untaggedCount = tab === "UNTAGGED" ? total : undefined;
+
+  const statusOpts = useMemo(() => getStatusOptions(direction), [direction]);
 
   function resetSelection() {
     setSelectedIds(new Set());
@@ -196,6 +192,7 @@ export function InvoicesClient() {
             onSearchChange={handleSearchChange}
             status={statusFilter}
             onStatusChange={handleStatusChange}
+            direction={direction}
           />
 
           {/* Bulk action bar */}
@@ -210,7 +207,7 @@ export function InvoicesClient() {
                   <SelectValue placeholder="Nuovo stato..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {statusOptions.map((opt) => (
+                  {statusOpts.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
@@ -270,7 +267,9 @@ export function InvoicesClient() {
                       Totale {total} fattur{total === 1 ? "a" : "e"} filtrat
                       {total === 1 ? "a" : "e"}
                     </span>
-                    <span className="text-base font-semibold">{formatEUR(totalGrossAmount)}</span>
+                    <span className="font-numeric text-base font-semibold">
+                      {formatEUR(totalGrossAmount)}
+                    </span>
                   </div>
                 )}
 
@@ -296,6 +295,7 @@ export function InvoicesClient() {
           invoices={selectedInvoicesForDialog}
           onConfirm={handleBulkPaidConfirm}
           isPending={bulkUpdate.isPending}
+          direction={direction}
         />
       )}
     </>

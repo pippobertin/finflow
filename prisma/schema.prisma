@@ -45,6 +45,7 @@ enum InvoiceDirection {
 
 enum InvoiceStatus {
   PAID
+  PARTIALLY_PAID
   PENDING
   OVERDUE
   DRAFT
@@ -117,6 +118,8 @@ model Organization {
   cashflowSnapshots  CashflowSnapshot[]
   forecastScenarios  ForecastScenario[]
   futureReceivables  FutureReceivable[]
+  paymentEvents      PaymentEvent[]
+  vatSnapshots       VatSnapshot[]
 
   @@map("fin_organization")
   @@schema("public")
@@ -245,6 +248,14 @@ model Invoice {
   paidAt         DateTime?        @map("paid_at")
   connectorRef   String?          @map("connector_ref")
   documentType   String?          @map("document_type")
+  // Fase 2 — DSO override
+  expectedCollectionDate DateTime? @map("expected_collection_date") @db.Date
+  counterpartCustomDso   Int?      @map("counterpart_custom_dso")
+  // Fase 2 — Sofisticazioni bancarie
+  isDiscountedAtBank     Boolean   @default(false) @map("is_discounted_at_bank")
+  bankDiscountType       String?   @map("bank_discount_type")
+  bankLiquidationDate    DateTime? @map("bank_liquidation_date") @db.Date
+  bankDiscountFee        Decimal?  @map("bank_discount_fee") @db.Decimal(15, 2)
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
@@ -253,6 +264,7 @@ model Invoice {
   lines              InvoiceLine[]
   bankStatements     BankStatement[]
   futureReceivables  FutureReceivable[]
+  paymentEvents      PaymentEvent[]
 
   @@index([organizationId, direction])
   @@index([organizationId, status])
@@ -318,8 +330,9 @@ model OneOffExpense {
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  costCenter   CostCenter?  @relation(fields: [costCenterId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  costCenter     CostCenter?    @relation(fields: [costCenterId], references: [id])
+  paymentEvents  PaymentEvent[]
 
   @@map("fin_one_off_expense")
   @@schema("public")
@@ -405,5 +418,54 @@ model FutureReceivable {
 
   @@index([organizationId, status])
   @@map("fin_future_receivable")
+  @@schema("public")
+}
+
+// ─── Fase 2: Pagamenti Parziali ─────────────────────────────
+
+model PaymentEvent {
+  id               String   @id @default(cuid())
+  organizationId   String   @map("organization_id")
+  invoiceId        String?  @map("invoice_id")
+  oneOffExpenseId  String?  @map("one_off_expense_id")
+  amount           Decimal  @db.Decimal(15, 2)
+  eventDate        DateTime @map("event_date") @db.Date
+  isActual         Boolean  @default(false) @map("is_actual")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @map("updated_at")
+
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  invoice       Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  oneOffExpense OneOffExpense? @relation(fields: [oneOffExpenseId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId], map: "idx_payment_event_invoice")
+  @@index([oneOffExpenseId], map: "idx_payment_event_expense")
+  @@index([organizationId, eventDate], map: "idx_payment_event_date")
+  @@map("fin_payment_event")
+  @@schema("public")
+}
+
+// ─── Fase 2: Snapshot IVA ───────────────────────────────────
+
+model VatSnapshot {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  periodStart     DateTime @map("period_start") @db.Date
+  periodEnd       DateTime @map("period_end") @db.Date
+  periodType      String   @map("period_type")
+  vatDebit        Decimal  @default(0) @map("vat_debit") @db.Decimal(15, 2)
+  vatCredit       Decimal  @default(0) @map("vat_credit") @db.Decimal(15, 2)
+  vatBalance      Decimal  @default(0) @map("vat_balance") @db.Decimal(15, 2)
+  carryForward    Decimal  @default(0) @map("carry_forward") @db.Decimal(15, 2)
+  amountDue       Decimal  @default(0) @map("amount_due") @db.Decimal(15, 2)
+  dueDate         DateTime? @map("due_date") @db.Date
+  isPaid          Boolean  @default(false) @map("is_paid")
+  paidDate        DateTime? @map("paid_date") @db.Date
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("fin_vat_snapshot")
   @@schema("public")
 }

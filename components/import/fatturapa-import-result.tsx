@@ -70,7 +70,7 @@ function StatCard({ icon, value, label, items, emptyLabel, isError }: StatCardPr
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   function show() {
     clearTimeout(timeoutRef.current);

@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
     ? costCenterIdsParam.split(",").filter(Boolean)
     : undefined;
 
-  const data = await forecast({ organizationId, costCenterIds }, { months: validMonths });
-  return Response.json(data);
+  try {
+    const data = await forecast({ organizationId, costCenterIds }, { months: validMonths });
+    return Response.json(data);
+  } catch (err) {
+    console.error("[forecast] Error:", err);
+    return Response.json({ error: "Errore nel calcolo delle previsioni" }, { status: 500 });
+  }
 }

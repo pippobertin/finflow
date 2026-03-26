@@ -73,6 +73,12 @@ const TYPE_CONFIG = {
     badge: "bg-purple-100 text-purple-700",
     sign: "-",
   },
+  vatPayment: {
+    label: "Versamenti IVA",
+    color: "text-violet-600",
+    badge: "bg-violet-100 text-violet-700",
+    sign: "-",
+  },
 } as const;
 
 // Tooltip shown on hover (follows mouse)
@@ -108,6 +114,7 @@ function DetailSection({ point, onClose }: { point: DailyProjectionPoint; onClos
     passiveInvoice: details.filter((d) => d.type === "passiveInvoice"),
     recurringExpense: details.filter((d) => d.type === "recurringExpense"),
     oneOffExpense: details.filter((d) => d.type === "oneOffExpense"),
+    vatPayment: details.filter((d) => d.type === "vatPayment"),
   };
 
   return (
@@ -146,6 +153,7 @@ function DetailSection({ point, onClose }: { point: DailyProjectionPoint; onClos
               "passiveInvoice",
               "recurringExpense",
               "oneOffExpense",
+              "vatPayment",
             ] as const
           ).map((type) => {
             const items = grouped[type];
@@ -214,6 +222,7 @@ export function DecompositionChart({ data }: DecompositionChartProps) {
     "Fatture Passive": -d.passiveInvoices,
     "Spese Ricorrenti": -d.recurringExpenses,
     "Spese Una Tantum": -d.oneOffExpenses,
+    "Versamenti IVA": -(d.vatPayments ?? 0),
   }));
 
   return (
@@ -288,6 +297,14 @@ export function DecompositionChart({ data }: DecompositionChartProps) {
               stackId="2"
               stroke="hsl(270, 70%, 60%)"
               fill="hsl(270, 70%, 60%)"
+              fillOpacity={0.5}
+            />
+            <Area
+              type="monotone"
+              dataKey="Versamenti IVA"
+              stackId="2"
+              stroke="hsl(263, 70%, 50%)"
+              fill="hsl(263, 70%, 50%)"
               fillOpacity={0.5}
             />
           </AreaChart>

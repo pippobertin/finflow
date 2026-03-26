@@ -18,6 +18,7 @@ export const organizationUpdateSchema = z.object({
   email: z.string().email("Email non valida").nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
   currentBalance: z.number().nullable().optional(),
+  vatPeriodicity: z.enum(["monthly", "quarterly"]).default("quarterly").optional(),
 });
 
 export type OrganizationUpdateInput = z.infer<typeof organizationUpdateSchema>;

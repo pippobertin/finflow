@@ -54,11 +54,23 @@ export function useUpdateInvoice() {
       costCenterId,
       status,
       paidAt,
+      expectedCollectionDate,
+      counterpartCustomDso,
+      isDiscountedAtBank,
+      bankDiscountType,
+      bankLiquidationDate,
+      bankDiscountFee,
     }: {
       invoiceId: string;
       costCenterId?: string | null;
       status?: string;
       paidAt?: string | null;
+      expectedCollectionDate?: string | null;
+      counterpartCustomDso?: number | null;
+      isDiscountedAtBank?: boolean;
+      bankDiscountType?: string | null;
+      bankLiquidationDate?: string | null;
+      bankDiscountFee?: number | null;
     }) =>
       fetchJson(`/api/invoices/${invoiceId}`, {
         method: "PATCH",
@@ -67,6 +79,12 @@ export function useUpdateInvoice() {
           ...(costCenterId !== undefined && { costCenterId }),
           ...(status !== undefined && { status }),
           ...(paidAt !== undefined && { paidAt }),
+          ...(expectedCollectionDate !== undefined && { expectedCollectionDate }),
+          ...(counterpartCustomDso !== undefined && { counterpartCustomDso }),
+          ...(isDiscountedAtBank !== undefined && { isDiscountedAtBank }),
+          ...(bankDiscountType !== undefined && { bankDiscountType }),
+          ...(bankLiquidationDate !== undefined && { bankLiquidationDate }),
+          ...(bankDiscountFee !== undefined && { bankDiscountFee }),
         }),
       }),
     onSuccess: () => {
