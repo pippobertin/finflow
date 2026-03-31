@@ -45,6 +45,7 @@ interface FicDocument {
   type?: string;
   number?: string | number;
   numeration?: string;
+  invoice_number?: string; // Numero fattura fornitore (solo received_documents)
   date?: string;
   next_due_date?: string;
   entity?: FicEntity;
@@ -166,7 +167,6 @@ async function fetchAllPages(
   const all: FicDocument[] = [];
   let page = 1;
 
-   
   while (true) {
     const response = await fetcher(page);
     all.push(...response.data);
@@ -183,7 +183,7 @@ function buildConnectorRef(direction: "ACTIVE" | "PASSIVE", ficId: number): stri
   return `fic:${direction === "ACTIVE" ? "issued" : "received"}:${ficId}`;
 }
 
-function mapFicStatus(doc: FicDocument): "PAID" | "PENDING" | "OVERDUE" {
+function mapFicStatus(doc: FicDocument): "PAID" | "PENDING" {
   // 1. is_marked is the most reliable indicator (user marked as paid in FiC)
   if (doc.is_marked === true) {
     return "PAID";
@@ -200,12 +200,7 @@ function mapFicStatus(doc: FicDocument): "PAID" | "PENDING" | "OVERDUE" {
   // NOTE: amount_due_discount is NOT reliable — FiC returns 0 for all invoices
   // when no payment terms are configured. Do NOT use it to determine payment status.
 
-  // 3. Check due date for overdue
-  if (doc.next_due_date) {
-    const due = new Date(doc.next_due_date);
-    if (due < new Date()) return "OVERDUE";
-  }
-
+  // Overdue is now determined dynamically from dueDate, not stored as status
   return "PENDING";
 }
 
@@ -235,7 +230,7 @@ function buildDescription(doc: FicDocument): string | null {
 }
 
 function formatInvoiceNumber(doc: FicDocument): string {
-  const num = String(doc.number ?? doc.id);
+  const num = String(doc.invoice_number ?? doc.number ?? doc.id);
   if (doc.numeration && doc.numeration !== "0") {
     return `${num}/${doc.numeration}`;
   }
@@ -383,14 +378,6 @@ export async function syncInvoices(
     ...receivedDocs.map((d) => buildConnectorRef("PASSIVE", d.id)),
   ];
 
-  const existing =
-    allRefs.length > 0
-      ? await prisma.invoice.findMany({
-          where: { organizationId, connectorRef: { in: allRefs } },
-          select: { connectorRef: true },
-        })
-      : [];
-
   // 3. Create or update invoices
   const newInvoiceIds: string[] = [];
   let skipped = 0;
@@ -401,7 +388,7 @@ export async function syncInvoices(
     allRefs.length > 0
       ? await prisma.invoice.findMany({
           where: { organizationId, connectorRef: { in: allRefs } },
-          select: { id: true, connectorRef: true, status: true },
+          select: { id: true, connectorRef: true, status: true, number: true },
         })
       : [];
   const existingByRef = new Map(existingInvoices.map((e) => [e.connectorRef, e]));
@@ -411,15 +398,17 @@ export async function syncInvoices(
     const existingInv = existingByRef.get(ref);
 
     if (existingInv) {
-      // Update status of existing invoice if it changed
+      // Update status and/or number of existing invoice if changed
       const newStatus = mapFicStatus(doc);
       const paidAt = newStatus === "PAID" ? mapPaidAt(doc) : null;
+      const correctNumber = formatInvoiceNumber(doc);
 
-      if (existingInv.status !== newStatus) {
+      if (existingInv.status !== newStatus || existingInv.number !== correctNumber) {
         await prisma.invoice.update({
           where: { id: existingInv.id },
           data: {
             status: newStatus,
+            number: correctNumber,
             ...(paidAt && { paidAt }),
           },
         });

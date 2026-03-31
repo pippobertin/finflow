@@ -406,11 +406,7 @@ async function main() {
     const needsTagging = Math.random() > 0.85;
     const assignedCenter = needsTagging ? null : randomItem(revenueCenterIds);
 
-    let status: InvoiceStatus;
-    const r = Math.random();
-    if (r < 0.55) status = InvoiceStatus.PAID;
-    else if (r < 0.85) status = InvoiceStatus.PENDING;
-    else status = InvoiceStatus.OVERDUE;
+    const status: InvoiceStatus = Math.random() < 0.55 ? InvoiceStatus.PAID : InvoiceStatus.PENDING;
 
     const paidAt = status === InvoiceStatus.PAID ? addDays(date, randomBetween(5, 45)) : null;
 
@@ -470,11 +466,7 @@ async function main() {
     const needsTagging = Math.random() > 0.85;
     const assignedCenter = needsTagging ? null : randomItem(costCenterIds);
 
-    let status: InvoiceStatus;
-    const r = Math.random();
-    if (r < 0.6) status = InvoiceStatus.PAID;
-    else if (r < 0.85) status = InvoiceStatus.PENDING;
-    else status = InvoiceStatus.OVERDUE;
+    const status: InvoiceStatus = Math.random() < 0.6 ? InvoiceStatus.PAID : InvoiceStatus.PENDING;
 
     const paidAt = status === InvoiceStatus.PAID ? addDays(date, randomBetween(3, 30)) : null;
 

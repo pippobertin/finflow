@@ -92,10 +92,17 @@ interface FinancialDetailData {
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   PAID: { label: "Pagata", className: "bg-emerald-100 text-emerald-700" },
   PENDING: { label: "In attesa", className: "bg-amber-100 text-amber-700" },
-  OVERDUE: { label: "Scaduta", className: "bg-red-100 text-red-700" },
-  PARTIALLY_PAID: { label: "Parz.", className: "bg-blue-100 text-blue-700" },
+  OVERDUE_DYNAMIC: { label: "Scaduta", className: "bg-red-100 text-red-700" },
   RECONCILED: { label: "Riconciliata", className: "bg-teal-100 text-teal-700" },
 };
+
+function getEffectiveStatusBadge(status?: string, dueDate?: string) {
+  if (!status) return undefined;
+  if (status === "PENDING" && dueDate && new Date(dueDate + "T00:00:00") < new Date()) {
+    return STATUS_BADGE["OVERDUE_DYNAMIC"];
+  }
+  return STATUS_BADGE[status];
+}
 
 function DrillDownPanel({
   rowName,
@@ -188,12 +195,15 @@ function DrillDownPanel({
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {d.status && STATUS_BADGE[d.status] && (
+              {d.status && getEffectiveStatusBadge(d.status, d.date) && (
                 <Badge
                   variant="secondary"
-                  className={cn("text-[10px]", STATUS_BADGE[d.status].className)}
+                  className={cn(
+                    "text-[10px]",
+                    getEffectiveStatusBadge(d.status, d.date)!.className,
+                  )}
                 >
-                  {STATUS_BADGE[d.status].label}
+                  {getEffectiveStatusBadge(d.status, d.date)!.label}
                 </Badge>
               )}
               <span className="font-numeric text-sm font-semibold tabular-nums">

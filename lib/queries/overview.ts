@@ -130,24 +130,24 @@ export async function getOverviewData(
       orderBy: { date: "desc" },
     }),
 
-    // Credits: ACTIVE invoices (PENDING/OVERDUE) with dueDate in range
+    // Credits: ACTIVE invoices (PENDING) with dueDate in range
     prisma.invoice.aggregate({
       where: {
         organizationId,
         direction: "ACTIVE",
-        status: { in: ["PENDING", "OVERDUE"] },
+        status: "PENDING",
         dueDate: { gte: from, lte: to },
         ...ccFilter,
       },
       _sum: { grossAmount: true },
     }),
 
-    // Debits: PASSIVE invoices (PENDING/OVERDUE) with dueDate in range
+    // Debits: PASSIVE invoices (PENDING) with dueDate in range
     prisma.invoice.aggregate({
       where: {
         organizationId,
         direction: "PASSIVE",
-        status: { in: ["PENDING", "OVERDUE"] },
+        status: "PENDING",
         dueDate: { gte: from, lte: to },
         ...ccFilter,
       },

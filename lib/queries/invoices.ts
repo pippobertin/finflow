@@ -107,7 +107,7 @@ export async function updateInvoice(
     data.status = updates.status;
     if (updates.status === "PAID") {
       data.paidAt = updates.paidAt ?? new Date();
-    } else if (updates.status !== "PARTIALLY_PAID") {
+    } else {
       data.paidAt = null;
     }
   }

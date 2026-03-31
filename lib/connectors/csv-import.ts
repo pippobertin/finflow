@@ -90,8 +90,7 @@ export async function importCsv(options: CsvImportOptions): Promise<ImportResult
       if (mapping.status) {
         const raw = row[mapping.status]?.trim()?.toUpperCase();
         if (raw === "PAID" || raw === "PAGATA") status = "PAID";
-        else if (raw === "OVERDUE" || raw === "SCADUTA") status = "OVERDUE";
-        else if (raw === "DRAFT" || raw === "BOZZA") status = "DRAFT";
+        // All other statuses (OVERDUE, DRAFT, etc.) map to PENDING
       }
 
       const invoice = await prisma.invoice.create({

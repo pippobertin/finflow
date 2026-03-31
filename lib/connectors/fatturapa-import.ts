@@ -29,6 +29,7 @@ export async function importFatturaPA(
   const createdIds: string[] = [];
   const importedDetails: FatturapaInvoiceSummary[] = [];
   const skippedDetails: FatturapaInvoiceSummary[] = [];
+  const fixedDetails: FatturapaInvoiceSummary[] = [];
 
   const connectorRef = `fatturapa-import-${Date.now()}`;
 
@@ -59,6 +60,32 @@ export async function importFatturaPA(
       if (existing) {
         skippedDetails.push(toSummary(inv));
         continue;
+      }
+
+      // Fix FIC-imported invoices: match by vatNumber + date + grossAmount
+      if (inv.counterpartVatNumber) {
+        const ficInvoice = await prisma.invoice.findFirst({
+          where: {
+            organizationId,
+            vatNumber: inv.counterpartVatNumber,
+            date: new Date(inv.date),
+            grossAmount: inv.grossAmount,
+            connectorRef: { startsWith: "fic:" },
+          },
+          select: { id: true, number: true },
+        });
+
+        if (ficInvoice) {
+          await prisma.invoice.update({
+            where: { id: ficInvoice.id },
+            data: {
+              number: inv.number,
+              ...(inv.documentType ? { documentType: inv.documentType } : {}),
+            },
+          });
+          fixedDetails.push(toSummary(inv));
+          continue;
+        }
       }
 
       // Create invoice with lines in a transaction
@@ -138,10 +165,12 @@ export async function importFatturaPA(
     imported: createdIds.length,
     tagged,
     skipped: skippedDetails.length,
+    fixed: fixedDetails.length,
     errors: importErrors,
     warnings: importWarnings,
     importedDetails,
     skippedDetails,
     taggedDetails,
+    fixedDetails,
   };
 }

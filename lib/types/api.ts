@@ -39,8 +39,10 @@ export interface FatturapaInvoiceSummary {
 
 export interface FatturapaImportResult extends ImportResult {
   skipped: number;
+  fixed: number;
   warnings: Array<{ file: string; message: string }>;
   importedDetails: FatturapaInvoiceSummary[];
   skippedDetails: FatturapaInvoiceSummary[];
   taggedDetails: FatturapaInvoiceSummary[];
+  fixedDetails: FatturapaInvoiceSummary[];
 }

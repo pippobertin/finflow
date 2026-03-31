@@ -63,9 +63,9 @@ export async function buildDailyProjection(
     notes: string | null;
   };
 
-  // Statuses to filter — PARTIALLY_PAID may not exist in DB enum
-  const pendingStatuses = ["PENDING", "OVERDUE"] as const;
-  const phase2Statuses = ["PENDING", "PARTIALLY_PAID", "OVERDUE"] as const;
+  // Only PENDING status now (OVERDUE is computed dynamically from dueDate)
+  const pendingStatuses = ["PENDING"] as const;
+  const phase2Statuses = ["PENDING"] as const;
 
   type RecurringExpRow = {
     id: string;
@@ -112,6 +112,7 @@ export async function buildDailyProjection(
           organizationId,
           direction: "ACTIVE",
           status: { in: [...phase2Statuses] },
+          bankStatements: { none: { isReconciled: true } },
           ...ccFilter,
         },
         select: {
@@ -132,6 +133,8 @@ export async function buildDailyProjection(
           organizationId,
           direction: "PASSIVE",
           status: { in: [...phase2Statuses] },
+          // Exclude invoices already reconciled with a bank statement
+          bankStatements: { none: { isReconciled: true } },
           ...ccFilter,
         },
         select: {
@@ -223,6 +226,7 @@ export async function buildDailyProjection(
             organizationId,
             direction: "ACTIVE",
             status: { in: [...pendingStatuses] },
+            bankStatements: { none: { isReconciled: true } },
             ...ccFilter,
           },
           select: {
@@ -240,6 +244,7 @@ export async function buildDailyProjection(
             organizationId,
             direction: "PASSIVE",
             status: { in: [...pendingStatuses] },
+            bankStatements: { none: { isReconciled: true } },
             ...ccFilter,
           },
           select: {
@@ -307,8 +312,43 @@ export async function buildDailyProjection(
   const settings = (org?.settings as Record<string, unknown>) ?? {};
   const manualBalance =
     typeof settings.currentBalance === "number" ? settings.currentBalance : null;
-  const startingBalance =
-    manualBalance ?? (lastBankStatement ? Number(lastBankStatement.balance) : 0);
+
+  // Forward-calc: try BalanceSnapshot first, then fallback to manual/last bank statement
+  let startingBalance = 0;
+  try {
+    const bankAccount = await prisma.bankAccount.findFirst({
+      where: { organizationId, isDefault: true },
+      select: { id: true },
+    });
+    if (bankAccount) {
+      const latestSnapshot = await prisma.balanceSnapshot.findFirst({
+        where: { bankAccountId: bankAccount.id, date: { lte: today } },
+        orderBy: { date: "desc" },
+        select: { balance: true, date: true },
+      });
+      if (latestSnapshot) {
+        // Start from snapshot, add movements between snapshot date and today
+        const movementsAfterSnapshot = await prisma.bankStatement.findMany({
+          where: {
+            organizationId,
+            date: { gt: latestSnapshot.date, lte: today },
+          },
+          select: { amount: true },
+        });
+        const movementSum = movementsAfterSnapshot.reduce((sum, bs) => sum + Number(bs.amount), 0);
+        startingBalance = Number(latestSnapshot.balance) + movementSum;
+      } else {
+        startingBalance =
+          manualBalance ?? (lastBankStatement ? Number(lastBankStatement.balance) : 0);
+      }
+    } else {
+      startingBalance =
+        manualBalance ?? (lastBankStatement ? Number(lastBankStatement.balance) : 0);
+    }
+  } catch {
+    // BalanceSnapshot table may not exist — fallback
+    startingBalance = manualBalance ?? (lastBankStatement ? Number(lastBankStatement.balance) : 0);
+  }
 
   // ── Calculate global avgDso from paid ACTIVE invoices ──
   const paidInvoices = await prisma.invoice.findMany({

@@ -54,14 +54,20 @@ export function parseItalianNumber(
 }
 
 /**
- * Parse a date string with a configurable format.
+ * Parse a date string with flexible format detection.
  * Supports: dd/MM/yyyy, dd-MM-yyyy, dd.MM.yyyy, dd.MM.yy, yyyy-MM-dd
  * Auto-detects the separator (/, -, .) and handles 2-digit years.
+ * Falls back to trying multiple formats if the primary format fails.
  */
 export function parseDate(value: string, format: string = "dd/MM/yyyy"): Date | null {
   if (!value || !value.trim()) return null;
   const cleaned = value.trim();
 
+  // Try primary format first, then auto-detect
+  return parseDateStrict(cleaned, format) ?? parseDateAuto(cleaned);
+}
+
+function parseDateStrict(cleaned: string, format: string): Date | null {
   try {
     if (format === "yyyy-MM-dd") {
       const d = new Date(cleaned);
@@ -88,4 +94,45 @@ export function parseDate(value: string, format: string = "dd/MM/yyyy"): Date | 
   } catch {
     return null;
   }
+}
+
+function parseDateAuto(cleaned: string): Date | null {
+  // Try yyyy-MM-dd (ISO)
+  if (/^\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}$/.test(cleaned)) {
+    const d = new Date(cleaned);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Try dd/MM/yyyy or dd.MM.yy with any separator
+  const parts = cleaned.split(/[\/\-\.\s]+/);
+  if (parts.length >= 3) {
+    // Try dd/MM/yyyy
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    let year = parseInt(parts[2], 10);
+    if (year < 100) year += 2000;
+
+    if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900 && year <= 2100) {
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    // Try MM/dd/yyyy (US format) if day > 12
+    if (day > 12 || month >= 12) {
+      const usDay = parseInt(parts[1], 10);
+      const usMonth = parseInt(parts[0], 10) - 1;
+      if (usDay >= 1 && usDay <= 31 && usMonth >= 0 && usMonth <= 11) {
+        const d = new Date(year, usMonth, usDay);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+  }
+
+  // Try native Date as last resort
+  const native = new Date(cleaned);
+  if (!isNaN(native.getTime()) && native.getFullYear() >= 1900 && native.getFullYear() <= 2100) {
+    return native;
+  }
+
+  return null;
 }

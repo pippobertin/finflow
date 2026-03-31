@@ -45,10 +45,7 @@ enum InvoiceDirection {
 
 enum InvoiceStatus {
   PAID
-  PARTIALLY_PAID
   PENDING
-  OVERDUE
-  DRAFT
 
   @@map("fin_invoice_status")
   @@schema("public")
@@ -108,19 +105,20 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users              User[]
-  connectors         Connector[]
-  costCenters        CostCenter[]
-  invoices           Invoice[]
-  recurringExpenses  RecurringExpense[]
-  oneOffExpenses     OneOffExpense[]
-  bankStatements     BankStatement[]
-  cashflowSnapshots  CashflowSnapshot[]
-  forecastScenarios  ForecastScenario[]
-  futureReceivables  FutureReceivable[]
-  paymentEvents      PaymentEvent[]
-  vatSnapshots       VatSnapshot[]
-
+  users                User[]
+  connectors           Connector[]
+  costCenters          CostCenter[]
+  invoices             Invoice[]
+  recurringExpenses    RecurringExpense[]
+  oneOffExpenses       OneOffExpense[]
+  bankStatements       BankStatement[]
+  cashflowSnapshots    CashflowSnapshot[]
+  forecastScenarios    ForecastScenario[]
+  futureReceivables    FutureReceivable[]
+  paymentEvents        PaymentEvent[]
+  vatSnapshots         VatSnapshot[]
+  bankAccounts         BankAccount[]
+  dataPeriods          DataPeriod[]
   @@map("fin_organization")
   @@schema("public")
 }
@@ -307,8 +305,9 @@ model RecurringExpense {
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  costCenter   CostCenter?  @relation(fields: [costCenterId], references: [id])
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  costCenter     CostCenter?     @relation(fields: [costCenterId], references: [id])
+  bankStatements BankStatement[]
 
   @@map("fin_recurring_expense")
   @@schema("public")
@@ -341,6 +340,7 @@ model OneOffExpense {
 model BankStatement {
   id                    String       @id @default(cuid())
   organizationId        String       @map("organization_id")
+  bankAccountId         String?      @map("bank_account_id")
   date                  DateTime
   description           String
   amount                Decimal      @db.Decimal(12, 2)
@@ -348,17 +348,23 @@ model BankStatement {
   costCenterId          String?      @map("cost_center_id")
   reference             String?
   sourceFile            String?      @map("source_file")
+  fingerprint           String?
   isReconciled          Boolean      @default(false) @map("is_reconciled")
   reconciledInvoiceId   String?      @map("reconciled_invoice_id")
+  reconciledExpenseId   String?      @map("reconciled_expense_id")
+  reconciledType        String?      @map("reconciled_type")
   reconciledAt          DateTime?    @map("reconciled_at") @db.Timestamptz(6)
   createdAt             DateTime     @default(now()) @map("created_at")
 
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  costCenter        CostCenter?  @relation(fields: [costCenterId], references: [id])
-  reconciledInvoice Invoice?     @relation(fields: [reconciledInvoiceId], references: [id], onUpdate: NoAction, map: "fk_bank_statement_invoice")
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount       BankAccount?      @relation(fields: [bankAccountId], references: [id])
+  costCenter        CostCenter?       @relation(fields: [costCenterId], references: [id])
+  reconciledInvoice Invoice?          @relation(fields: [reconciledInvoiceId], references: [id], onUpdate: NoAction, map: "fk_bank_statement_invoice")
+  reconciledExpense RecurringExpense? @relation(fields: [reconciledExpenseId], references: [id], onUpdate: NoAction, map: "fk_bank_statement_expense")
 
   @@index([organizationId, date])
   @@index([organizationId, isReconciled], map: "idx_bank_statement_reconciled", where: raw("(is_reconciled = false)"))
+  @@index([organizationId, fingerprint])
   @@map("fin_bank_statement")
   @@schema("public")
 }
@@ -469,3 +475,95 @@ model VatSnapshot {
   @@map("fin_vat_snapshot")
   @@schema("public")
 }
+
+// ─── Fase 3: Onboarding + Dati Bancari Reali ─────────────
+
+enum BalanceSource {
+  EC_ANNUAL
+  EC_QUARTERLY
+  MANUAL
+
+  @@map("fin_balance_source")
+  @@schema("public")
+}
+
+enum DataPeriodType {
+  EC_ANNUAL
+  EC_QUARTERLY
+  MOVEMENTS_CSV
+
+  @@map("fin_data_period_type")
+  @@schema("public")
+}
+
+model BankAccount {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  bankName       String   @map("bank_name")
+  iban           String?
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  closingBalances  BalanceSnapshot[]
+  bankProfile      BankProfile?
+  bankStatements   BankStatement[]
+
+  @@map("fin_bank_account")
+  @@schema("public")
+}
+
+model BalanceSnapshot {
+  id            String        @id @default(cuid())
+  bankAccountId String        @map("bank_account_id")
+  date          DateTime      @db.Date
+  balance       Decimal       @db.Decimal(15, 2)
+  source        BalanceSource
+  period        String?
+  sourceFile    String?       @map("source_file")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([bankAccountId, date, source])
+  @@map("fin_balance_snapshot")
+  @@schema("public")
+}
+
+model BankProfile {
+  id                   String   @id @default(cuid())
+  bankAccountId        String   @unique @map("bank_account_id")
+  bankName             String   @map("bank_name")
+  columnMapping        Json     @map("column_mapping")
+  dateFormat           String   @default("dd/MM/yyyy") @map("date_format")
+  delimiter            String   @default(",")
+  decimalSeparator     String   @default(",") @map("decimal_separator")
+  skipRows             Int      @default(0) @map("skip_rows")
+  descriptionPatterns  Json?    @map("description_patterns")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@map("fin_bank_profile")
+  @@schema("public")
+}
+
+model DataPeriod {
+  id             String         @id @default(cuid())
+  organizationId String         @map("organization_id")
+  type           DataPeriodType
+  startDate      DateTime       @map("start_date") @db.Date
+  endDate        DateTime       @map("end_date") @db.Date
+  sourceFile     String?        @map("source_file")
+  recordCount    Int?           @map("record_count")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type])
+  @@map("fin_data_period")
+  @@schema("public")
+}
+

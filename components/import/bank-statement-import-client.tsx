@@ -296,6 +296,8 @@ export function BankStatementImportClient() {
           {step === "done" && (
             <ReconciliationResult
               imported={importResult?.imported ?? 0}
+              duplicates={importResult?.duplicates ?? 0}
+              totalParsed={importResult?.totalParsed}
               reconciled={reconResult?.reconciled ?? 0}
               rejected={reconResult?.rejected ?? 0}
               unmatched={
@@ -304,6 +306,7 @@ export function BankStatementImportClient() {
                 (reconResult?.rejected ?? 0)
               }
               errors={importResult?.errors.length ?? 0}
+              errorDetails={importResult?.errors}
               onReset={handleReset}
             />
           )}

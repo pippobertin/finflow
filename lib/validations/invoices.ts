@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const invoiceStatusEnum = z.enum(["PAID", "PARTIALLY_PAID", "PENDING", "OVERDUE", "DRAFT"]);
+const invoiceStatusEnum = z.enum(["PAID", "PENDING"]);
 
 export const invoiceUpdateSchema = z.object({
   costCenterId: z.string().cuid().nullable().optional(),

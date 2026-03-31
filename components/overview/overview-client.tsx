@@ -6,6 +6,7 @@ import { it } from "date-fns/locale";
 import { Navbar } from "@/components/dashboard/navbar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DataFreshnessBanner } from "@/components/dashboard/data-freshness-banner";
 import { KpiGrid } from "./kpi-grid";
 import { BalanceChartSection } from "./balance-chart-section";
 import { CategoryChartSection } from "./category-chart-section";
@@ -107,6 +108,7 @@ export function OverviewClient({ initialData }: OverviewClientProps) {
     <>
       <Navbar title="Panoramica" />
       <div className="space-y-6 p-6">
+        <DataFreshnessBanner />
         {/* Date range picker row */}
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-1">

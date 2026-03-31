@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { Navbar } from "@/components/dashboard/navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -141,7 +140,6 @@ export function ConnectorsClient() {
 
   return (
     <>
-      <Navbar title="Connettori" />
       <div className="space-y-6 p-6">
         {!isViewer && (
           <div className="flex justify-end">

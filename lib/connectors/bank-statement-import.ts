@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { parseCsv, parseItalianNumber, parseDate } from "@/lib/parsers/csv-parser";
 import { parseBankStatementPdf } from "@/lib/parsers/pdf-parser";
+import { computeFingerprint } from "@/lib/import/dedup-engine";
 import type { BankStatementMapping } from "@/lib/validations/bank-statement-import";
 import type { ImportError } from "@/lib/types/api";
 
@@ -17,6 +18,8 @@ interface BankStatementImportOptions {
 
 export interface BankStatementImportResult {
   imported: number;
+  duplicates: number;
+  totalParsed: number;
   errors: ImportError[];
   bankStatementIds: string[];
 }
@@ -88,12 +91,28 @@ export async function importBankStatements(
   } else {
     return {
       imported: 0,
+      duplicates: 0,
+      totalParsed: 0,
       errors: [{ row: 0, message: "Nessun file fornito" }],
       bankStatementIds: [],
     };
   }
 
   const createdIds: string[] = [];
+  let duplicateCount = 0;
+
+  console.log(
+    `[bank-statement-import] Parsed ${rows.length} rows from ${pdfBuffer ? "PDF" : "CSV"}`,
+  );
+  if (rows.length > 0) {
+    console.log(`[bank-statement-import] First row keys: [${Object.keys(rows[0]).join(", ")}]`);
+    console.log(
+      `[bank-statement-import] Mapping: date=${mapping.date}, desc=${mapping.description}, amount=${mapping.amount}, uscite=${mapping.uscite}, entrate=${mapping.entrate}`,
+    );
+    console.log(
+      `[bank-statement-import] First row sample: date="${rows[0][mapping.date]}", desc="${rows[0][mapping.description]?.slice(0, 40)}"`,
+    );
+  }
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -105,19 +124,33 @@ export async function importBankStatements(
       const reference = mapping.reference ? row[mapping.reference]?.trim() : undefined;
 
       if (!description) {
-        importErrors.push({ row: rowNum, field: "description", message: "Descrizione mancante" });
+        if (importErrors.length === 0)
+          console.log(
+            `[bank-statement-import] Row ${rowNum}: description missing. Row keys: [${Object.keys(row).join(", ")}], mapping.description="${mapping.description}"`,
+          );
+        importErrors.push({
+          row: rowNum,
+          field: "description",
+          message: `Descrizione mancante (colonna "${mapping.description}")`,
+        });
         continue;
       }
 
       const date = parseDate(dateStr ?? "", dateFormat);
       if (!date) {
-        importErrors.push({ row: rowNum, field: "date", message: "Data non valida" });
+        if (importErrors.length === 0)
+          console.log(
+            `[bank-statement-import] Row ${rowNum}: date invalid. dateStr="${dateStr}", dateFormat="${dateFormat}"`,
+          );
+        importErrors.push({ row: rowNum, field: "date", message: `Data non valida: "${dateStr}"` });
         continue;
       }
 
       // Resolve amount (single column or uscite+entrate)
       const { amount, error: amountError } = resolveAmount(row, mapping, decimalSeparator);
       if (amount === null) {
+        if (importErrors.length === 0)
+          console.log(`[bank-statement-import] Row ${rowNum}: amount error. ${amountError}`);
         importErrors.push({
           row: rowNum,
           field: "amount",
@@ -143,6 +176,19 @@ export async function importBankStatements(
         if (trnMatch) ref = trnMatch[1];
       }
 
+      // Compute fingerprint for dedup
+      const fingerprint = computeFingerprint(date, amount, description);
+
+      // Check for duplicate
+      const existingDup = await prisma.bankStatement.findFirst({
+        where: { organizationId, fingerprint },
+        select: { id: true },
+      });
+      if (existingDup) {
+        duplicateCount++;
+        continue;
+      }
+
       const bs = await prisma.bankStatement.create({
         data: {
           organizationId,
@@ -152,6 +198,7 @@ export async function importBankStatements(
           balance,
           reference: ref || null,
           sourceFile: sourceFile || null,
+          fingerprint,
         },
       });
 
@@ -164,8 +211,14 @@ export async function importBankStatements(
     }
   }
 
+  console.log(
+    `[bank-statement-import] Result: ${createdIds.length} imported, ${duplicateCount} duplicates, ${importErrors.length} errors out of ${rows.length} parsed`,
+  );
+
   return {
     imported: createdIds.length,
+    duplicates: duplicateCount,
+    totalParsed: rows.length,
     errors: importErrors,
     bankStatementIds: createdIds,
   };

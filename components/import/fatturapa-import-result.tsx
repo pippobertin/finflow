@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { CheckCircle2, AlertTriangle, SkipForward, XCircle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, SkipForward, XCircle, Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { FatturapaImportResult, FatturapaInvoiceSummary } from "@/lib/types/api";
@@ -137,13 +137,20 @@ export function FatturapaImportResultView({ result, onReset }: FatturapaImportRe
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-5">
         <StatCard
           icon={<CheckCircle2 className="h-8 w-8 shrink-0 text-emerald-500" />}
           value={result.imported}
           label="Importate"
           items={result.importedDetails ?? []}
           emptyLabel="Nessuna fattura importata"
+        />
+        <StatCard
+          icon={<Wrench className="h-8 w-8 shrink-0 text-violet-500" />}
+          value={result.fixed ?? 0}
+          label="Numeri corretti"
+          items={result.fixedDetails ?? []}
+          emptyLabel="Nessuna correzione"
         />
         <StatCard
           icon={<AlertTriangle className="h-8 w-8 shrink-0 text-amber-500" />}

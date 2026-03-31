@@ -15,7 +15,8 @@ interface MonthlyRow {
     | "recurring"
     | "vat"
     | "total"
-    | "cumulative";
+    | "cumulative"
+    | "futureReceivable";
   color?: string;
   months: number[];
   total: number;
@@ -42,93 +43,118 @@ export async function GET(request: NextRequest) {
   const isCurrentYear = today.getFullYear() === year;
 
   // Fetch all data for the year
-  const [costCenters, invoices, recurringExpenses, oneOffExpenses, org, bankStatementsForYear] =
-    await Promise.all([
-      prisma.costCenter.findMany({
-        where: { organizationId },
-        select: { id: true, name: true, type: true, color: true },
-      }),
-      // Fetch invoices whose effective cash date falls in this year.
-      // Effective date = paidAt > expectedCollectionDate > dueDate > date.
-      // We need a broad query since paidAt/dueDate can place a prior-year invoice into this year.
-      prisma.invoice.findMany({
-        where: {
-          organizationId,
-          OR: [
-            // Emitted this year (fallback date in range)
-            { date: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
-            // Paid this year (even if emitted earlier)
-            { paidAt: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
-            // Due this year
-            { dueDate: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
-            // Expected collection this year
-            { expectedCollectionDate: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
-          ],
+  const [
+    costCenters,
+    invoices,
+    recurringExpenses,
+    oneOffExpenses,
+    org,
+    bankStatementsForYear,
+    futureReceivables,
+  ] = await Promise.all([
+    prisma.costCenter.findMany({
+      where: { organizationId },
+      select: { id: true, name: true, type: true, color: true },
+    }),
+    // Fetch invoices whose effective cash date falls in this year.
+    // Effective date = paidAt > expectedCollectionDate > dueDate > date.
+    // We need a broad query since paidAt/dueDate can place a prior-year invoice into this year.
+    prisma.invoice.findMany({
+      where: {
+        organizationId,
+        OR: [
+          // Emitted this year (fallback date in range)
+          { date: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
+          // Paid this year (even if emitted earlier)
+          { paidAt: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
+          // Due this year
+          { dueDate: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
+          // Expected collection this year
+          { expectedCollectionDate: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
+        ],
+      },
+      select: {
+        id: true,
+        number: true,
+        counterpart: true,
+        direction: true,
+        grossAmount: true,
+        vatAmount: true,
+        date: true,
+        dueDate: true,
+        expectedCollectionDate: true,
+        status: true,
+        paidAt: true,
+        costCenterId: true,
+      },
+    }),
+    prisma.recurringExpense.findMany({
+      where: {
+        organizationId,
+        startDate: { lte: new Date(year, 11, 31) },
+        OR: [{ endDate: null }, { endDate: { gte: new Date(year, 0, 1) } }],
+      },
+      select: {
+        id: true,
+        name: true,
+        amount: true,
+        frequency: true,
+        startDate: true,
+        endDate: true,
+      },
+    }),
+    prisma.oneOffExpense.findMany({
+      where: {
+        organizationId,
+        date: {
+          gte: new Date(year, 0, 1),
+          lte: new Date(year, 11, 31),
         },
-        select: {
-          id: true,
-          number: true,
-          counterpart: true,
-          direction: true,
-          grossAmount: true,
-          vatAmount: true,
-          date: true,
-          dueDate: true,
-          expectedCollectionDate: true,
-          status: true,
-          paidAt: true,
-          costCenterId: true,
+      },
+      select: { id: true, name: true, amount: true, date: true, isPaid: true },
+    }),
+    prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { settings: true },
+    }),
+    prisma.bankStatement.findMany({
+      where: {
+        organizationId,
+        date: {
+          gte: new Date(year, 0, 1),
+          lte: new Date(year, 11, 31),
         },
-      }),
-      prisma.recurringExpense.findMany({
-        where: {
-          organizationId,
-          startDate: { lte: new Date(year, 11, 31) },
-          OR: [{ endDate: null }, { endDate: { gte: new Date(year, 0, 1) } }],
+      },
+      orderBy: { date: "asc" },
+      select: {
+        id: true,
+        date: true,
+        description: true,
+        amount: true,
+        balance: true,
+        isReconciled: true,
+        reconciledInvoiceId: true,
+      },
+    }),
+    prisma.futureReceivable.findMany({
+      where: {
+        organizationId,
+        status: "PENDING",
+        includeInForecast: true,
+        expectedPaymentDate: {
+          gte: new Date(year, 0, 1),
+          lte: new Date(year, 11, 31),
         },
-        select: {
-          id: true,
-          name: true,
-          amount: true,
-          frequency: true,
-          startDate: true,
-          endDate: true,
-        },
-      }),
-      prisma.oneOffExpense.findMany({
-        where: {
-          organizationId,
-          date: {
-            gte: new Date(year, 0, 1),
-            lte: new Date(year, 11, 31),
-          },
-        },
-        select: { id: true, name: true, amount: true, date: true, isPaid: true },
-      }),
-      prisma.organization.findUnique({
-        where: { id: organizationId },
-        select: { settings: true },
-      }),
-      prisma.bankStatement.findMany({
-        where: {
-          organizationId,
-          date: {
-            gte: new Date(year, 0, 1),
-            lte: new Date(year, 11, 31),
-          },
-        },
-        orderBy: { date: "asc" },
-        select: {
-          id: true,
-          date: true,
-          description: true,
-          amount: true,
-          balance: true,
-          isReconciled: true,
-          reconciledInvoiceId: true,
-        },
-      }),
-    ]);
+      },
+      select: {
+        id: true,
+        description: true,
+        counterpart: true,
+        estimatedAmount: true,
+        expectedPaymentDate: true,
+      },
+    }),
+  ]);
 
   const settings = (org?.settings as Record<string, unknown>) ?? {};
   const manualBalance =
@@ -159,24 +185,52 @@ export async function GET(request: NextRequest) {
   );
 
   // ── Calculate year opening balance ──
-  // Reverse-calculation: currentBalance - sum(all bank movements in the year)
+  // Priority: BalanceSnapshot(EC_ANNUAL at Dec 31 prev year) > reverse-calc > manual
   let yearOpeningBalance = 0;
-  if (hasBankDataForYear) {
-    const totalBankMovements = bankStatementsForYear.reduce(
-      (sum, bs) => sum + Number(bs.amount),
-      0,
-    );
-    if (manualBalance !== null) {
-      yearOpeningBalance = manualBalance - totalBankMovements;
-    } else {
-      // Use the balance of the first transaction minus its own amount
-      const firstTx = bankStatementsForYear[0];
-      yearOpeningBalance = Number(firstTx.balance) - Number(firstTx.amount);
+  let usedBalanceSnapshot = false;
+
+  // Try BalanceSnapshot first (forward-calc approach)
+  try {
+    const bankAccount = await prisma.bankAccount.findFirst({
+      where: { organizationId, isDefault: true },
+      select: { id: true },
+    });
+    if (bankAccount) {
+      const prevYearEnd = new Date(year - 1, 11, 31);
+      const snapshot = await prisma.balanceSnapshot.findFirst({
+        where: {
+          bankAccountId: bankAccount.id,
+          date: { lte: prevYearEnd },
+        },
+        orderBy: { date: "desc" },
+        select: { balance: true },
+      });
+      if (snapshot) {
+        yearOpeningBalance = Number(snapshot.balance);
+        usedBalanceSnapshot = true;
+      }
     }
-  } else if (manualBalance !== null) {
-    yearOpeningBalance = manualBalance;
+  } catch {
+    // BalanceSnapshot table may not exist
   }
-  // else: yearOpeningBalance stays 0
+
+  if (!usedBalanceSnapshot) {
+    // Fallback: reverse-calculation
+    if (hasBankDataForYear) {
+      const totalBankMovements = bankStatementsForYear.reduce(
+        (sum, bs) => sum + Number(bs.amount),
+        0,
+      );
+      if (manualBalance !== null) {
+        yearOpeningBalance = manualBalance - totalBankMovements;
+      } else {
+        const firstTx = bankStatementsForYear[0];
+        yearOpeningBalance = Number(firstTx.balance) - Number(firstTx.amount);
+      }
+    } else if (manualBalance !== null) {
+      yearOpeningBalance = manualBalance;
+    }
+  }
 
   // ── Build per-cell detail map ──
   const detailMap: Record<string, Record<number, CellDetail[]>> = {};
@@ -204,7 +258,7 @@ export async function GET(request: NextRequest) {
     return new Date(inv.date);
   }
 
-  const isPaidStatus = (s: string) => s === "PAID" || s === "PARTIALLY_PAID";
+  const isPaidStatus = (s: string) => s === "PAID";
   const firstProjectionMonth = lastActualMonth + 1; // 0 if no bank data
 
   /**
@@ -470,18 +524,29 @@ export async function GET(request: NextRequest) {
     monthDataSource[m] === "bank" ? bankOutflowMonths[m] : totalCostMonths[m],
   );
 
+  // ── Future receivables (incassi futuri) — compute early so they feed into balances ──
+  const frMonths = Array.from({ length: 12 }, (_, m) => {
+    const matching = (futureReceivables ?? []).filter(
+      (fr) => fr.expectedPaymentDate && new Date(fr.expectedPaymentDate).getMonth() === m,
+    );
+    return matching.reduce((sum, fr) => sum + Number(fr.estimatedAmount), 0);
+  });
+  // Include future receivables only in projection months (bank months already have real data)
+  const frEffective = frMonths.map((v, m) => (monthDataSource[m] === "projection" ? v : 0));
+  const effectiveInflowWithFr = effectiveInflowMonths.map((v, m) => v + frEffective[m]);
+
   // ── Build cascading SALDO RIPORTATO ──
   const saldoRiportatoMonths = Array(12).fill(0);
   saldoRiportatoMonths[0] = yearOpeningBalance;
   for (let m = 1; m < 12; m++) {
     saldoRiportatoMonths[m] =
-      saldoRiportatoMonths[m - 1] + effectiveInflowMonths[m - 1] - effectiveOutflowMonths[m - 1];
+      saldoRiportatoMonths[m - 1] + effectiveInflowWithFr[m - 1] - effectiveOutflowMonths[m - 1];
   }
 
-  // Monthly balance and cumulative
+  // Monthly balance and cumulative (includes future receivables)
   const monthlyBalance = Array.from(
     { length: 12 },
-    (_, m) => effectiveInflowMonths[m] - effectiveOutflowMonths[m],
+    (_, m) => effectiveInflowWithFr[m] - effectiveOutflowMonths[m],
   );
   const cumulativeMonths = Array.from(
     { length: 12 },
@@ -509,12 +574,38 @@ export async function GET(request: NextRequest) {
   // 3. Revenue rows (projection months only)
   for (const r of revenueRows) rows.push(r);
 
-  // 4. TOTALE ENTRATE
+  // 3b. Incassi futuri (amounts computed earlier for balance calc, here we push details + row)
+  const frRowName = "Incassi futuri";
+  for (let m = 0; m < 12; m++) {
+    const matching = (futureReceivables ?? []).filter(
+      (fr) => fr.expectedPaymentDate && new Date(fr.expectedPaymentDate).getMonth() === m,
+    );
+    for (const fr of matching) {
+      pushDetail(frRowName, m, {
+        id: fr.id,
+        label: fr.description + (fr.counterpart ? ` (${fr.counterpart})` : ""),
+        amount: Number(fr.estimatedAmount),
+        type: "futureReceivable",
+        date: fr.expectedPaymentDate ? format(new Date(fr.expectedPaymentDate), "yyyy-MM-dd") : "",
+        status: "PENDING",
+      });
+    }
+  }
+  if (frMonths.some((v) => v > 0)) {
+    rows.push({
+      name: frRowName,
+      type: "futureReceivable",
+      months: frMonths,
+      total: frMonths.reduce((a, b) => a + b, 0),
+    });
+  }
+
+  // 4. TOTALE ENTRATE (include incassi futuri)
   rows.push({
     name: "TOTALE ENTRATE",
     type: "total",
-    months: effectiveInflowMonths,
-    total: effectiveInflowMonths.reduce((a, b) => a + b, 0),
+    months: effectiveInflowWithFr,
+    total: effectiveInflowWithFr.reduce((a, b) => a + b, 0),
   });
 
   // 5. Bank outflows (actual months only)

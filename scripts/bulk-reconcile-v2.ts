@@ -2,7 +2,7 @@
  * Enhanced bulk reconciliation script (v2).
  *
  * Improvements over v1:
- * - Includes OVERDUE invoices (not just PENDING)
+ * - Matches all PENDING invoices
  * - No date proximity limit (invoices from months/years ago can match)
  * - Multi-invoice matching: one bank transfer can cover N invoices if sum matches
  * - Counterpart name matching with fuzzy logic
@@ -119,9 +119,9 @@ async function main() {
     amount: Number(bs.amount),
   }));
 
-  // Fetch unpaid invoices (PENDING + OVERDUE)
+  // Fetch unpaid invoices (PENDING)
   const rawInv = await prisma.invoice.findMany({
-    where: { organizationId: org.id, status: { in: ["PENDING", "OVERDUE"] } },
+    where: { organizationId: org.id, status: "PENDING" },
     select: { id: true, number: true, counterpart: true, grossAmount: true, direction: true },
   });
   const invoices: InvRow[] = rawInv.map((inv) => ({
@@ -130,7 +130,7 @@ async function main() {
   }));
 
   console.log(`\nMovimenti non riconciliati: ${bankStatements.length}`);
-  console.log(`Fatture non pagate (PENDING+OVERDUE): ${invoices.length}`);
+  console.log(`Fatture non pagate (PENDING): ${invoices.length}`);
 
   const usedBsIds = new Set<string>();
   const usedInvIds = new Set<string>();
@@ -273,7 +273,7 @@ async function main() {
 
   // Report remaining
   const remaining = await prisma.invoice.count({
-    where: { organizationId: org.id, direction: "ACTIVE", status: { in: ["PENDING", "OVERDUE"] } },
+    where: { organizationId: org.id, direction: "ACTIVE", status: "PENDING" },
   });
   const remainingBs = await prisma.bankStatement.count({
     where: { organizationId: org.id, isReconciled: false, amount: { gt: 0 } },

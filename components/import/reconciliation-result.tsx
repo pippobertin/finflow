@@ -3,21 +3,33 @@
 import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+interface ErrorDetail {
+  row: number;
+  field?: string;
+  message: string;
+}
+
 interface ReconciliationResultProps {
   imported: number;
+  duplicates?: number;
+  totalParsed?: number;
   reconciled: number;
   rejected: number;
   unmatched: number;
   errors: number;
+  errorDetails?: ErrorDetail[];
   onReset: () => void;
 }
 
 export function ReconciliationResult({
   imported,
+  duplicates = 0,
+  totalParsed,
   reconciled,
   rejected,
   unmatched,
   errors,
+  errorDetails,
   onReset,
 }: ReconciliationResultProps) {
   return (
@@ -47,9 +59,42 @@ export function ReconciliationResult({
         </div>
       </div>
 
+      {duplicates > 0 && (
+        <p className="text-sm text-slate-500">
+          {duplicates} movimenti duplicati saltati
+          {totalParsed ? ` (su ${totalParsed} trovati nel file)` : ""}
+        </p>
+      )}
+
       {errors > 0 && (
+        <div className="text-sm text-amber-600">
+          <p>{errors} righe con errori durante l&apos;importazione</p>
+          {errorDetails && errorDetails.length > 0 && (
+            <details className="mt-2 text-left">
+              <summary className="cursor-pointer text-xs font-medium">
+                Mostra dettagli errori
+              </summary>
+              <ul className="mt-1 max-h-32 overflow-y-auto text-xs text-slate-500">
+                {errorDetails.slice(0, 10).map((e, i) => (
+                  <li key={i}>
+                    Riga {e.row}: {e.message}
+                    {e.field ? ` (${e.field})` : ""}
+                  </li>
+                ))}
+                {errorDetails.length > 10 && (
+                  <li>...e altri {errorDetails.length - 10} errori simili</li>
+                )}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+
+      {totalParsed !== undefined && imported === 0 && duplicates === 0 && errors === 0 && (
         <p className="text-sm text-amber-600">
-          {errors} righe con errori durante l&apos;importazione
+          {totalParsed === 0
+            ? "Nessun movimento trovato nel file. Verifica il formato."
+            : `${totalParsed} righe trovate ma nessuna importata. Verifica la mappatura colonne.`}
         </p>
       )}
 

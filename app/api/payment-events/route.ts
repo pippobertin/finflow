@@ -103,19 +103,12 @@ async function updateInvoiceStatus(invoiceId: string) {
   const totalPaid = events.reduce((sum, e) => sum + Number(e.amount), 0);
   const grossAmount = Number(invoice.grossAmount);
 
-  let newStatus: string;
-  if (totalPaid >= grossAmount) {
-    newStatus = "PAID";
-  } else if (totalPaid > 0) {
-    newStatus = "PARTIALLY_PAID";
-  } else {
-    newStatus = "PENDING";
-  }
+  const newStatus: "PAID" | "PENDING" = totalPaid >= grossAmount ? "PAID" : "PENDING";
 
   await prisma.invoice.update({
     where: { id: invoiceId },
     data: {
-      status: newStatus as "PAID" | "PARTIALLY_PAID" | "PENDING",
+      status: newStatus,
       paidAt: newStatus === "PAID" ? new Date() : null,
     },
   });
