@@ -185,11 +185,10 @@ export async function GET(request: NextRequest) {
   );
 
   // ── Calculate year opening balance ──
-  // Priority: BalanceSnapshot(EC_ANNUAL at Dec 31 prev year) > reverse-calc > manual
+  // Priority: BalanceSnapshot EC_QUARTERLY (last quarter prev year) > MANUAL snapshot > manualBalance setting
   let yearOpeningBalance = 0;
   let usedBalanceSnapshot = false;
 
-  // Try BalanceSnapshot first (forward-calc approach)
   try {
     const bankAccount = await prisma.bankAccount.findFirst({
       where: { organizationId, isDefault: true },
@@ -197,17 +196,34 @@ export async function GET(request: NextRequest) {
     });
     if (bankAccount) {
       const prevYearEnd = new Date(year - 1, 11, 31);
-      const snapshot = await prisma.balanceSnapshot.findFirst({
+
+      // Priority 1: EC_QUARTERLY snapshot (closing balance from bank statement)
+      const ecSnapshot = await prisma.balanceSnapshot.findFirst({
         where: {
           bankAccountId: bankAccount.id,
+          source: "EC_QUARTERLY",
           date: { lte: prevYearEnd },
         },
         orderBy: { date: "desc" },
         select: { balance: true },
       });
-      if (snapshot) {
-        yearOpeningBalance = Number(snapshot.balance);
+      if (ecSnapshot) {
+        yearOpeningBalance = Number(ecSnapshot.balance);
         usedBalanceSnapshot = true;
+      } else {
+        // Priority 2: Any other snapshot (MANUAL, EC_ANNUAL)
+        const anySnapshot = await prisma.balanceSnapshot.findFirst({
+          where: {
+            bankAccountId: bankAccount.id,
+            date: { lte: prevYearEnd },
+          },
+          orderBy: { date: "desc" },
+          select: { balance: true },
+        });
+        if (anySnapshot) {
+          yearOpeningBalance = Number(anySnapshot.balance);
+          usedBalanceSnapshot = true;
+        }
       }
     }
   } catch {
@@ -215,20 +231,13 @@ export async function GET(request: NextRequest) {
   }
 
   if (!usedBalanceSnapshot) {
-    // Fallback: reverse-calculation
-    if (hasBankDataForYear) {
-      const totalBankMovements = bankStatementsForYear.reduce(
-        (sum, bs) => sum + Number(bs.amount),
-        0,
-      );
-      if (manualBalance !== null) {
-        yearOpeningBalance = manualBalance - totalBankMovements;
-      } else {
-        const firstTx = bankStatementsForYear[0];
-        yearOpeningBalance = Number(firstTx.balance) - Number(firstTx.amount);
-      }
-    } else if (manualBalance !== null) {
+    // Priority 3: manualBalance from settings
+    if (manualBalance !== null) {
       yearOpeningBalance = manualBalance;
+    } else if (hasBankDataForYear) {
+      // Priority 4: reverse-calc from first bank transaction
+      const firstTx = bankStatementsForYear[0];
+      yearOpeningBalance = Number(firstTx.balance) - Number(firstTx.amount);
     }
   }
 

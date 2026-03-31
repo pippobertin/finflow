@@ -22,6 +22,12 @@ export interface BankStatementImportResult {
   totalParsed: number;
   errors: ImportError[];
   bankStatementIds: string[];
+  ecMetadata?: {
+    openingBalance: number | null;
+    closingBalance: number | null;
+    closingDate: string | null;
+    linkedPeriod: string | null;
+  };
 }
 
 /**
@@ -75,10 +81,21 @@ export async function importBankStatements(
 
   let rows: Record<string, string>[];
   const importErrors: ImportError[] = [];
+  let detectedEcMetadata: BankStatementImportResult["ecMetadata"] = undefined;
 
   if (pdfBuffer) {
     const pdfResult = await parseBankStatementPdf(pdfBuffer);
     rows = pdfResult.rows;
+
+    // Capture EC metadata if detected (RIEPILOGO with saldo finale)
+    if (pdfResult.ecMetadata.closingBalance !== null) {
+      detectedEcMetadata = {
+        openingBalance: pdfResult.ecMetadata.openingBalance,
+        closingBalance: pdfResult.ecMetadata.closingBalance,
+        closingDate: pdfResult.ecMetadata.closingDate,
+        linkedPeriod: null,
+      };
+    }
   } else if (csvContent) {
     const { rows: csvRows, errors: parseErrors } = parseCsv(csvContent, { skipRows });
     rows = csvRows;
@@ -215,11 +232,93 @@ export async function importBankStatements(
     `[bank-statement-import] Result: ${createdIds.length} imported, ${duplicateCount} duplicates, ${importErrors.length} errors out of ${rows.length} parsed`,
   );
 
+  // If EC metadata detected (PDF with saldo finale), auto-create BalanceSnapshot + DataPeriod
+  if (
+    detectedEcMetadata?.closingBalance != null &&
+    detectedEcMetadata.closingDate &&
+    createdIds.length > 0
+  ) {
+    try {
+      // Parse closing date: "DD.MM.YYYY" or "DD/MM/YYYY"
+      const cdParts = detectedEcMetadata.closingDate.replace(/\//g, ".").split(".");
+      if (cdParts.length === 3) {
+        const day = parseInt(cdParts[0]);
+        const month = parseInt(cdParts[1]) - 1;
+        const year = parseInt(cdParts[2]);
+        const qNum = Math.floor(month / 3) + 1;
+        const period = `Q${qNum}_${year}`;
+        const qStartMonth = (qNum - 1) * 3;
+        // Use UTC noon to avoid timezone-shift issues with PostgreSQL
+        const qStart = new Date(Date.UTC(year, qStartMonth, 1, 12, 0, 0));
+        const qEnd = new Date(Date.UTC(year, qStartMonth + 3, 0, 12, 0, 0));
+
+        detectedEcMetadata.linkedPeriod = period;
+
+        // Create DataPeriod if not already linked
+        const existingDp = await prisma.dataPeriod.findFirst({
+          where: {
+            organizationId,
+            type: "EC_QUARTERLY",
+            startDate: { lte: qEnd },
+            endDate: { gte: qStart },
+          },
+        });
+        if (!existingDp) {
+          await prisma.dataPeriod.create({
+            data: {
+              organizationId,
+              type: "EC_QUARTERLY",
+              startDate: qStart,
+              endDate: qEnd,
+              sourceFile: sourceFile || null,
+            },
+          });
+        }
+
+        // Create BalanceSnapshot
+        const bankAccount = await prisma.bankAccount.findFirst({
+          where: { organizationId, isDefault: true },
+          select: { id: true },
+        });
+        if (bankAccount) {
+          await prisma.balanceSnapshot.upsert({
+            where: {
+              bankAccountId_date_source: {
+                bankAccountId: bankAccount.id,
+                date: qEnd,
+                source: "EC_QUARTERLY",
+              },
+            },
+            update: {
+              balance: detectedEcMetadata.closingBalance,
+              period,
+              sourceFile: sourceFile || null,
+            },
+            create: {
+              bankAccountId: bankAccount.id,
+              date: qEnd,
+              balance: detectedEcMetadata.closingBalance,
+              source: "EC_QUARTERLY",
+              period,
+              sourceFile: sourceFile || null,
+            },
+          });
+          console.log(
+            `[bank-statement-import] EC detected: period=${period}, closingBalance=${detectedEcMetadata.closingBalance}, date=${qEnd.toISOString().slice(0, 10)}`,
+          );
+        }
+      }
+    } catch (err) {
+      console.error("[bank-statement-import] Error saving EC metadata:", err);
+    }
+  }
+
   return {
     imported: createdIds.length,
     duplicates: duplicateCount,
     totalParsed: rows.length,
     errors: importErrors,
     bankStatementIds: createdIds,
+    ecMetadata: detectedEcMetadata,
   };
 }

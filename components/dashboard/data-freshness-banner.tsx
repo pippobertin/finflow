@@ -1,96 +1,503 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { AlertTriangle, X, Upload } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  AlertTriangle,
+  CheckCircle,
+  X,
+  Upload,
+  Link2,
+  Unlink,
+  FileText,
+  Pencil,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { toast } from "sonner";
+
+interface SourceFileInfo {
+  sourceFile: string;
+  minDate: string;
+  maxDate: string;
+  recordCount: number;
+  closingBalance: number | null;
+  overlapsQuarter: boolean;
+}
 
 interface DataGap {
   type: string;
   period: string;
   label: string;
+  startDate: string;
+  endDate: string;
   daysOverdue: number;
   priority: "high" | "medium" | "low";
+  availableFiles: SourceFileInfo[];
+}
+
+interface LinkedEc {
+  id: string;
+  period: string;
+  label: string;
+  sourceFile: string | null;
+  closingBalance: number | null;
 }
 
 const DISMISS_KEY = "finflow_data_freshness_dismissed";
 const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+function fmtBal(n: number): string {
+  return n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Calculate quarter start/end from period string like "Q4_2025" */
+function quarterDates(period: string): { start: Date; end: Date } | null {
+  const m = period.match(/^Q(\d)_(\d{4})$/);
+  if (!m) return null;
+  const q = parseInt(m[1]);
+  const y = parseInt(m[2]);
+  const sm = (q - 1) * 3;
+  return { start: new Date(y, sm, 1), end: new Date(y, sm + 3, 0) };
+}
+
+/** Check if a file's date range overlaps a quarter */
+function fileOverlapsQuarter(f: SourceFileInfo, period: string): boolean {
+  const qd = quarterDates(period);
+  if (!qd) return false;
+  const fMin = new Date(f.minDate);
+  const fMax = new Date(f.maxDate);
+  return fMin <= qd.end && fMax >= qd.start;
+}
+
 export function DataFreshnessBanner() {
   const [gaps, setGaps] = useState<DataGap[]>([]);
+  const [linkedEcs, setLinkedEcs] = useState<LinkedEc[]>([]);
+  const [allFiles, setAllFiles] = useState<SourceFileInfo[]>([]);
   const [dismissed, setDismissed] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, string>>({});
+  const [balanceInputs, setBalanceInputs] = useState<Record<string, string>>({});
+  const [editingPeriod, setEditingPeriod] = useState<string | null>(null);
 
-  useEffect(() => {
-    const dismissedAt = localStorage.getItem(DISMISS_KEY);
-    if (dismissedAt && Date.now() - parseInt(dismissedAt) < DISMISS_DURATION) {
-      return;
-    }
-    // Not dismissed — fetch data gaps
+  const fetchData = useCallback(() => {
     fetch("/api/data-freshness")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data.gaps) && data.gaps.length > 0) {
-          setGaps(data.gaps);
+        const newGaps: DataGap[] = Array.isArray(data.gaps) ? data.gaps : [];
+        const newLinked: LinkedEc[] = Array.isArray(data.linkedEcs) ? data.linkedEcs : [];
+        const newFiles: SourceFileInfo[] = Array.isArray(data.allFiles) ? data.allFiles : [];
+        setGaps(newGaps);
+        setLinkedEcs(newLinked);
+        setAllFiles(newFiles);
+        if (newGaps.length > 0 || newLinked.length > 0) {
           setDismissed(false);
         }
       })
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const dismissedAt = localStorage.getItem(DISMISS_KEY);
+    if (dismissedAt && Date.now() - parseInt(dismissedAt) < DISMISS_DURATION) {
+      return;
+    }
+    fetchData();
+  }, [fetchData]);
+
+  function getSelectedFile(period: string, files: SourceFileInfo[]): SourceFileInfo | null {
+    const sel = selectedFiles[period];
+    if (!sel) return null;
+    return files.find((f) => f.sourceFile === sel) ?? null;
+  }
+
+  function handleSelectFile(period: string, file: SourceFileInfo) {
+    setSelectedFiles((prev) => ({ ...prev, [period]: file.sourceFile }));
+    if (file.closingBalance != null) {
+      setBalanceInputs((prev) => ({
+        ...prev,
+        [period]: fmtBal(file.closingBalance!).replace(".", ""),
+      }));
+    } else {
+      setBalanceInputs((prev) => {
+        const next = { ...prev };
+        delete next[period];
+        return next;
+      });
+    }
+  }
+
+  function handleStartEdit(ec: LinkedEc) {
+    setEditingPeriod(ec.period);
+    // Pre-select current file
+    if (ec.sourceFile) {
+      setSelectedFiles((prev) => ({ ...prev, [ec.period]: ec.sourceFile! }));
+    }
+    // Pre-fill current balance
+    if (ec.closingBalance != null) {
+      setBalanceInputs((prev) => ({
+        ...prev,
+        [ec.period]: fmtBal(ec.closingBalance!).replace(".", ""),
+      }));
+    }
+  }
+
+  function handleCancelEdit(period: string) {
+    setEditingPeriod(null);
+    setSelectedFiles((prev) => {
+      const next = { ...prev };
+      delete next[period];
+      return next;
+    });
+    setBalanceInputs((prev) => {
+      const next = { ...prev };
+      delete next[period];
+      return next;
+    });
+  }
+
+  async function handleLink(period: string) {
+    const sel = selectedFiles[period];
+    if (!sel) {
+      toast.error("Seleziona il file dell\u2019EC per questo trimestre");
+      return;
+    }
+
+    const balStr = balanceInputs[period];
+    if (!balStr) {
+      toast.error("Inserisci il saldo di chiusura dell\u2019EC");
+      return;
+    }
+    const closingBalance = parseFloat(balStr.replace(/\./g, "").replace(",", "."));
+    if (isNaN(closingBalance)) {
+      toast.error("Saldo non valido");
+      return;
+    }
+
+    setProcessing(period);
+    try {
+      const res = await fetch("/api/data-freshness", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ period, sourceFile: sel, closingBalance }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Errore");
+      }
+      toast.success(editingPeriod === period ? "EC aggiornato" : "EC collegato al trimestre");
+      setEditingPeriod(null);
+      setSelectedFiles((prev) => {
+        const next = { ...prev };
+        delete next[period];
+        return next;
+      });
+      setBalanceInputs((prev) => {
+        const next = { ...prev };
+        delete next[period];
+        return next;
+      });
+      fetchData();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Errore");
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  async function handleUnlink(id: string) {
+    setProcessing(id);
+    try {
+      const res = await fetch("/api/data-freshness", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("Errore");
+      toast.success("Collegamento rimosso");
+      setEditingPeriod(null);
+      fetchData();
+    } catch {
+      toast.error("Errore nella rimozione");
+    } finally {
+      setProcessing(null);
+    }
+  }
+
   function handleDismiss() {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setDismissed(true);
   }
 
-  if (dismissed || gaps.length === 0) return null;
+  if (dismissed) return null;
 
-  const primary = gaps[0];
+  const ecGaps = gaps.filter((g) => g.type === "EC_QUARTERLY");
+  const movementGaps = gaps.filter((g) => g.type === "MOVEMENTS");
+  const hasContent = ecGaps.length > 0 || linkedEcs.length > 0 || movementGaps.length > 0;
 
-  const bgColor =
-    primary.priority === "high"
-      ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30"
-      : primary.priority === "medium"
-        ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
-        : "border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30";
+  if (!hasContent) return null;
 
-  const iconColor =
-    primary.priority === "high"
-      ? "text-red-500"
-      : primary.priority === "medium"
-        ? "text-amber-500"
-        : "text-blue-500";
+  /** Render file picker + balance input for a given period */
+  function renderFilePicker(period: string, files: SourceFileInfo[]) {
+    const filesForQuarter = files.map((f) => ({
+      ...f,
+      overlapsQuarter: fileOverlapsQuarter(f, period),
+    }));
+    // Sort overlapping first
+    filesForQuarter.sort((a, b) =>
+      a.overlapsQuarter === b.overlapsQuarter ? 0 : a.overlapsQuarter ? -1 : 1,
+    );
 
-  let message: string;
-  if (primary.type === "EC_QUARTERLY") {
-    message = `Il ${primary.label} si è chiuso ${primary.daysOverdue + 7} giorni fa. Carica l'EC trimestrale per aggiornare il saldo.`;
-  } else {
-    message = `Non ci sono movimenti bancari da ${primary.daysOverdue + 30} giorni. Importa i movimenti aggiornati.`;
+    const selFile = getSelectedFile(period, filesForQuarter);
+
+    if (filesForQuarter.length === 0) {
+      return (
+        <p className="mt-1 text-[10px] text-slate-500">
+          Nessun file caricato trovato. Importa l&apos;estratto conto.
+        </p>
+      );
+    }
+
+    return (
+      <div className="mt-2 space-y-2">
+        <p className="text-[10px] font-medium text-slate-600 dark:text-slate-400">
+          Qual &egrave; il file dell&apos;EC di questo trimestre?
+        </p>
+        <div className="space-y-1">
+          {filesForQuarter.map((f) => {
+            const isSelected = selectedFiles[period] === f.sourceFile;
+            return (
+              <label
+                key={f.sourceFile}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors",
+                  isSelected
+                    ? "border-indigo-400 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-950/30"
+                    : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-slate-500",
+                )}
+              >
+                <input
+                  type="radio"
+                  name={`ec-file-${period}`}
+                  checked={isSelected}
+                  onChange={() => handleSelectFile(period, f)}
+                  className="accent-indigo-600"
+                />
+                <FileText className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-medium">{f.sourceFile}</span>
+                  <span className="ml-2 text-[10px] text-slate-400">
+                    {f.minDate} {"→"} {f.maxDate} {"·"} {f.recordCount} mov.
+                  </span>
+                  {f.overlapsQuarter && (
+                    <span className="ml-1 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                      periodo compatibile
+                    </span>
+                  )}
+                </div>
+                {f.closingBalance != null && (
+                  <span className="font-numeric shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    {fmtBal(f.closingBalance)} {"€"}
+                  </span>
+                )}
+              </label>
+            );
+          })}
+        </div>
+
+        {selFile && (
+          <div className="mt-1 rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-800">
+            {selFile.closingBalance != null ? (
+              <p className="mb-1 text-[10px] text-slate-600 dark:text-slate-400">
+                Saldo chiusura rilevato:{" "}
+                <span className="font-numeric font-semibold">
+                  {fmtBal(selFile.closingBalance)} {"€"}
+                </span>
+                {" \u2014 "}modifica se diverso dal saldo reale dell&apos;EC.
+              </p>
+            ) : (
+              <p className="mb-1 text-[10px] text-slate-600 dark:text-slate-400">
+                Inserisci il saldo di chiusura come riportato nell&apos;EC (ultima pagina,
+                &quot;Saldo finale&quot;).
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="Saldo chiusura EC"
+                value={balanceInputs[period] ?? ""}
+                onChange={(e) =>
+                  setBalanceInputs((prev) => ({
+                    ...prev,
+                    [period]: e.target.value,
+                  }))
+                }
+                className="border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 h-8 w-44 rounded-md border bg-transparent px-2 text-sm transition-colors outline-none focus-visible:ring-1"
+              />
+              <span className="text-xs text-slate-400">{"€"}</span>
+              <Button
+                size="sm"
+                variant="default"
+                className="h-8 text-xs"
+                disabled={processing === period || !balanceInputs[period]}
+                onClick={() => handleLink(period)}
+              >
+                <Link2 className="mr-1 h-3 w-3" />
+                {processing === period ? "..." : "Conferma"}
+              </Button>
+              {editingPeriod === period && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 text-xs"
+                  onClick={() => handleCancelEdit(period)}
+                >
+                  Annulla
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
-    <div className={cn("mb-4 flex items-center gap-3 rounded-lg border p-3", bgColor)}>
-      <AlertTriangle className={cn("h-5 w-5 shrink-0", iconColor)} />
-      <div className="flex-1">
-        <p className="text-sm font-medium">
-          {message}
-          {gaps.length > 1 && (
-            <span className="ml-1 text-xs opacity-70">
-              (+{gaps.length - 1} altr{gaps.length - 1 === 1 ? "o" : "i"} aggiornament
-              {gaps.length - 1 === 1 ? "o" : "i"})
-            </span>
-          )}
-        </p>
-      </div>
-      <div className="flex shrink-0 gap-2">
-        <Button size="sm" variant="outline" render={<Link href="/import" />}>
-          <Upload className="mr-1 h-3 w-3" />
-          Aggiorna
-        </Button>
-        <Button size="sm" variant="ghost" onClick={handleDismiss}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
+    <div className="mb-4 space-y-2">
+      {(ecGaps.length > 0 || linkedEcs.length > 0) && (
+        <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              Estratti Conto Trimestrali
+            </p>
+            <Button size="sm" variant="ghost" onClick={handleDismiss} className="h-6 w-6 p-0">
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="space-y-1.5">
+            {/* Gaps: quarters without linked EC */}
+            {ecGaps.map((gap) => (
+              <div
+                key={gap.period}
+                className={cn(
+                  "rounded-md px-3 py-2",
+                  gap.priority === "high"
+                    ? "bg-red-50 dark:bg-red-950/20"
+                    : "bg-amber-50 dark:bg-amber-950/20",
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        gap.priority === "high" ? "text-red-500" : "text-amber-500",
+                      )}
+                    />
+                    <span className="text-xs font-medium">{gap.label}</span>
+                    <span className="text-[10px] text-slate-500">
+                      (scaduto da {gap.daysOverdue + 7}gg)
+                    </span>
+                  </div>
+                  <Link
+                    href="/import"
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "h-7 text-xs",
+                    )}
+                  >
+                    <Upload className="mr-1 h-3 w-3" />
+                    Carica EC
+                  </Link>
+                </div>
+                {renderFilePicker(
+                  gap.period,
+                  gap.availableFiles.length > 0 ? gap.availableFiles : allFiles,
+                )}
+              </div>
+            ))}
+
+            {/* Linked ECs */}
+            {linkedEcs.map((ec) => {
+              const isEditing = editingPeriod === ec.period;
+
+              return (
+                <div
+                  key={ec.id}
+                  className={cn(
+                    "rounded-md px-3 py-2",
+                    isEditing
+                      ? "bg-indigo-50 dark:bg-indigo-950/20"
+                      : "bg-emerald-50 dark:bg-emerald-950/20",
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+                      <span className="text-xs font-medium">{ec.label}</span>
+                      {ec.closingBalance != null && (
+                        <span className="font-numeric text-[10px] text-emerald-700 dark:text-emerald-400">
+                          Saldo: {fmtBal(ec.closingBalance)} {"€"}
+                        </span>
+                      )}
+                      {ec.sourceFile && (
+                        <span className="text-[10px] text-slate-400">({ec.sourceFile})</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-slate-500 hover:text-indigo-600"
+                        disabled={processing === ec.id}
+                        onClick={() =>
+                          isEditing ? handleCancelEdit(ec.period) : handleStartEdit(ec)
+                        }
+                      >
+                        <Pencil className="mr-1 h-3 w-3" />
+                        {isEditing ? "Annulla" : "Modifica"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-slate-500 hover:text-red-600"
+                        disabled={processing === ec.id}
+                        onClick={() => handleUnlink(ec.id)}
+                      >
+                        <Unlink className="mr-1 h-3 w-3" />
+                        Rimuovi
+                      </Button>
+                    </div>
+                  </div>
+
+                  {isEditing && renderFilePicker(ec.period, allFiles)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {movementGaps.map((gap) => (
+        <div
+          key={gap.period}
+          className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+          <p className="flex-1 text-xs font-medium">
+            Non ci sono movimenti bancari da {gap.daysOverdue + 30} giorni. Importa i movimenti
+            aggiornati.
+          </p>
+          <Link
+            href="/import"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 text-xs")}
+          >
+            <Upload className="mr-1 h-3 w-3" />
+            Importa
+          </Link>
+        </div>
+      ))}
     </div>
   );
 }

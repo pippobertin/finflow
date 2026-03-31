@@ -1,8 +1,19 @@
 import { PDFParse } from "pdf-parse";
 
-export interface PdfParseResult {
+export interface EcMetadata {
+  openingBalance: number | null;
+  closingBalance: number | null;
+  openingDate: string | null;
+  closingDate: string | null;
+}
+
+interface RawParseResult {
   headers: string[];
   rows: Record<string, string>[];
+}
+
+export interface PdfParseResult extends RawParseResult {
+  ecMetadata: EcMetadata;
 }
 
 // ─── Constants ─────────────────────────────────────────────
@@ -170,7 +181,7 @@ function findColumnIdx(headers: string[], keywords: string[]): number {
 // into Uscite/Entrate columns). We fix amounts in post-processing
 // by scanning the full row text with noise filtering + largest selection.
 
-function parseFromTables(tables: Array<Array<string>>[]): PdfParseResult | null {
+function parseFromTables(tables: Array<Array<string>>[]): RawParseResult | null {
   let bestTable: Array<Array<string>> | null = null;
   let bestLen = 0;
 
@@ -270,7 +281,7 @@ interface TxBlock {
   allAmounts: CandidateAmount[];
 }
 
-function parseFromText(text: string): PdfParseResult {
+function parseFromText(text: string): RawParseResult {
   const lines = text.split("\n");
   const blocks: TxBlock[] = [];
   let current: TxBlock | null = null;
@@ -368,6 +379,65 @@ function parseFromText(text: string): PdfParseResult {
   return { headers, rows };
 }
 
+// ─── EC metadata extraction (RIEPILOGO GENERALE) ─────────
+
+function extractEcMetadata(text: string): EcMetadata {
+  const result: EcMetadata = {
+    openingBalance: null,
+    closingBalance: null,
+    openingDate: null,
+    closingDate: null,
+  };
+
+  const lines = text.split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const hasSaldoIniziale = /saldo\s*iniziale/i.test(line);
+    const hasSaldoFinale = /saldo\s*finale/i.test(line);
+
+    if (!hasSaldoIniziale && !hasSaldoFinale) continue;
+
+    // Extract dates: "al DD.MM.YYYY"
+    const dateMatches = [...line.matchAll(/al\s+(\d{2}[./]\d{2}[./]\d{4})/g)];
+
+    // Find amounts — check this line, and if none found, the next line
+    let amounts = findAmountsInText(line).filter((a) => !a.isNoise);
+    if (amounts.length === 0 && i + 1 < lines.length) {
+      amounts = findAmountsInText(lines[i + 1]).filter((a) => !a.isNoise);
+    }
+
+    if (hasSaldoIniziale && hasSaldoFinale) {
+      // RIEPILOGO header: both on same line, amounts on this or next line
+      // First amount = opening, last = closing
+      if (amounts.length >= 2) {
+        result.openingBalance = amounts[0].numeric;
+        result.closingBalance = amounts[amounts.length - 1].numeric;
+      }
+      if (dateMatches.length >= 2) {
+        result.openingDate = dateMatches[0][1];
+        result.closingDate = dateMatches[1][1];
+      }
+    } else if (hasSaldoFinale) {
+      if (amounts.length > 0) {
+        result.closingBalance = amounts[amounts.length - 1].numeric;
+      }
+      if (dateMatches.length > 0) {
+        result.closingDate = dateMatches[dateMatches.length - 1][1];
+      }
+    } else if (hasSaldoIniziale) {
+      if (amounts.length > 0) {
+        result.openingBalance = amounts[0].numeric;
+      }
+      if (dateMatches.length > 0) {
+        result.openingDate = dateMatches[0][1];
+      }
+    }
+  }
+
+  return result;
+}
+
 // ─── Main export ──────────────────────────────────────────
 
 /**
@@ -385,13 +455,23 @@ export async function parseBankStatementPdf(buffer: Buffer): Promise<PdfParseRes
   try {
     // Primary: text parsing (correct dates from two-date block detection)
     const textResult = await parser.getText();
-    const textParsed = parseFromText(textResult.text);
+    const fullText = textResult.text;
+
+    // Extract EC metadata (saldo iniziale/finale) from RIEPILOGO
+    const ecMetadata = extractEcMetadata(fullText);
+    if (ecMetadata.closingBalance !== null) {
+      console.log(
+        `[pdf-parser] EC metadata: opening=${ecMetadata.openingBalance} (${ecMetadata.openingDate}), closing=${ecMetadata.closingBalance} (${ecMetadata.closingDate})`,
+      );
+    }
+
+    const textParsed = parseFromText(fullText);
 
     if (textParsed.rows.length >= 3) {
       console.log(
         `[pdf-parser] Text parsing: ${textParsed.rows.length} rows, headers: [${textParsed.headers.join(", ")}]`,
       );
-      return textParsed;
+      return { ...textParsed, ecMetadata };
     }
 
     // Fallback: table extraction
@@ -403,12 +483,12 @@ export async function parseBankStatementPdf(buffer: Buffer): Promise<PdfParseRes
       const tableParsed = parseFromTables(allTables);
       if (tableParsed && tableParsed.rows.length > textParsed.rows.length) {
         console.log(`[pdf-parser] Table extraction: ${tableParsed.rows.length} rows`);
-        return tableParsed;
+        return { ...tableParsed, ecMetadata };
       }
     }
 
     console.log(`[pdf-parser] Final: ${textParsed.rows.length} rows`);
-    return textParsed;
+    return { ...textParsed, ecMetadata };
   } finally {
     await parser.destroy();
   }

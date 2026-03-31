@@ -313,40 +313,75 @@ export async function buildDailyProjection(
   const manualBalance =
     typeof settings.currentBalance === "number" ? settings.currentBalance : null;
 
-  // Forward-calc: try BalanceSnapshot first, then fallback to manual/last bank statement
+  // Forward-calc: EC_QUARTERLY snapshot first, then other snapshots, then manual fallback
   let startingBalance = 0;
+  let usedBalanceSnapshot = false;
+
   try {
     const bankAccount = await prisma.bankAccount.findFirst({
       where: { organizationId, isDefault: true },
       select: { id: true },
     });
     if (bankAccount) {
-      const latestSnapshot = await prisma.balanceSnapshot.findFirst({
-        where: { bankAccountId: bankAccount.id, date: { lte: today } },
+      // Priority 1: EC_QUARTERLY snapshot (closing balance from bank statement)
+      const ecSnapshot = await prisma.balanceSnapshot.findFirst({
+        where: {
+          bankAccountId: bankAccount.id,
+          source: "EC_QUARTERLY",
+          date: { lte: today },
+        },
         orderBy: { date: "desc" },
-        select: { balance: true, date: true },
+        select: { balance: true, date: true, sourceFile: true },
       });
-      if (latestSnapshot) {
-        // Start from snapshot, add movements between snapshot date and today
+
+      let snapshotBalance: number | null = null;
+      let snapshotDate: Date | null = null;
+      let snapshotSourceFile: string | null = null;
+
+      if (ecSnapshot) {
+        snapshotBalance = Number(ecSnapshot.balance);
+        snapshotDate = ecSnapshot.date;
+        snapshotSourceFile = ecSnapshot.sourceFile;
+        usedBalanceSnapshot = true;
+      } else {
+        // Priority 2: Any other snapshot (MANUAL, etc.)
+        const anySnapshot = await prisma.balanceSnapshot.findFirst({
+          where: {
+            bankAccountId: bankAccount.id,
+            date: { lte: today },
+          },
+          orderBy: { date: "desc" },
+          select: { balance: true, date: true, sourceFile: true },
+        });
+        if (anySnapshot) {
+          snapshotBalance = Number(anySnapshot.balance);
+          snapshotDate = anySnapshot.date;
+          snapshotSourceFile = anySnapshot.sourceFile;
+          usedBalanceSnapshot = true;
+        }
+      }
+
+      if (snapshotBalance !== null && snapshotDate !== null) {
+        // Start from snapshot, add movements between snapshot date and today,
+        // excluding movements from the EC source file itself (already in snapshot balance)
         const movementsAfterSnapshot = await prisma.bankStatement.findMany({
           where: {
             organizationId,
-            date: { gt: latestSnapshot.date, lte: today },
+            date: { gt: snapshotDate, lte: today },
+            ...(snapshotSourceFile ? { NOT: { sourceFile: snapshotSourceFile } } : {}),
           },
           select: { amount: true },
         });
         const movementSum = movementsAfterSnapshot.reduce((sum, bs) => sum + Number(bs.amount), 0);
-        startingBalance = Number(latestSnapshot.balance) + movementSum;
-      } else {
-        startingBalance =
-          manualBalance ?? (lastBankStatement ? Number(lastBankStatement.balance) : 0);
+        startingBalance = snapshotBalance + movementSum;
       }
-    } else {
-      startingBalance =
-        manualBalance ?? (lastBankStatement ? Number(lastBankStatement.balance) : 0);
     }
   } catch {
-    // BalanceSnapshot table may not exist — fallback
+    // BalanceSnapshot table may not exist
+  }
+
+  if (!usedBalanceSnapshot) {
+    // Priority 3: manualBalance from settings
     startingBalance = manualBalance ?? (lastBankStatement ? Number(lastBankStatement.balance) : 0);
   }
 

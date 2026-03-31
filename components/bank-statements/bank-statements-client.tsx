@@ -31,6 +31,8 @@ export function BankStatementsClient() {
   const [tab, setTab] = useState("MOVEMENTS");
   const [reconciliationFilter, setReconciliationFilter] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
 
   const isReconciled =
@@ -43,6 +45,8 @@ export function BankStatementsClient() {
   const { data, isLoading } = useBankStatements({
     isReconciled,
     search: search || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -96,6 +100,28 @@ export function BankStatementsClient() {
                   <SelectItem value="UNRECONCILED">Non riconciliati</SelectItem>
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-500">Dal</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setPage(1);
+                  }}
+                  className="border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 h-9 w-36 rounded-lg border bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-3"
+                />
+                <span className="text-xs text-slate-500">al</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setPage(1);
+                  }}
+                  className="border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 h-9 w-36 rounded-lg border bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-3"
+                />
+              </div>
             </div>
 
             {isLoading ? (

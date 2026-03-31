@@ -35,6 +35,8 @@ export function InvoicesClient() {
   const [tab, setTab] = useState("ALL");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<string>("");
@@ -48,6 +50,8 @@ export function InvoicesClient() {
     needsTagging,
     search: search || undefined,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -84,6 +88,18 @@ export function InvoicesClient() {
 
   function handleStatusChange(v: string) {
     setStatusFilter(v);
+    setPage(1);
+    resetSelection();
+  }
+
+  function handleStartDateChange(v: string) {
+    setStartDate(v);
+    setPage(1);
+    resetSelection();
+  }
+
+  function handleEndDateChange(v: string) {
+    setEndDate(v);
     setPage(1);
     resetSelection();
   }
@@ -193,6 +209,10 @@ export function InvoicesClient() {
             status={statusFilter}
             onStatusChange={handleStatusChange}
             direction={direction}
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
           />
 
           {/* Bulk action bar */}

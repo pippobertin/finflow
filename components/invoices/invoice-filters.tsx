@@ -1,6 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,10 @@ interface InvoiceFiltersProps {
   status: string;
   onStatusChange: (v: string) => void;
   direction?: string;
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (v: string) => void;
+  onEndDateChange: (v: string) => void;
 }
 
 export function InvoiceFilters({
@@ -24,6 +29,10 @@ export function InvoiceFilters({
   status,
   onStatusChange,
   direction,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
 }: InvoiceFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -46,6 +55,26 @@ export function InvoiceFilters({
           ))}
         </SelectContent>
       </Select>
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs text-slate-500">Dal</span>
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => onStartDateChange(e.target.value)}
+          className={cn(
+            "border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 h-9 w-36 rounded-lg border bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-3",
+          )}
+        />
+        <span className="text-xs text-slate-500">al</span>
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => onEndDateChange(e.target.value)}
+          className={cn(
+            "border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 h-9 w-36 rounded-lg border bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-3",
+          )}
+        />
+      </div>
     </div>
   );
 }

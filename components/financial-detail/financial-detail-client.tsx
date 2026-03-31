@@ -327,7 +327,7 @@ export function FinancialDetailClient() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/30 border-b">
-                      <th className="bg-muted/30 sticky left-0 z-10 min-w-[200px] px-4 py-3 text-left font-semibold">
+                      <th className="sticky left-0 z-10 min-w-[200px] bg-slate-100 px-4 py-3 text-left font-semibold dark:bg-slate-800">
                         Voce
                       </th>
                       {MONTH_LABELS.map((m, i) => (
@@ -346,7 +346,7 @@ export function FinancialDetailClient() {
                     {/* Data source badges row */}
                     {lastActualMonth >= 0 && (
                       <tr className="bg-muted/10 border-b">
-                        <th className="bg-muted/10 sticky left-0 z-10 min-w-[200px] px-4 py-1" />
+                        <th className="sticky left-0 z-10 min-w-[200px] bg-slate-50 px-4 py-1 dark:bg-slate-900" />
                         {monthDataSource.map((source, i) => (
                           <th
                             key={`badge-${i}`}
@@ -411,10 +411,12 @@ export function FinancialDetailClient() {
                             <td
                               className={cn(
                                 "sticky left-0 z-10 px-4 py-2.5",
-                                isTotal ? "bg-muted/20 font-bold" : "bg-card",
+                                isTotal
+                                  ? "bg-slate-100 font-bold dark:bg-slate-800"
+                                  : "bg-white dark:bg-slate-950",
                                 isSaldoRiportato &&
-                                  "bg-indigo-50/60 font-bold text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400",
-                                isBankRow && "bg-blue-50/30 dark:bg-blue-950/10",
+                                  "bg-indigo-50 font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400",
+                                isBankRow && "bg-blue-50 dark:bg-blue-950",
                               )}
                             >
                               <div className="flex items-center gap-2">

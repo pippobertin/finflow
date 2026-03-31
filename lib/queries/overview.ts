@@ -130,25 +130,23 @@ export async function getOverviewData(
       orderBy: { date: "desc" },
     }),
 
-    // Credits: ACTIVE invoices (PENDING) with dueDate in range
+    // Credits: ALL pending ACTIVE invoices (if it's still PENDING, it's a pending credit)
     prisma.invoice.aggregate({
       where: {
         organizationId,
         direction: "ACTIVE",
         status: "PENDING",
-        dueDate: { gte: from, lte: to },
         ...ccFilter,
       },
       _sum: { grossAmount: true },
     }),
 
-    // Debits: PASSIVE invoices (PENDING) with dueDate in range
+    // Debits: ALL pending PASSIVE invoices (if it's still PENDING, it's a pending debit)
     prisma.invoice.aggregate({
       where: {
         organizationId,
         direction: "PASSIVE",
         status: "PENDING",
-        dueDate: { gte: from, lte: to },
         ...ccFilter,
       },
       _sum: { grossAmount: true },
@@ -198,10 +196,80 @@ export async function getOverviewData(
     }),
   ]);
 
+  // ── Current balance: EC_QUARTERLY snapshot + movements (same priority as financial detail) ──
+  let currentBalance = 0;
   const settings = (org?.settings as Record<string, unknown>) ?? {};
   const manualBalance =
     typeof settings.currentBalance === "number" ? settings.currentBalance : null;
-  const currentBalance = manualBalance ?? Number(latestSnapshot?.balance ?? 0);
+  let usedBalanceSnapshot = false;
+
+  try {
+    const bankAccount = await prisma.bankAccount.findFirst({
+      where: { organizationId, isDefault: true },
+      select: { id: true },
+    });
+    if (bankAccount) {
+      // Priority 1: EC_QUARTERLY snapshot (closing balance from bank statement)
+      const ecSnapshot = await prisma.balanceSnapshot.findFirst({
+        where: {
+          bankAccountId: bankAccount.id,
+          source: "EC_QUARTERLY",
+          date: { lte: today },
+        },
+        orderBy: { date: "desc" },
+        select: { balance: true, date: true, sourceFile: true },
+      });
+
+      let snapshotBalance: number | null = null;
+      let snapshotDate: Date | null = null;
+      let snapshotSourceFile: string | null = null;
+
+      if (ecSnapshot) {
+        snapshotBalance = Number(ecSnapshot.balance);
+        snapshotDate = ecSnapshot.date;
+        snapshotSourceFile = ecSnapshot.sourceFile;
+        usedBalanceSnapshot = true;
+      } else {
+        // Priority 2: Any other snapshot (MANUAL, etc.)
+        const anySnapshot = await prisma.balanceSnapshot.findFirst({
+          where: {
+            bankAccountId: bankAccount.id,
+            date: { lte: today },
+          },
+          orderBy: { date: "desc" },
+          select: { balance: true, date: true, sourceFile: true },
+        });
+        if (anySnapshot) {
+          snapshotBalance = Number(anySnapshot.balance);
+          snapshotDate = anySnapshot.date;
+          snapshotSourceFile = anySnapshot.sourceFile;
+          usedBalanceSnapshot = true;
+        }
+      }
+
+      if (snapshotBalance !== null && snapshotDate !== null) {
+        // Add movements after snapshot date up to today,
+        // excluding movements from the EC source file itself (already accounted for in the snapshot balance)
+        const movementsAfter = await prisma.bankStatement.findMany({
+          where: {
+            organizationId,
+            date: { gt: snapshotDate, lte: today },
+            ...(snapshotSourceFile ? { NOT: { sourceFile: snapshotSourceFile } } : {}),
+          },
+          select: { amount: true },
+        });
+        const movementSum = movementsAfter.reduce((s, bs) => s + Number(bs.amount), 0);
+        currentBalance = snapshotBalance + movementSum;
+      }
+    }
+  } catch {
+    // BalanceSnapshot table may not exist
+  }
+
+  if (!usedBalanceSnapshot) {
+    // Priority 3: manualBalance from settings
+    currentBalance = manualBalance ?? Number(latestSnapshot?.balance ?? 0);
+  }
 
   const invoiceCredits = Number(creditAgg._sum.grossAmount ?? 0);
   const futureReceivableCredits = Number(futureReceivableAgg._sum.estimatedAmount ?? 0);
@@ -219,18 +287,38 @@ export async function getOverviewData(
     projectedBalance: currentBalance + pendingCredits - pendingDebits,
   };
 
-  // ── Balance chart ───────────────────────────────────────────
-  const snapshots = await prisma.cashflowSnapshot.findMany({
+  // ── Balance chart (aggregated from bank statements) ─────────
+  const allStatements = await prisma.bankStatement.findMany({
     where: { organizationId },
     orderBy: { date: "asc" },
+    select: { date: true, amount: true },
   });
 
-  const balanceChart: BalanceChartPoint[] = snapshots.map((s) => ({
-    date: `${s.date.getFullYear()}-${String(s.date.getMonth() + 1).padStart(2, "0")}`,
-    balance: Number(s.balance),
-    inflows: Number(s.inflows),
-    outflows: Number(s.outflows),
-  }));
+  // Group by month and compute inflows / outflows
+  const monthMap = new Map<string, { inflows: number; outflows: number }>();
+  for (const bs of allStatements) {
+    const key = `${bs.date.getFullYear()}-${String(bs.date.getMonth() + 1).padStart(2, "0")}`;
+    const entry = monthMap.get(key) ?? { inflows: 0, outflows: 0 };
+    const amt = Number(bs.amount);
+    if (amt >= 0) entry.inflows += amt;
+    else entry.outflows += Math.abs(amt);
+    monthMap.set(key, entry);
+  }
+
+  // Build running balance from currentBalance backwards
+  const months = Array.from(monthMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+  const totalNet = months.reduce((s, [, m]) => s + m.inflows - m.outflows, 0);
+  let runningBalance = currentBalance - totalNet; // opening balance before first month
+
+  const balanceChart: BalanceChartPoint[] = months.map(([date, m]) => {
+    runningBalance += m.inflows - m.outflows;
+    return {
+      date,
+      balance: Math.round(runningBalance * 100) / 100,
+      inflows: Math.round(m.inflows * 100) / 100,
+      outflows: Math.round(m.outflows * 100) / 100,
+    };
+  });
 
   // ── Revenue distribution ────────────────────────────────────
   const revenueCenters = await prisma.costCenter.findMany({
