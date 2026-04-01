@@ -643,7 +643,9 @@ export async function buildDailyProjection(
     date: inv.date,
   }));
 
-  const vatCalcs = calculateVatForYear(vatPeriods, vatInvoices);
+  const vatCarryForward =
+    typeof settings.vatCarryForward === "number" ? settings.vatCarryForward : 0;
+  const vatCalcs = calculateVatForYear(vatPeriods, vatInvoices, vatCarryForward);
   const vatOutflows = getVatOutflows(vatCalcs, today);
 
   for (const vat of vatOutflows) {

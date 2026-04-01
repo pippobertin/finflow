@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -40,6 +39,7 @@ export function AdvancedClient() {
     currentBalance: null,
     currentBalanceUpdatedAt: null,
     vatPeriodicity: "quarterly",
+    vatCarryForward: 0,
   });
 
   useEffect(() => {
@@ -262,24 +262,76 @@ export function AdvancedClient() {
         <CardContent>
           <div className="flex items-center gap-4">
             <Label className="w-56 shrink-0">Orizzonte previsione</Label>
-            <Slider
-              value={form.defaultForecastHorizonMonths}
+            <Input
+              type="number"
               min={1}
               max={24}
-              step={1}
+              value={form.defaultForecastHorizonMonths}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  defaultForecastHorizonMonths: Math.min(
+                    24,
+                    Math.max(1, parseInt(e.target.value) || 6),
+                  ),
+                }))
+              }
+              className="w-24"
+              disabled={isViewer}
+            />
+            <span className="text-muted-foreground text-sm">mesi</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 4: IVA */}
+      <Card>
+        <CardHeader>
+          <CardTitle>IVA</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Label className="w-56 shrink-0">Periodicità liquidazione</Label>
+            <Select
+              value={form.vatPeriodicity}
               onValueChange={(v) =>
                 setForm((f) => ({
                   ...f,
-                  defaultForecastHorizonMonths: v as number,
+                  vatPeriodicity: v as "monthly" | "quarterly",
                 }))
               }
-              className="w-48"
+              disabled={isViewer}
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="quarterly">Trimestrale</SelectItem>
+                <SelectItem value="monthly">Mensile</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Label className="w-56 shrink-0">Credito/debito IVA anno prec.</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={form.vatCarryForward ?? 0}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  vatCarryForward: parseFloat(e.target.value) || 0,
+                }))
+              }
+              className="w-32"
               disabled={isViewer}
             />
-            <span className="w-16 text-sm font-medium">
-              {form.defaultForecastHorizonMonths} mesi
-            </span>
+            <span className="text-muted-foreground text-sm">EUR</span>
           </div>
+          <p className="text-muted-foreground text-xs">
+            Positivo = credito IVA (riduce versamenti futuri). Negativo = debito IVA.
+          </p>
         </CardContent>
       </Card>
 

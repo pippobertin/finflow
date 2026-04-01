@@ -64,8 +64,10 @@ export async function recalculateVatSnapshots(organizationId: string, year: numb
     date: inv.date,
   }));
 
+  const vatCarryForward =
+    typeof settings.vatCarryForward === "number" ? settings.vatCarryForward : 0;
   const periods = generateVatPeriods(year, periodicity);
-  const calculations = calculateVatForYear(periods, invoiceData);
+  const calculations = calculateVatForYear(periods, invoiceData, vatCarryForward);
 
   // Delete old snapshots for this year
   try {

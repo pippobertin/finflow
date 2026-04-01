@@ -19,6 +19,7 @@ export const organizationSettingsSchema = z.object({
   currentBalance: z.number().nullable().default(null),
   currentBalanceUpdatedAt: z.string().nullable().default(null),
   vatPeriodicity: z.enum(["monthly", "quarterly"]).default("quarterly"),
+  vatCarryForward: z.number().default(0),
 });
 
 export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;
