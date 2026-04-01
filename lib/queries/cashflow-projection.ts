@@ -23,8 +23,8 @@ const HISTORY_DAYS = 90;
  *
  * DSO priority (highest → lowest):
  *   1. expectedCollectionDate (per-invoice override)
- *   2. counterpartCustomDso (per-counterpart DSO)
- *   3. Global avgDso (calculated from historical paid invoices)
+ *   2. max(dueDate, date + counterpartCustomDso) — per-counterpart DSO
+ *   3. max(dueDate, date + avgDso) — global avg DSO from paid invoices
  */
 export async function buildDailyProjection(
   organizationId: string,
@@ -437,19 +437,32 @@ export async function buildDailyProjection(
 
     totalPendingActiveGross += amount;
 
-    // DSO priority: 1. expectedCollectionDate, 2. counterpartCustomDso, 3. dueDate, 4. avgDso
+    // DSO priority: 1. expectedCollectionDate, 2. counterpartCustomDso, 3. avgDso
+    // dueDate is contractual; DSO reflects actual payment behavior.
+    // Use max(dueDate, date + dso) so we never predict collection before the due date.
     let expectedCollection: Date;
     if (inv.expectedCollectionDate) {
       expectedCollection = startOfDay(inv.expectedCollectionDate);
-    } else if (inv.dueDate) {
-      expectedCollection = startOfDay(inv.dueDate);
-    } else if (inv.counterpartCustomDso) {
-      expectedCollection = startOfDay(addDays(inv.date, inv.counterpartCustomDso));
     } else {
-      expectedCollection = startOfDay(addDays(inv.date, avgDso));
+      const dso = inv.counterpartCustomDso ?? avgDso;
+      const dsoDate = startOfDay(addDays(inv.date, dso));
+      const dueDate = inv.dueDate ? startOfDay(inv.dueDate) : dsoDate;
+      expectedCollection = isAfter(dsoDate, dueDate) ? dsoDate : dueDate;
     }
 
-    const projected = isBefore(expectedCollection, today) ? today : expectedCollection;
+    let projected: Date;
+    if (!isBefore(expectedCollection, today)) {
+      projected = expectedCollection;
+    } else {
+      // Overdue: distribute into the future based on how overdue it is.
+      const effectiveDso = inv.counterpartCustomDso ?? avgDso;
+      const daysOverdue = Math.round(
+        (today.getTime() - expectedCollection.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      const waitDays = Math.max(7, effectiveDso - daysOverdue);
+      projected = startOfDay(addDays(today, Math.min(waitDays, effectiveDso)));
+    }
+
     const key = format(projected, "yyyy-MM-dd");
     const point = dayMap.get(key);
     if (point) {
