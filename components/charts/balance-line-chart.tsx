@@ -20,8 +20,6 @@ interface DataPoint {
   inflows?: number;
   outflows?: number;
   projected?: number;
-  lower?: number;
-  upper?: number;
 }
 
 interface BalanceLineChartProps {
@@ -38,10 +36,6 @@ export function BalanceLineChart({ data }: BalanceLineChartProps) {
           <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#4F46E5" stopOpacity={0.35} />
             <stop offset="100%" stopColor="#4F46E5" stopOpacity={0.03} />
-          </linearGradient>
-          <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#059669" stopOpacity={0.15} />
-            <stop offset="100%" stopColor="#059669" stopOpacity={0.03} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" strokeOpacity={0.5} />
@@ -66,26 +60,6 @@ export function BalanceLineChart({ data }: BalanceLineChartProps) {
         <Tooltip content={<ChartTooltip />} />
         <Legend />
 
-        {/* Confidence interval area */}
-        <Area
-          dataKey="upper"
-          stroke="none"
-          fill="url(#confidenceGradient)"
-          fillOpacity={1}
-          name="Intervallo sup."
-          connectNulls={false}
-          animationDuration={1200}
-        />
-        <Area
-          dataKey="lower"
-          stroke="none"
-          fill="url(#confidenceGradient)"
-          fillOpacity={1}
-          name="Intervallo inf."
-          connectNulls={false}
-          animationDuration={1200}
-        />
-
         {/* Historical balance area */}
         <Area
           dataKey="balance"
@@ -99,7 +73,7 @@ export function BalanceLineChart({ data }: BalanceLineChartProps) {
           animationDuration={1200}
         />
 
-        {/* Forecast dashed line */}
+        {/* Projection dashed line */}
         <Line
           dataKey="projected"
           stroke="#059669"
@@ -108,7 +82,7 @@ export function BalanceLineChart({ data }: BalanceLineChartProps) {
           strokeLinecap="round"
           dot={false}
           name="Proiezione"
-          connectNulls={false}
+          connectNulls
           animationDuration={1200}
         />
       </ComposedChart>

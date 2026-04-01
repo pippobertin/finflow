@@ -79,7 +79,10 @@ export function OverviewClient({ initialData }: OverviewClientProps) {
         <KpiGrid kpis={overview.kpis} rangeLabel={rangeLabel} />
 
         {/* Balance chart — monthly trend with 6-month outlook */}
-        <BalanceChartSection historicalData={overview.balanceChart} />
+        <BalanceChartSection
+          historicalData={overview.balanceChart}
+          projectionData={overview.projectionChart ?? []}
+        />
 
         {/* Revenue distribution + Expense distribution side by side */}
         <div className="grid gap-6 lg:grid-cols-2">

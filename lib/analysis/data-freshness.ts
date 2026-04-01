@@ -177,19 +177,11 @@ export async function analyzeDataFreshness(organizationId: string): Promise<Fres
       (today.getTime() - q.deadline.getTime()) / (1000 * 60 * 60 * 24),
     );
 
-    // Check if we already have this quarterly data
-    // A quarter is covered if:
-    // 1. A DataPeriod of type EC_QUARTERLY covers it, OR
-    // 2. A BalanceSnapshot with matching period exists (EC_QUARTERLY), OR
-    // 3. An EC_ANNUAL snapshot exists for the same year (annual EC covers all quarters)
-    const qYear = q.endDate.getFullYear();
-    const hasEcData =
-      dataPeriods.some(
-        (dp) =>
-          dp.type === "EC_QUARTERLY" && dp.startDate <= q.endDate && dp.endDate >= q.startDate,
-      ) ||
-      balanceSnapshots.some((bs) => bs.period === q.period) ||
-      balanceSnapshots.some((bs) => bs.source === "EC_ANNUAL" && bs.date.getFullYear() === qYear);
+    // A quarter is covered only if a DataPeriod of type EC_QUARTERLY covers it.
+    // BalanceSnapshots are kept for balance data but don't determine gap status.
+    const hasEcData = dataPeriods.some(
+      (dp) => dp.type === "EC_QUARTERLY" && dp.startDate <= q.endDate && dp.endDate >= q.startDate,
+    );
 
     if (!hasEcData) {
       // Build available files for this quarter from the pre-fetched allFiles

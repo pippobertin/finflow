@@ -3,17 +3,15 @@
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BalanceLineChart } from "@/components/charts/balance-line-chart";
-import { useForecast } from "@/lib/hooks/use-overview";
-import type { BalanceChartPoint } from "@/lib/queries/overview";
+import type { BalanceChartPoint, ProjectedChartPoint } from "@/lib/queries/overview";
 
 interface BalanceChartSectionProps {
   historicalData: BalanceChartPoint[];
+  projectionData: ProjectedChartPoint[];
 }
 
-export function BalanceChartSection({ historicalData }: BalanceChartSectionProps) {
-  const { data: forecastData } = useForecast(6);
-
-  // Merge historical + forecast into one dataset
+export function BalanceChartSection({ historicalData, projectionData }: BalanceChartSectionProps) {
+  // Merge historical + projection into one dataset
   const chartData = [
     ...historicalData.map((d) => ({
       date: d.date,
@@ -21,21 +19,21 @@ export function BalanceChartSection({ historicalData }: BalanceChartSectionProps
       inflows: d.inflows,
       outflows: d.outflows,
       projected: undefined as number | undefined,
-      lower: undefined as number | undefined,
-      upper: undefined as number | undefined,
     })),
-    ...(forecastData?.forecast ?? []).map(
-      (f: { date: string; projected: number; lower: number; upper: number }) => ({
-        date: f.date,
-        balance: undefined as number | undefined,
-        inflows: undefined as number | undefined,
-        outflows: undefined as number | undefined,
-        projected: f.projected,
-        lower: f.lower,
-        upper: f.upper,
-      }),
-    ),
+    ...projectionData.map((d) => ({
+      date: d.date,
+      balance: undefined as number | undefined,
+      inflows: undefined as number | undefined,
+      outflows: undefined as number | undefined,
+      projected: d.projected,
+    })),
   ];
+
+  // Bridge: last historical point also gets projected = balance so the lines connect
+  if (historicalData.length > 0 && projectionData.length > 0) {
+    chartData[historicalData.length - 1].projected =
+      historicalData[historicalData.length - 1].balance;
+  }
 
   return (
     <motion.div

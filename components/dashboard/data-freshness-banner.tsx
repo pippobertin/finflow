@@ -29,8 +29,6 @@ interface DataGap {
   type: string;
   period: string;
   label: string;
-  startDate: string;
-  endDate: string;
   daysOverdue: number;
   priority: "high" | "medium" | "low";
   availableFiles: SourceFileInfo[];
@@ -45,29 +43,48 @@ interface LinkedEc {
 }
 
 const DISMISS_KEY = "finflow_data_freshness_dismissed";
-const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000;
+
+const Q_LABELS: Record<string, string> = {
+  "1": "Gen-Mar",
+  "2": "Apr-Giu",
+  "3": "Lug-Set",
+  "4": "Ott-Dic",
+};
 
 function fmtBal(n: number): string {
-  return n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
-/** Calculate quarter start/end from period string like "Q4_2025" */
-function quarterDates(period: string): { start: Date; end: Date } | null {
+/** Detect quarter period from a date string like "2025-12-31" */
+function detectPeriodFromDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  const q = Math.floor(d.getMonth() / 3) + 1;
+  return `Q${q}_${d.getFullYear()}`;
+}
+
+/** Period code → human label, e.g. "Q4_2025" → "Q4 2025 (Ott-Dic)" */
+function periodToLabel(period: string): string {
   const m = period.match(/^Q(\d)_(\d{4})$/);
-  if (!m) return null;
-  const q = parseInt(m[1]);
-  const y = parseInt(m[2]);
-  const sm = (q - 1) * 3;
-  return { start: new Date(y, sm, 1), end: new Date(y, sm + 3, 0) };
+  if (!m) return period;
+  return `Q${m[1]} ${m[2]} (${Q_LABELS[m[1]] ?? ""})`;
 }
 
 /** Check if a file's date range overlaps a quarter */
 function fileOverlapsQuarter(f: SourceFileInfo, period: string): boolean {
-  const qd = quarterDates(period);
-  if (!qd) return false;
+  const m = period.match(/^Q(\d)_(\d{4})$/);
+  if (!m) return false;
+  const q = parseInt(m[1]);
+  const y = parseInt(m[2]);
+  const sm = (q - 1) * 3;
+  const qStart = new Date(y, sm, 1);
+  const qEnd = new Date(y, sm + 3, 0);
   const fMin = new Date(f.minDate);
   const fMax = new Date(f.maxDate);
-  return fMin <= qd.end && fMax >= qd.start;
+  return fMin <= qEnd && fMax >= qStart;
 }
 
 export function DataFreshnessBanner() {
@@ -78,7 +95,8 @@ export function DataFreshnessBanner() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, string>>({});
   const [balanceInputs, setBalanceInputs] = useState<Record<string, string>>({});
-  const [editingPeriod, setEditingPeriod] = useState<string | null>(null);
+  // For linked EC editing: key = ec.id, value = true
+  const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(() => {
     fetch("/api/data-freshness")
@@ -90,6 +108,7 @@ export function DataFreshnessBanner() {
         setGaps(newGaps);
         setLinkedEcs(newLinked);
         setAllFiles(newFiles);
+        setEditingIds(new Set());
         if (newGaps.length > 0 || newLinked.length > 0) {
           setDismissed(false);
         }
@@ -105,65 +124,69 @@ export function DataFreshnessBanner() {
     fetchData();
   }, [fetchData]);
 
-  function getSelectedFile(period: string, files: SourceFileInfo[]): SourceFileInfo | null {
-    const sel = selectedFiles[period];
-    if (!sel) return null;
-    return files.find((f) => f.sourceFile === sel) ?? null;
+  // Use ec.id as key for edit state (unique per linked EC)
+  function editKey(ec: LinkedEc) {
+    return `edit_${ec.id}`;
   }
 
-  function handleSelectFile(period: string, file: SourceFileInfo) {
-    setSelectedFiles((prev) => ({ ...prev, [period]: file.sourceFile }));
+  function handleSelectFile(key: string, file: SourceFileInfo) {
+    setSelectedFiles((prev) => ({ ...prev, [key]: file.sourceFile }));
     if (file.closingBalance != null) {
       setBalanceInputs((prev) => ({
         ...prev,
-        [period]: fmtBal(file.closingBalance!).replace(".", ""),
+        [key]: fmtBal(file.closingBalance!).replace(/\./g, ""),
       }));
     } else {
       setBalanceInputs((prev) => {
         const next = { ...prev };
-        delete next[period];
+        delete next[key];
         return next;
       });
     }
   }
 
   function handleStartEdit(ec: LinkedEc) {
-    setEditingPeriod(ec.period);
-    // Pre-select current file
+    const key = editKey(ec);
+    setEditingIds((prev) => new Set(prev).add(ec.id));
     if (ec.sourceFile) {
-      setSelectedFiles((prev) => ({ ...prev, [ec.period]: ec.sourceFile! }));
+      setSelectedFiles((prev) => ({ ...prev, [key]: ec.sourceFile! }));
     }
-    // Pre-fill current balance
     if (ec.closingBalance != null) {
       setBalanceInputs((prev) => ({
         ...prev,
-        [ec.period]: fmtBal(ec.closingBalance!).replace(".", ""),
+        [key]: fmtBal(ec.closingBalance!).replace(/\./g, ""),
       }));
     }
   }
 
-  function handleCancelEdit(period: string) {
-    setEditingPeriod(null);
+  function handleCancelEdit(ec: LinkedEc) {
+    const key = editKey(ec);
+    setEditingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(ec.id);
+      return next;
+    });
     setSelectedFiles((prev) => {
       const next = { ...prev };
-      delete next[period];
+      delete next[key];
       return next;
     });
     setBalanceInputs((prev) => {
       const next = { ...prev };
-      delete next[period];
+      delete next[key];
       return next;
     });
   }
 
-  async function handleLink(period: string) {
-    const sel = selectedFiles[period];
+  /** Link or re-link an EC. For edit mode, deletes old DataPeriod first. */
+  async function handleLink(key: string, fixedPeriod: string | null, oldEcId?: string) {
+    const sel = selectedFiles[key];
     if (!sel) {
       toast.error("Seleziona il file dell\u2019EC per questo trimestre");
       return;
     }
 
-    const balStr = balanceInputs[period];
+    const balStr = balanceInputs[key];
     if (!balStr) {
       toast.error("Inserisci il saldo di chiusura dell\u2019EC");
       return;
@@ -174,8 +197,27 @@ export function DataFreshnessBanner() {
       return;
     }
 
-    setProcessing(period);
+    // Detect period from file's maxDate
+    const fileInfo = allFiles.find((f) => f.sourceFile === sel);
+    const detectedPeriod = fileInfo ? detectPeriodFromDate(fileInfo.maxDate) : null;
+    const period = fixedPeriod ?? detectedPeriod;
+
+    if (!period) {
+      toast.error("Impossibile determinare il trimestre");
+      return;
+    }
+
+    setProcessing(key);
     try {
+      // If editing an existing link, delete the old DataPeriod first
+      if (oldEcId) {
+        await fetch("/api/data-freshness", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: oldEcId }),
+        });
+      }
+
       const res = await fetch("/api/data-freshness", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -185,16 +227,15 @@ export function DataFreshnessBanner() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Errore");
       }
-      toast.success(editingPeriod === period ? "EC aggiornato" : "EC collegato al trimestre");
-      setEditingPeriod(null);
+      toast.success(oldEcId ? "EC aggiornato" : "EC collegato al trimestre");
       setSelectedFiles((prev) => {
         const next = { ...prev };
-        delete next[period];
+        delete next[key];
         return next;
       });
       setBalanceInputs((prev) => {
         const next = { ...prev };
-        delete next[period];
+        delete next[key];
         return next;
       });
       fetchData();
@@ -215,7 +256,6 @@ export function DataFreshnessBanner() {
       });
       if (!res.ok) throw new Error("Errore");
       toast.success("Collegamento rimosso");
-      setEditingPeriod(null);
       fetchData();
     } catch {
       toast.error("Errore nella rimozione");
@@ -237,20 +277,31 @@ export function DataFreshnessBanner() {
 
   if (!hasContent) return null;
 
-  /** Render file picker + balance input for a given period */
-  function renderFilePicker(period: string, files: SourceFileInfo[]) {
-    const filesForQuarter = files.map((f) => ({
+  /** Render file picker + balance input for a given state key and period context */
+  function renderFilePicker(
+    stateKey: string,
+    files: SourceFileInfo[],
+    contextPeriod: string | null,
+    oldEcId?: string,
+  ) {
+    // Enrich files with overlap info based on selected file's detected period or context period
+    const selFileName = selectedFiles[stateKey];
+    const selFileInfo = files.find((f) => f.sourceFile === selFileName);
+    const activePeriod = selFileInfo ? detectPeriodFromDate(selFileInfo.maxDate) : contextPeriod;
+
+    const enriched = files.map((f) => ({
       ...f,
-      overlapsQuarter: fileOverlapsQuarter(f, period),
+      overlapsQuarter: activePeriod ? fileOverlapsQuarter(f, activePeriod) : false,
     }));
-    // Sort overlapping first
-    filesForQuarter.sort((a, b) =>
+    enriched.sort((a, b) =>
       a.overlapsQuarter === b.overlapsQuarter ? 0 : a.overlapsQuarter ? -1 : 1,
     );
 
-    const selFile = getSelectedFile(period, filesForQuarter);
+    const selFile = enriched.find((f) => f.sourceFile === selFileName) ?? null;
+    // Detected period from selected file
+    const detectedPeriod = selFile ? detectPeriodFromDate(selFile.maxDate) : null;
 
-    if (filesForQuarter.length === 0) {
+    if (enriched.length === 0) {
       return (
         <p className="mt-1 text-[10px] text-slate-500">
           Nessun file caricato trovato. Importa l&apos;estratto conto.
@@ -261,11 +312,11 @@ export function DataFreshnessBanner() {
     return (
       <div className="mt-2 space-y-2">
         <p className="text-[10px] font-medium text-slate-600 dark:text-slate-400">
-          Qual &egrave; il file dell&apos;EC di questo trimestre?
+          Seleziona il file dell&apos;EC:
         </p>
         <div className="space-y-1">
-          {filesForQuarter.map((f) => {
-            const isSelected = selectedFiles[period] === f.sourceFile;
+          {enriched.map((f) => {
+            const isSelected = selFileName === f.sourceFile;
             return (
               <label
                 key={f.sourceFile}
@@ -278,9 +329,9 @@ export function DataFreshnessBanner() {
               >
                 <input
                   type="radio"
-                  name={`ec-file-${period}`}
+                  name={`ec-file-${stateKey}`}
                   checked={isSelected}
-                  onChange={() => handleSelectFile(period, f)}
+                  onChange={() => handleSelectFile(stateKey, f)}
                   className="accent-indigo-600"
                 />
                 <FileText className="h-3.5 w-3.5 shrink-0 text-slate-500" />
@@ -307,13 +358,20 @@ export function DataFreshnessBanner() {
 
         {selFile && (
           <div className="mt-1 rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-800">
+            {/* Show detected period */}
+            {detectedPeriod && (
+              <p className="mb-1 text-[10px] font-medium text-indigo-600 dark:text-indigo-400">
+                Trimestre rilevato: {periodToLabel(detectedPeriod)}
+              </p>
+            )}
+
             {selFile.closingBalance != null ? (
               <p className="mb-1 text-[10px] text-slate-600 dark:text-slate-400">
                 Saldo chiusura rilevato:{" "}
                 <span className="font-numeric font-semibold">
                   {fmtBal(selFile.closingBalance)} {"€"}
                 </span>
-                {" \u2014 "}modifica se diverso dal saldo reale dell&apos;EC.
+                {" \u2014 "}modifica se necessario, poi conferma.
               </p>
             ) : (
               <p className="mb-1 text-[10px] text-slate-600 dark:text-slate-400">
@@ -326,11 +384,11 @@ export function DataFreshnessBanner() {
                 type="text"
                 inputMode="decimal"
                 placeholder="Saldo chiusura EC"
-                value={balanceInputs[period] ?? ""}
+                value={balanceInputs[stateKey] ?? ""}
                 onChange={(e) =>
                   setBalanceInputs((prev) => ({
                     ...prev,
-                    [period]: e.target.value,
+                    [stateKey]: e.target.value,
                   }))
                 }
                 className="border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 h-8 w-44 rounded-md border bg-transparent px-2 text-sm transition-colors outline-none focus-visible:ring-1"
@@ -340,18 +398,27 @@ export function DataFreshnessBanner() {
                 size="sm"
                 variant="default"
                 className="h-8 text-xs"
-                disabled={processing === period || !balanceInputs[period]}
-                onClick={() => handleLink(period)}
+                disabled={processing === stateKey || !balanceInputs[stateKey]}
+                onClick={() =>
+                  handleLink(
+                    stateKey,
+                    oldEcId ? null : contextPeriod, // gaps: use fixed period; edit: detect from file
+                    oldEcId,
+                  )
+                }
               >
                 <Link2 className="mr-1 h-3 w-3" />
-                {processing === period ? "..." : "Conferma"}
+                {processing === stateKey ? "..." : "Conferma"}
               </Button>
-              {editingPeriod === period && (
+              {oldEcId && (
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-8 text-xs"
-                  onClick={() => handleCancelEdit(period)}
+                  onClick={() => {
+                    const ec = linkedEcs.find((e) => e.id === oldEcId);
+                    if (ec) handleCancelEdit(ec);
+                  }}
                 >
                   Annulla
                 </Button>
@@ -376,7 +443,7 @@ export function DataFreshnessBanner() {
             </Button>
           </div>
           <div className="space-y-1.5">
-            {/* Gaps: quarters without linked EC */}
+            {/* Gaps: quarters needing EC link */}
             {ecGaps.map((gap) => (
               <div
                 key={gap.period}
@@ -414,13 +481,15 @@ export function DataFreshnessBanner() {
                 {renderFilePicker(
                   gap.period,
                   gap.availableFiles.length > 0 ? gap.availableFiles : allFiles,
+                  gap.period,
                 )}
               </div>
             ))}
 
             {/* Linked ECs */}
             {linkedEcs.map((ec) => {
-              const isEditing = editingPeriod === ec.period;
+              const isEditing = editingIds.has(ec.id);
+              const key = editKey(ec);
 
               return (
                 <div
@@ -450,10 +519,8 @@ export function DataFreshnessBanner() {
                         size="sm"
                         variant="ghost"
                         className="h-7 text-xs text-slate-500 hover:text-indigo-600"
-                        disabled={processing === ec.id}
-                        onClick={() =>
-                          isEditing ? handleCancelEdit(ec.period) : handleStartEdit(ec)
-                        }
+                        disabled={!!processing}
+                        onClick={() => (isEditing ? handleCancelEdit(ec) : handleStartEdit(ec))}
                       >
                         <Pencil className="mr-1 h-3 w-3" />
                         {isEditing ? "Annulla" : "Modifica"}
@@ -462,7 +529,7 @@ export function DataFreshnessBanner() {
                         size="sm"
                         variant="ghost"
                         className="h-7 text-xs text-slate-500 hover:text-red-600"
-                        disabled={processing === ec.id}
+                        disabled={!!processing}
                         onClick={() => handleUnlink(ec.id)}
                       >
                         <Unlink className="mr-1 h-3 w-3" />
@@ -471,7 +538,7 @@ export function DataFreshnessBanner() {
                     </div>
                   </div>
 
-                  {isEditing && renderFilePicker(ec.period, allFiles)}
+                  {isEditing && renderFilePicker(key, allFiles, null, ec.id)}
                 </div>
               );
             })}

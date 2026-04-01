@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { addDays, addMonths, startOfDay, isBefore, isAfter } from "date-fns";
+import { buildDailyProjection } from "./cashflow-projection";
 
 export interface OverviewKpis {
   currentBalance: number;
@@ -13,6 +14,11 @@ export interface BalanceChartPoint {
   balance: number;
   inflows: number;
   outflows: number;
+}
+
+export interface ProjectedChartPoint {
+  date: string;
+  projected: number;
 }
 
 export interface RevenueDistributionSlice {
@@ -30,6 +36,7 @@ export interface DistributionSlice {
 export interface OverviewData {
   kpis: OverviewKpis;
   balanceChart: BalanceChartPoint[];
+  projectionChart: ProjectedChartPoint[];
   revenueDistribution: RevenueDistributionSlice[];
   distribution: DistributionSlice[];
 }
@@ -320,6 +327,32 @@ export async function getOverviewData(
     };
   });
 
+  // ── Projection from cashflow plan (same data as piano finanziario) ──
+  const projectionChart: ProjectedChartPoint[] = [];
+  try {
+    const cashflow = await buildDailyProjection(organizationId, costCenterIds);
+    // Aggregate daily points to monthly: take end-of-month balance
+    const monthlyProjected = new Map<string, number>();
+    for (const dp of cashflow.projection) {
+      const mk = dp.date.slice(0, 7); // "YYYY-MM"
+      monthlyProjected.set(mk, dp.balance); // last day of month wins
+    }
+    // Only include months AFTER the last historical month
+    const lastHistoricalMonth = months.length > 0 ? months[months.length - 1][0] : "";
+    for (const [mk, bal] of Array.from(monthlyProjected.entries()).sort(([a], [b]) =>
+      a.localeCompare(b),
+    )) {
+      if (mk > lastHistoricalMonth) {
+        projectionChart.push({
+          date: mk,
+          projected: Math.round(bal * 100) / 100,
+        });
+      }
+    }
+  } catch {
+    // Cashflow projection may fail — chart will just show historical
+  }
+
   // ── Revenue distribution ────────────────────────────────────
   const revenueCenters = await prisma.costCenter.findMany({
     where: {
@@ -364,5 +397,5 @@ export async function getOverviewData(
     }
   }
 
-  return { kpis, balanceChart, revenueDistribution, distribution };
+  return { kpis, balanceChart, projectionChart, revenueDistribution, distribution };
 }

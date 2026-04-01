@@ -111,36 +111,11 @@ export async function DELETE(request: NextRequest) {
     return Response.json({ error: "id richiesto" }, { status: 400 });
   }
 
-  // Fetch DataPeriod to determine quarter dates before deleting
-  const dp = await prisma.dataPeriod.findFirst({
-    where: { id, organizationId },
-    select: { startDate: true, endDate: true },
-  });
-
+  // Only delete DataPeriod (the user's confirmation link).
+  // BalanceSnapshot is preserved — it holds factual EC balance data for the file picker.
   await prisma.dataPeriod.deleteMany({
     where: { id, organizationId },
   });
-
-  // Also remove the associated BalanceSnapshot (EC_QUARTERLY at quarter end date)
-  if (dp) {
-    try {
-      const bankAccount = await prisma.bankAccount.findFirst({
-        where: { organizationId, isDefault: true },
-        select: { id: true },
-      });
-      if (bankAccount) {
-        await prisma.balanceSnapshot.deleteMany({
-          where: {
-            bankAccountId: bankAccount.id,
-            source: "EC_QUARTERLY",
-            date: dp.endDate,
-          },
-        });
-      }
-    } catch {
-      // BalanceSnapshot table may not exist
-    }
-  }
 
   return Response.json({ success: true });
 }
