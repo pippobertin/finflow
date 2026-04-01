@@ -55,6 +55,30 @@ CREATE TABLE IF NOT EXISTS fin_vat_snapshot (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ─── 4a. Expected Payables (Fatture Passive Attese) ──────────
+DO $$ BEGIN CREATE TYPE fin_payable_status AS ENUM ('ACTIVE', 'EXHAUSTED', 'CANCELLED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE TABLE IF NOT EXISTS fin_expected_payable (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL REFERENCES fin_organization(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  counterpart TEXT NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  frequency fin_expense_frequency NOT NULL DEFAULT 'MONTHLY',
+  day_of_month INTEGER,
+  start_date TIMESTAMP NOT NULL,
+  end_date TIMESTAMP,
+  status fin_payable_status NOT NULL DEFAULT 'ACTIVE',
+  cost_center_id TEXT REFERENCES fin_cost_center(id) ON DELETE SET NULL,
+  category fin_expense_category NOT NULL DEFAULT 'CONSULTING',
+  notes TEXT,
+  include_in_forecast BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_expected_payable_org_status ON fin_expected_payable(organization_id, status);
+
 -- ─── 4. Colonne Fase 2 sulla tabella fin_invoice ────────────
 ALTER TABLE fin_invoice
   ADD COLUMN IF NOT EXISTS expected_collection_date DATE,

@@ -399,17 +399,20 @@ export interface EnhancedMatch {
     counterpart: string;
     grossAmount: number;
   }>;
-  type: "single" | "multi" | "expense";
+  type: "single" | "multi" | "expense" | "expectedPayable";
   confidence: number; // 0-100
   pass: 1 | 1.5 | 2 | 3;
   recurringExpenseId?: string;
   recurringExpenseName?: string;
+  expectedPayableId?: string;
+  expectedPayableName?: string;
 }
 
 export interface ConfirmEnhancedMatchInput {
   bankStatementId: string;
   invoiceIds?: string[];
   recurringExpenseId?: string;
+  expectedPayableId?: string;
   accepted: boolean;
 }
 
@@ -845,6 +848,62 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
     }
   }
 
+  // Pass 1.6: ExpectedPayable matching (outflows only)
+  let expectedPayables: Array<{
+    id: string;
+    description: string;
+    counterpart: string;
+    amount: number;
+  }> = [];
+  try {
+    const rawPayables = await prisma.expectedPayable.findMany({
+      where: { organizationId, status: "ACTIVE" },
+      select: { id: true, description: true, counterpart: true, amount: true },
+    });
+    expectedPayables = rawPayables.map((p) => ({
+      ...p,
+      amount: Number(p.amount),
+    }));
+  } catch {
+    // table may not exist
+  }
+
+  if (expectedPayables.length > 0) {
+    for (const bs of outflows) {
+      if (usedBsIds.has(bs.id)) continue;
+      const absAmt = Math.abs(bs.amount);
+
+      let bestPayable: { payable: (typeof expectedPayables)[0]; score: number } | null = null;
+
+      for (const payable of expectedPayables) {
+        // Amount tolerance: ±15% of the per-invoice amount
+        if (Math.abs(payable.amount - absAmt) > payable.amount * 0.15) continue;
+
+        const score = counterpartScore(bs.description, payable.counterpart);
+
+        if (score >= 0.4 && (!bestPayable || score > bestPayable.score)) {
+          bestPayable = { payable, score };
+        }
+      }
+
+      if (bestPayable) {
+        usedBsIds.add(bs.id);
+        matches.push({
+          bankStatementId: bs.id,
+          bankStatementDate: bs.date.toISOString(),
+          bankStatementDescription: bs.description,
+          bankStatementAmount: bs.amount,
+          invoices: [],
+          type: "expectedPayable",
+          confidence: Math.round(Math.min(100, bestPayable.score * 100 + 20)),
+          pass: 1.5,
+          expectedPayableId: bestPayable.payable.id,
+          expectedPayableName: bestPayable.payable.description,
+        });
+      }
+    }
+  }
+
   // Sort by confidence descending
   matches.sort((a, b) => b.confidence - a.confidence);
 
@@ -869,7 +928,16 @@ export async function confirmMatchesEnhanced(
         });
         if (!bs) continue;
 
-        if (match.recurringExpenseId) {
+        if (match.expectedPayableId) {
+          // Expected payable match — just mark bank statement as reconciled
+          await tx.bankStatement.update({
+            where: { id: match.bankStatementId },
+            data: {
+              isReconciled: true,
+              reconciledAt: new Date(),
+            },
+          });
+        } else if (match.recurringExpenseId) {
           // Expense match
           const updateData: Record<string, unknown> = {
             isReconciled: true,

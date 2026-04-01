@@ -25,11 +25,13 @@ interface Suggestion {
     counterpart: string;
     grossAmount: number;
   }>;
-  type: "single" | "multi" | "expense";
+  type: "single" | "multi" | "expense" | "expectedPayable";
   confidence: number;
   pass: number;
   recurringExpenseId?: string;
   recurringExpenseName?: string;
+  expectedPayableId?: string;
+  expectedPayableName?: string;
 }
 
 interface ExpenseMatchGroupProps {

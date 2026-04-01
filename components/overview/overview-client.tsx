@@ -47,7 +47,7 @@ export function OverviewClient({ initialData }: OverviewClientProps) {
         {/* Date range picker row */}
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-1">
-            <Label htmlFor="kpi-from" className="text-muted-foreground text-xs">
+            <Label htmlFor="kpi-from" className="text-muted-foreground text-[11px]">
               Da
             </Label>
             <input
@@ -59,7 +59,7 @@ export function OverviewClient({ initialData }: OverviewClientProps) {
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="kpi-to" className="text-muted-foreground text-xs">
+            <Label htmlFor="kpi-to" className="text-muted-foreground text-[11px]">
               A
             </Label>
             <input
@@ -70,7 +70,7 @@ export function OverviewClient({ initialData }: OverviewClientProps) {
               onChange={(e) => setDateTo(e.target.value)}
             />
           </div>
-          <p className="text-muted-foreground pb-2 text-xs">
+          <p className="text-muted-foreground pb-2 text-[11px]">
             Intervallo per crediti, debiti e saldo proiettato
           </p>
         </div>

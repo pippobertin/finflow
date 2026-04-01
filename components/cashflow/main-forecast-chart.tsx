@@ -45,7 +45,7 @@ function CustomTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="border-l-primary shadow-card rounded-lg border border-l-4 bg-white p-3 dark:bg-slate-900">
+    <div className="shadow-card rounded-lg border bg-white p-3 dark:bg-slate-900">
       <p className="text-muted-foreground mb-1 text-xs font-medium">
         {label ? formatDate(label) : ""}
       </p>
@@ -104,65 +104,76 @@ export function MainForecastChart({ data, baseData, threshold }: MainForecastCha
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={400}>
-          <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={340}>
+          <ComposedChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="histGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#4F46E5" stopOpacity={0.3} />
-                <stop offset={gradientStops.pct} stopColor="#4F46E5" stopOpacity={0.05} />
-                <stop offset={gradientStops.pct} stopColor="#DC2626" stopOpacity={0.1} />
-                <stop offset="100%" stopColor="#DC2626" stopOpacity={0.35} />
+                <stop offset="0%" stopColor="#4F46E5" stopOpacity={0.12} />
+                <stop offset={gradientStops.pct} stopColor="#4F46E5" stopOpacity={0} />
+                <stop offset={gradientStops.pct} stopColor="#DC2626" stopOpacity={0.05} />
+                <stop offset="100%" stopColor="#DC2626" stopOpacity={0.15} />
               </linearGradient>
               <linearGradient id="projGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#4F46E5" stopOpacity={0.15} />
-                <stop offset={gradientStops.pct} stopColor="#4F46E5" stopOpacity={0.02} />
-                <stop offset={gradientStops.pct} stopColor="#DC2626" stopOpacity={0.08} />
-                <stop offset="100%" stopColor="#DC2626" stopOpacity={0.3} />
+                <stop offset="0%" stopColor="#4F46E5" stopOpacity={0.08} />
+                <stop offset={gradientStops.pct} stopColor="#4F46E5" stopOpacity={0} />
+                <stop offset={gradientStops.pct} stopColor="#DC2626" stopOpacity={0.04} />
+                <stop offset="100%" stopColor="#DC2626" stopOpacity={0.12} />
               </linearGradient>
               <linearGradient id="whatIfGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#059669" stopOpacity={0.2} />
-                <stop offset="100%" stopColor="#059669" stopOpacity={0.02} />
+                <stop offset="0%" stopColor="#059669" stopOpacity={0.1} />
+                <stop offset="100%" stopColor="#059669" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" strokeOpacity={0.5} />
+            <CartesianGrid
+              strokeDasharray="none"
+              stroke="#f1f5f9"
+              strokeWidth={1}
+              vertical={false}
+            />
             <XAxis
               dataKey="date"
               tickFormatter={formatDate}
-              tick={{ fontSize: 11, fill: "#64748B" }}
+              tick={{ fontSize: 10, fill: "#94A3B8" }}
               interval="preserveStartEnd"
-              stroke="#E2E8F0"
+              stroke="transparent"
+              tickLine={false}
+              axisLine={false}
             />
             <YAxis
               tickFormatter={(v: number) => formatCurrency(v)}
-              tick={{ fontSize: 11, fill: "#64748B" }}
-              width={90}
-              stroke="#E2E8F0"
+              tick={{ fontSize: 10, fill: "#94A3B8", fontFamily: "JetBrains Mono, monospace" }}
+              width={70}
+              stroke="transparent"
+              tickLine={false}
+              axisLine={false}
             />
             <Tooltip content={<CustomTooltip />} />
 
-            {/* Base curve (gray) when dual mode */}
+            {/* Base curve (gray dashed) when dual mode */}
             {hasDualCurve && (
               <Line
                 type="monotone"
                 dataKey="baseBalance"
                 name="Scenario base"
                 stroke="#94A3B8"
-                strokeWidth={2}
-                strokeDasharray="6 4"
+                strokeWidth={1.5}
+                strokeDasharray="5 4"
                 dot={false}
                 connectNulls={false}
               />
             )}
 
-            {/* Historical balance */}
+            {/* Historical balance — soft curve with dots */}
             <Area
               type="monotone"
               dataKey="historical"
               name="Storico"
               stroke="#4F46E5"
               fill="url(#histGradient)"
-              strokeWidth={2}
-              dot={false}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              dot={{ r: 3, fill: "#4F46E5", stroke: "#fff", strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: "#4F46E5", stroke: "#fff", strokeWidth: 2.5 }}
               connectNulls={false}
             />
 
@@ -174,8 +185,15 @@ export function MainForecastChart({ data, baseData, threshold }: MainForecastCha
               stroke={hasDualCurve ? "#059669" : "#4F46E5"}
               fill={hasDualCurve ? "url(#whatIfGradient)" : "url(#projGradient)"}
               strokeWidth={2}
-              strokeDasharray={hasDualCurve ? undefined : "8 4"}
-              dot={false}
+              strokeLinecap="round"
+              strokeDasharray={hasDualCurve ? undefined : "6 4"}
+              dot={{ r: 0 }}
+              activeDot={{
+                r: 4,
+                fill: hasDualCurve ? "#059669" : "#4F46E5",
+                stroke: "#fff",
+                strokeWidth: 2,
+              }}
               connectNulls={false}
             />
 
@@ -185,11 +203,12 @@ export function MainForecastChart({ data, baseData, threshold }: MainForecastCha
                 stroke="#DC2626"
                 strokeWidth={1.5}
                 strokeDasharray="4 2"
+                strokeOpacity={0.5}
                 label={{
                   value: "Zero",
                   position: "insideTopRight",
                   fill: "#DC2626",
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: 600,
                 }}
               />
@@ -199,12 +218,14 @@ export function MainForecastChart({ data, baseData, threshold }: MainForecastCha
               <ReferenceLine
                 y={threshold}
                 stroke="#DC2626"
-                strokeDasharray="6 3"
+                strokeDasharray="6 4"
+                strokeOpacity={0.5}
                 label={{
-                  value: `Soglia minima ${formatCurrency(threshold)}`,
+                  value: `Soglia ${formatCurrency(threshold)}`,
                   position: "insideTopRight",
                   fill: "#DC2626",
-                  fontSize: 11,
+                  fontSize: 10,
+                  fontWeight: 600,
                 }}
               />
             )}

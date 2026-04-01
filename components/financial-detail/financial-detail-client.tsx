@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { X, Info, ArrowRight } from "lucide-react";
+import { X, Info, ArrowRight, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Navbar } from "@/components/dashboard/navbar";
 import {
@@ -72,7 +72,9 @@ interface MonthlyRow {
     | "recurring"
     | "vat"
     | "total"
-    | "cumulative";
+    | "cumulative"
+    | "futureReceivable"
+    | "expectedPayable";
   color?: string;
   months: number[];
   total: number;
@@ -224,6 +226,16 @@ function DrillDownPanel({
   );
 }
 
+type GroupedRow =
+  | { kind: "row"; row: MonthlyRow; idx: number }
+  | {
+      kind: "parent";
+      row: MonthlyRow;
+      idx: number;
+      children: { row: MonthlyRow; idx: number }[];
+      sectionKey: string;
+    };
+
 export function FinancialDetailClient() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(String(currentYear));
@@ -232,6 +244,16 @@ export function FinancialDetailClient() {
     month: number;
     position: { top: number; left: number };
   } | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+
+  const toggleSection = useCallback((name: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
 
   const { data, isLoading } = useQuery<FinancialDetailData>({
     queryKey: ["financial-detail", year],
@@ -247,6 +269,48 @@ export function FinancialDetailClient() {
   const lastActualMonth = data?.lastActualMonth ?? -1;
   const monthDataSource = data?.monthDataSource ?? Array(12).fill("projection");
   const hasBankDataForYear = data?.hasBankDataForYear ?? false;
+
+  // Group revenue rows under bankInflow (Fatture Attive) and cost rows under bankOutflow (Fatture Passive)
+  const groupedRows = useMemo<GroupedRow[]>(() => {
+    const result: GroupedRow[] = [];
+    let i = 0;
+    while (i < rows.length) {
+      const row = rows[i];
+      if (row.type === "bankInflow") {
+        // Collect subsequent revenue rows as children
+        const children: { row: MonthlyRow; idx: number }[] = [];
+        let j = i + 1;
+        while (j < rows.length && rows[j].type === "revenue") {
+          children.push({ row: rows[j], idx: j });
+          j++;
+        }
+        if (children.length > 0) {
+          result.push({ kind: "parent", row, idx: i, children, sectionKey: "fatture-attive" });
+        } else {
+          result.push({ kind: "row", row, idx: i });
+        }
+        i = j;
+      } else if (row.type === "bankOutflow") {
+        // Collect subsequent cost rows as children
+        const children: { row: MonthlyRow; idx: number }[] = [];
+        let j = i + 1;
+        while (j < rows.length && rows[j].type === "cost") {
+          children.push({ row: rows[j], idx: j });
+          j++;
+        }
+        if (children.length > 0) {
+          result.push({ kind: "parent", row, idx: i, children, sectionKey: "fatture-passive" });
+        } else {
+          result.push({ kind: "row", row, idx: i });
+        }
+        i = j;
+      } else {
+        result.push({ kind: "row", row, idx: i });
+        i++;
+      }
+    }
+    return result;
+  }, [rows]);
 
   const handleCellClick = useCallback(
     (rowName: string, month: number, e: React.MouseEvent) => {
@@ -267,6 +331,108 @@ export function FinancialDetailClient() {
 
   // Determine if we should show the "no bank data" banner
   const showNoBankBanner = !hasBankDataForYear && Number(year) <= currentYear;
+
+  function renderRow(row: MonthlyRow, idx: number) {
+    const isTotal = row.type === "total" || row.type === "cumulative";
+    const isSaldoRiportato = row.type === "saldoRiportato";
+    const isBankRow = row.type === "bankInflow" || row.type === "bankOutflow";
+    const isSeparator = row.name === "TOTALE ENTRATE" || row.name === "TOTALE USCITE";
+
+    return (
+      <tr
+        key={`${row.name}-${idx}`}
+        className={cn(
+          "border-b transition-colors duration-150 last:border-0",
+          isTotal && "bg-muted/20 font-semibold",
+          isSaldoRiportato && "bg-indigo-50/60 dark:bg-indigo-950/30",
+          isBankRow && "bg-blue-50/30 dark:bg-blue-950/10",
+          isSeparator && "border-t-2",
+          !isTotal && !isSaldoRiportato && !isBankRow && "hover:bg-muted/10",
+        )}
+      >
+        <td
+          className={cn(
+            "sticky left-0 z-10 px-4 py-2.5",
+            isTotal ? "bg-slate-100 font-bold dark:bg-slate-800" : "bg-white dark:bg-slate-950",
+            isSaldoRiportato &&
+              "bg-indigo-50 font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400",
+            isBankRow && "bg-blue-50 dark:bg-blue-950",
+          )}
+        >
+          <div className="flex items-center gap-2">
+            {row.color && (
+              <span
+                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: row.color }}
+              />
+            )}
+            <span
+              className={cn(
+                row.type === "revenue" && "text-emerald-700 dark:text-emerald-400",
+                (row.type === "cost" || row.type === "recurring") &&
+                  "text-red-700 dark:text-red-400",
+                row.type === "expectedPayable" && "text-orange-700 dark:text-orange-400",
+                row.type === "vat" && "text-violet-700 dark:text-violet-400",
+                isSaldoRiportato && "text-indigo-700 dark:text-indigo-400",
+                row.type === "bankInflow" && "text-emerald-600 dark:text-emerald-400",
+                row.type === "bankOutflow" && "text-red-600 dark:text-red-400",
+              )}
+            >
+              {row.name}
+            </span>
+          </div>
+        </td>
+        {row.months.map((val, m) => {
+          const isProjection = monthDataSource[m] === "projection";
+
+          if (isBankRow && isProjection) {
+            return (
+              <td
+                key={m}
+                className={cn(
+                  "font-numeric text-muted-foreground/40 px-3 py-2.5 text-right tabular-nums",
+                  m === currentMonth && "bg-primary/5",
+                )}
+              >
+                -
+              </td>
+            );
+          }
+
+          const isForecast = isProjection && currentMonth >= 0 && m > currentMonth;
+          const isNegative = val < 0;
+          const hasDetail = !!detailMap[row.name]?.[m]?.length;
+
+          return (
+            <td
+              key={m}
+              className={cn(
+                "font-numeric px-3 py-2.5 text-right tabular-nums",
+                m === currentMonth && "bg-primary/5",
+                isForecast && "italic opacity-60",
+                isNegative && "text-red-600",
+                isTotal && "font-bold",
+                isSaldoRiportato && "font-bold text-indigo-700 dark:text-indigo-400",
+                hasDetail && "hover:bg-primary/10 cursor-pointer rounded hover:underline",
+              )}
+              onClick={hasDetail ? (e) => handleCellClick(row.name, m, e) : undefined}
+            >
+              {val === 0 ? "-" : formatEUR(val)}
+            </td>
+          );
+        })}
+        <td
+          className={cn(
+            "font-numeric px-4 py-2.5 text-right font-bold tabular-nums",
+            row.total < 0 && "text-red-600",
+            isSaldoRiportato && "text-indigo-700 dark:text-indigo-400",
+          )}
+        >
+          {formatEUR(row.total)}
+        </td>
+      </tr>
+    );
+  }
 
   return (
     <>
@@ -389,115 +555,176 @@ export function FinancialDetailClient() {
                         </td>
                       </tr>
                     ) : (
-                      rows.map((row, idx) => {
-                        const isTotal = row.type === "total" || row.type === "cumulative";
-                        const isSaldoRiportato = row.type === "saldoRiportato";
-                        const isBankRow = row.type === "bankInflow" || row.type === "bankOutflow";
-                        const isSeparator =
-                          row.name === "TOTALE ENTRATE" || row.name === "TOTALE USCITE";
-
+                      groupedRows.map((entry) => {
+                        if (entry.kind === "row") {
+                          return renderRow(entry.row, entry.idx);
+                        }
+                        // Accordion parent + children
+                        const isExpanded = expandedSections.has(entry.sectionKey);
+                        const parentRow = entry.row;
+                        const isBankInflow = parentRow.type === "bankInflow";
                         return (
-                          <tr
-                            key={`${row.name}-${idx}`}
-                            className={cn(
-                              "border-b transition-colors duration-150 last:border-0",
-                              isTotal && "bg-muted/20 font-semibold",
-                              isSaldoRiportato && "bg-indigo-50/60 dark:bg-indigo-950/30",
-                              isBankRow && "bg-blue-50/30 dark:bg-blue-950/10",
-                              isSeparator && "border-t-2",
-                              !isTotal && !isSaldoRiportato && !isBankRow && "hover:bg-muted/10",
-                            )}
-                          >
-                            <td
+                          <React.Fragment key={`group-${entry.sectionKey}-${entry.idx}`}>
+                            {/* Accordion parent row */}
+                            <tr
                               className={cn(
-                                "sticky left-0 z-10 px-4 py-2.5",
-                                isTotal
-                                  ? "bg-slate-100 font-bold dark:bg-slate-800"
-                                  : "bg-white dark:bg-slate-950",
-                                isSaldoRiportato &&
-                                  "bg-indigo-50 font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400",
-                                isBankRow && "bg-blue-50 dark:bg-blue-950",
+                                "cursor-pointer border-b transition-colors duration-150 select-none",
+                                "bg-blue-50/30 hover:bg-blue-50/60 dark:bg-blue-950/10 dark:hover:bg-blue-950/20",
                               )}
+                              onClick={() => toggleSection(entry.sectionKey)}
                             >
-                              <div className="flex items-center gap-2">
-                                {row.color && (
-                                  <span
-                                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                                    style={{ backgroundColor: row.color }}
+                              <td className="sticky left-0 z-10 bg-blue-50 px-4 py-2.5 dark:bg-blue-950">
+                                <div className="flex items-center gap-2">
+                                  <ChevronRight
+                                    className={cn(
+                                      "h-4 w-4 shrink-0 transition-transform duration-200",
+                                      isBankInflow ? "text-emerald-600" : "text-red-600",
+                                      isExpanded && "rotate-90",
+                                    )}
                                   />
-                                )}
-                                <span
-                                  className={cn(
-                                    row.type === "revenue" &&
-                                      "text-emerald-700 dark:text-emerald-400",
-                                    (row.type === "cost" || row.type === "recurring") &&
-                                      "text-red-700 dark:text-red-400",
-                                    row.type === "vat" && "text-violet-700 dark:text-violet-400",
-                                    isSaldoRiportato && "text-indigo-700 dark:text-indigo-400",
-                                    row.type === "bankInflow" &&
-                                      "text-emerald-600 dark:text-emerald-400",
-                                    row.type === "bankOutflow" && "text-red-600 dark:text-red-400",
-                                  )}
-                                >
-                                  {row.name}
-                                </span>
-                              </div>
-                            </td>
-                            {row.months.map((val, m) => {
-                              const isProjection = monthDataSource[m] === "projection";
-
-                              // Bank rows show "-" in projection months
-                              if (isBankRow && isProjection) {
+                                  <span
+                                    className={cn(
+                                      "font-semibold",
+                                      isBankInflow
+                                        ? "text-emerald-600 dark:text-emerald-400"
+                                        : "text-red-600 dark:text-red-400",
+                                    )}
+                                  >
+                                    {parentRow.name}
+                                  </span>
+                                </div>
+                              </td>
+                              {parentRow.months.map((val, m) => {
+                                const isProjection = monthDataSource[m] === "projection";
+                                if (
+                                  (parentRow.type === "bankInflow" ||
+                                    parentRow.type === "bankOutflow") &&
+                                  isProjection
+                                ) {
+                                  return (
+                                    <td
+                                      key={m}
+                                      className={cn(
+                                        "font-numeric text-muted-foreground/40 px-3 py-2.5 text-right tabular-nums",
+                                        m === currentMonth && "bg-primary/5",
+                                      )}
+                                    >
+                                      -
+                                    </td>
+                                  );
+                                }
+                                const isForecast =
+                                  isProjection && currentMonth >= 0 && m > currentMonth;
+                                const hasDetail = !!detailMap[parentRow.name]?.[m]?.length;
                                 return (
                                   <td
                                     key={m}
                                     className={cn(
-                                      "font-numeric text-muted-foreground/40 px-3 py-2.5 text-right tabular-nums",
+                                      "font-numeric px-3 py-2.5 text-right font-semibold tabular-nums",
                                       m === currentMonth && "bg-primary/5",
+                                      isForecast && "italic opacity-60",
+                                      val < 0 && "text-red-600",
+                                      hasDetail &&
+                                        "hover:bg-primary/10 cursor-pointer rounded hover:underline",
                                     )}
+                                    onClick={
+                                      hasDetail
+                                        ? (e) => {
+                                            e.stopPropagation();
+                                            handleCellClick(parentRow.name, m, e);
+                                          }
+                                        : undefined
+                                    }
                                   >
-                                    -
+                                    {val === 0 ? "-" : formatEUR(val)}
                                   </td>
                                 );
-                              }
-
-                              const isForecast =
-                                isProjection && currentMonth >= 0 && m > currentMonth;
-                              const isNegative = val < 0;
-                              const hasDetail = !!detailMap[row.name]?.[m]?.length;
-
-                              return (
-                                <td
-                                  key={m}
-                                  className={cn(
-                                    "font-numeric px-3 py-2.5 text-right tabular-nums",
-                                    m === currentMonth && "bg-primary/5",
-                                    isForecast && "italic opacity-60",
-                                    isNegative && "text-red-600",
-                                    isTotal && "font-bold",
-                                    isSaldoRiportato &&
-                                      "font-bold text-indigo-700 dark:text-indigo-400",
-                                    hasDetail &&
-                                      "hover:bg-primary/10 cursor-pointer rounded hover:underline",
-                                  )}
-                                  onClick={
-                                    hasDetail ? (e) => handleCellClick(row.name, m, e) : undefined
-                                  }
-                                >
-                                  {val === 0 ? "-" : formatEUR(val)}
-                                </td>
-                              );
-                            })}
-                            <td
-                              className={cn(
-                                "font-numeric px-4 py-2.5 text-right font-bold tabular-nums",
-                                row.total < 0 && "text-red-600",
-                                isSaldoRiportato && "text-indigo-700 dark:text-indigo-400",
-                              )}
-                            >
-                              {formatEUR(row.total)}
-                            </td>
-                          </tr>
+                              })}
+                              <td className="font-numeric px-4 py-2.5 text-right font-bold tabular-nums">
+                                {formatEUR(parentRow.total)}
+                              </td>
+                            </tr>
+                            {/* Accordion children (animated) */}
+                            <AnimatePresence>
+                              {isExpanded &&
+                                entry.children.map((child, childIdx) => (
+                                  <motion.tr
+                                    key={`child-${child.row.name}-${child.idx}`}
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{
+                                      duration: 0.2,
+                                      delay: childIdx * 0.04,
+                                      ease: "easeOut",
+                                    }}
+                                    className="hover:bg-muted/10 border-b transition-colors duration-150"
+                                  >
+                                    <td
+                                      className="sticky left-0 z-10 bg-white py-2 dark:bg-slate-950"
+                                      style={{ paddingLeft: 40, paddingRight: 16 }}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        {child.row.color && (
+                                          <span
+                                            className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                                            style={{ backgroundColor: child.row.color }}
+                                          />
+                                        )}
+                                        <span
+                                          className={cn(
+                                            "text-[12.5px]",
+                                            child.row.type === "revenue" &&
+                                              "text-emerald-700 dark:text-emerald-400",
+                                            child.row.type === "cost" &&
+                                              "text-red-700 dark:text-red-400",
+                                          )}
+                                        >
+                                          {child.row.name}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    {child.row.months.map((val, m) => {
+                                      const isProjection = monthDataSource[m] === "projection";
+                                      const isForecast =
+                                        isProjection && currentMonth >= 0 && m > currentMonth;
+                                      const hasDetail = !!detailMap[child.row.name]?.[m]?.length;
+                                      return (
+                                        <td
+                                          key={m}
+                                          className={cn(
+                                            "font-numeric px-3 py-2 text-right text-[12.5px] tabular-nums",
+                                            m === currentMonth && "bg-primary/5",
+                                            isForecast && "italic opacity-60",
+                                            val < 0 && "text-red-600",
+                                            hasDetail &&
+                                              "hover:bg-primary/10 cursor-pointer rounded hover:underline",
+                                          )}
+                                          onClick={
+                                            hasDetail
+                                              ? (e) => {
+                                                  e.stopPropagation();
+                                                  handleCellClick(child.row.name, m, e);
+                                                }
+                                              : undefined
+                                          }
+                                        >
+                                          {val === 0 ? "-" : formatEUR(val)}
+                                        </td>
+                                      );
+                                    })}
+                                    <td
+                                      className={cn(
+                                        "font-numeric px-4 py-2 text-right text-[12.5px] font-bold tabular-nums",
+                                        child.row.total < 0 && "text-red-600",
+                                      )}
+                                    >
+                                      {formatEUR(child.row.total)}
+                                    </td>
+                                  </motion.tr>
+                                ))}
+                            </AnimatePresence>
+                          </React.Fragment>
                         );
                       })
                     )}

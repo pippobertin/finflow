@@ -17,10 +17,11 @@ export interface MatchCardProps {
   bankStatementDescription: string;
   bankStatementAmount: number;
   invoices: MatchInvoice[];
-  type: "single" | "multi" | "expense";
+  type: "single" | "multi" | "expense" | "expectedPayable";
   confidence: number;
   pass: number;
   recurringExpenseName?: string;
+  expectedPayableName?: string;
   selected?: boolean;
   onSelectClick?: (e: React.MouseEvent) => void;
   onAccept?: () => void;
@@ -39,6 +40,7 @@ export function MatchCard({
   type,
   confidence,
   recurringExpenseName,
+  expectedPayableName,
   selected,
   onSelectClick,
 }: MatchCardProps) {
@@ -92,6 +94,15 @@ export function MatchCard({
             </Badge>
             <p className="text-xs font-medium text-violet-700 dark:text-violet-400">
               {recurringExpenseName}
+            </p>
+          </div>
+        ) : type === "expectedPayable" && expectedPayableName ? (
+          <div>
+            <Badge className="mb-1 border-orange-200 bg-orange-100 text-[10px] text-orange-700">
+              Fattura Passiva Attesa
+            </Badge>
+            <p className="text-xs font-medium text-orange-700 dark:text-orange-400">
+              {expectedPayableName}
             </p>
           </div>
         ) : (

@@ -9,6 +9,7 @@ import {
   Landmark,
   Receipt,
   HandCoins,
+  FileWarning,
   FolderKanban,
   Upload,
   SlidersHorizontal,
@@ -60,6 +61,7 @@ export function Sidebar() {
         { href: "/invoices", label: "Fatture", icon: FileText },
         { href: "/bank-statements", label: "Movimenti Bancari", icon: Landmark },
         { href: "/expenses", label: "Spese Ricorrenti", icon: Receipt },
+        { href: "/expected-payables", label: "Fatture Passive Attese", icon: FileWarning },
         { href: "/future-receivables", label: "Incassi Futuri", icon: HandCoins },
         {
           href: "/reconciliation",
@@ -81,14 +83,14 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex h-full w-64 shrink-0 flex-col border-r border-white/[0.06]"
+      className="flex h-full w-64 shrink-0 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)]"
       style={{
-        background: "linear-gradient(180deg, #1E1B4B 0%, #312E81 100%)",
+        boxShadow: "2px 0 12px rgba(0,0,0,0.04)",
       }}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-white/[0.08] px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sm font-bold text-white">
+      <div className="flex h-16 items-center gap-3 border-b border-[var(--sidebar-border)] px-6">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-sm font-bold text-white">
           F
         </div>
         <span
@@ -109,10 +111,10 @@ export function Sidebar() {
           <div key={group.title}>
             {gi > 0 && (
               <div className="pt-4 pb-2">
-                <div className="border-t border-white/[0.08]" />
+                <div className="border-t border-[var(--sidebar-border)]" />
               </div>
             )}
-            <p className="px-3 pb-1 text-xs font-semibold tracking-wider text-white/40 uppercase">
+            <p className="px-3 pb-1 text-[10px] font-bold tracking-wider text-[#94a3b8] uppercase">
               {group.title}
             </p>
             <div className="space-y-0.5">
@@ -123,18 +125,21 @@ export function Sidebar() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+                      "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
                       isActive
-                        ? "bg-white/[0.12] text-white shadow-sm"
-                        : "text-white/60 hover:bg-white/[0.06] hover:text-white/90",
+                        ? "bg-[var(--sidebar-accent)] font-semibold text-[var(--sidebar-primary)]"
+                        : "text-[var(--sidebar-foreground)] hover:bg-slate-100 hover:text-[var(--sidebar-primary-foreground)] dark:hover:bg-slate-800",
                     )}
                   >
+                    {isActive && (
+                      <span className="absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--sidebar-primary)]" />
+                    )}
                     <item.icon className="h-4 w-4" />
                     <span className="flex-1">{item.label}</span>
                     {item.badge !== undefined && item.badge > 0 && (
                       <Badge
                         variant="secondary"
-                        className="h-5 min-w-5 justify-center bg-amber-500/80 px-1.5 text-[10px] font-bold text-white"
+                        className="h-5 min-w-5 justify-center border border-red-200 bg-red-50 px-1.5 text-[10px] font-bold text-red-600"
                       >
                         {item.badge > 99 ? "99+" : item.badge}
                       </Badge>
@@ -148,11 +153,11 @@ export function Sidebar() {
       </nav>
 
       {/* Logout */}
-      <div className="border-t border-white/[0.08] p-3">
+      <div className="border-t border-[var(--sidebar-border)] p-3">
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-3 text-white/60 hover:bg-white/[0.06] hover:text-white/90"
+          className="w-full justify-start gap-3 text-[var(--sidebar-foreground)] hover:bg-slate-100 hover:text-[var(--sidebar-primary-foreground)] dark:hover:bg-slate-800"
           onClick={() => signOut({ callbackUrl: "/login" })}
         >
           <LogOut className="h-4 w-4" />

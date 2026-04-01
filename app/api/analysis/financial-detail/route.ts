@@ -16,7 +16,8 @@ interface MonthlyRow {
     | "vat"
     | "total"
     | "cumulative"
-    | "futureReceivable";
+    | "futureReceivable"
+    | "expectedPayable";
   color?: string;
   months: number[];
   total: number;
@@ -155,6 +156,41 @@ export async function GET(request: NextRequest) {
       },
     }),
   ]);
+
+  // ── Expected payables (table may not exist) ──
+  let expectedPayables: Array<{
+    id: string;
+    description: string;
+    counterpart: string;
+    amount: unknown;
+    frequency: string;
+    dayOfMonth: number | null;
+    startDate: Date;
+    endDate: Date | null;
+  }> = [];
+  try {
+    expectedPayables = await prisma.expectedPayable.findMany({
+      where: {
+        organizationId,
+        status: "ACTIVE",
+        includeInForecast: true,
+        startDate: { lte: new Date(year, 11, 31) },
+        OR: [{ endDate: null }, { endDate: { gte: new Date(year, 0, 1) } }],
+      },
+      select: {
+        id: true,
+        description: true,
+        counterpart: true,
+        amount: true,
+        frequency: true,
+        dayOfMonth: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+  } catch {
+    // table may not exist yet
+  }
 
   const settings = (org?.settings as Record<string, unknown>) ?? {};
   const manualBalance =
@@ -483,6 +519,45 @@ export async function GET(request: NextRequest) {
     return matching.reduce((sum, exp) => sum + Number(exp.amount), 0);
   });
 
+  // ── Expected payables (fatture passive attese) ──
+  const epRowName = "Fatture passive attese";
+  const epMonths = Array.from({ length: 12 }, () => 0);
+  for (const ep of expectedPayables) {
+    const amt = Number(ep.amount);
+    if (amt <= 0) continue;
+
+    const startMonth = new Date(ep.startDate).getMonth();
+    const startYear = new Date(ep.startDate).getFullYear();
+    const endMonth = ep.endDate ? new Date(ep.endDate).getMonth() : 11;
+    const endYear = ep.endDate ? new Date(ep.endDate).getFullYear() : year;
+
+    for (let m = 0; m < 12; m++) {
+      const inRange =
+        (startYear < year || (startYear === year && startMonth <= m)) &&
+        (endYear > year || (endYear === year && endMonth >= m));
+      if (!inRange) continue;
+
+      let applies = false;
+      if (ep.frequency === "MONTHLY") applies = true;
+      else if (ep.frequency === "QUARTERLY" && m % 3 === startMonth % 3) applies = true;
+      else if (ep.frequency === "ANNUAL" && m === startMonth) applies = true;
+      else if (!ep.frequency) applies = true;
+
+      if (applies) {
+        epMonths[m] += amt;
+        pushDetail(epRowName, m, {
+          id: ep.id,
+          label: ep.description,
+          counterpart: ep.counterpart,
+          amount: amt,
+          type: "expectedPayable",
+          date: format(new Date(year, m, ep.dayOfMonth ?? 1), "yyyy-MM-dd"),
+          status: "ACTIVE",
+        });
+      }
+    }
+  }
+
   // ── IVA row ──
   const vatPeriodicity = (settings.vatPeriodicity as VatPeriodicity) ?? "quarterly";
   const vatPeriods = generateVatPeriods(year, vatPeriodicity);
@@ -521,6 +596,7 @@ export async function GET(request: NextRequest) {
     for (const r of costRows) sum += r.months[m];
     sum += recurringMonths[m];
     sum += oneOffMonths[m];
+    sum += epMonths[m];
     sum += vatMonths[m];
     return sum;
   });
@@ -643,6 +719,16 @@ export async function GET(request: NextRequest) {
       type: "cost",
       months: oneOffMonths,
       total: oneOffMonths.reduce((a, b) => a + b, 0),
+    });
+  }
+
+  // 8b. Expected payables (fatture passive attese)
+  if (epMonths.some((v) => v > 0)) {
+    rows.push({
+      name: epRowName,
+      type: "expectedPayable",
+      months: epMonths,
+      total: epMonths.reduce((a, b) => a + b, 0),
     });
   }
 

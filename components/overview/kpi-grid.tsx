@@ -24,7 +24,7 @@ const item = {
 export function KpiGrid({ kpis, rangeLabel }: KpiGridProps) {
   return (
     <motion.div
-      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4"
       variants={container}
       initial="hidden"
       animate="show"

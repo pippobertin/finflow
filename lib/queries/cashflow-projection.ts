@@ -84,6 +84,16 @@ export async function buildDailyProjection(
     expectedInvoiceDate: Date | null;
     expectedPaymentDate: Date | null;
   };
+  type ExpectedPayRow = {
+    id: string;
+    description: string;
+    counterpart: string;
+    amount: unknown;
+    frequency: string;
+    dayOfMonth: number | null;
+    startDate: Date;
+    endDate: Date | null;
+  };
 
   let org: { settings: unknown } | null = null;
   let lastBankStatement: { balance: unknown; date: Date } | null = null;
@@ -94,6 +104,7 @@ export async function buildDailyProjection(
   let passiveInvoices: InvoiceWithPE[] = [];
   let oneOffExpenses: OneOffWithPE[] = [];
   let paymentEvents: ScheduledPE[] = [];
+  let expectedPayables: ExpectedPayRow[] = [];
 
   // ── Attempt 1: Full Phase 2 (all columns + paymentEvents + PARTIALLY_PAID) ──
   try {
@@ -184,6 +195,24 @@ export async function buildDailyProjection(
           expectedPaymentDate: true,
         },
       }),
+      prisma.expectedPayable.findMany({
+        where: {
+          organizationId,
+          status: "ACTIVE",
+          includeInForecast: true,
+          ...ccFilter,
+        },
+        select: {
+          id: true,
+          description: true,
+          counterpart: true,
+          amount: true,
+          frequency: true,
+          dayOfMonth: true,
+          startDate: true,
+          endDate: true,
+        },
+      }),
       prisma.paymentEvent.findMany({
         where: { organizationId, isActual: false, eventDate: { gte: today, lte: endDate } },
         select: {
@@ -206,8 +235,9 @@ export async function buildDailyProjection(
     recurringExpenses = results[4];
     oneOffExpenses = results[5];
     futureReceivables = results[6];
-    paymentEvents = results[7];
-    allInvoicesForVat = results[8];
+    expectedPayables = results[7];
+    paymentEvents = results[8];
+    allInvoicesForVat = results[9];
   } catch {
     // ── Attempt 2: Base schema only (no paymentEvents, no phase-2 columns, no PARTIALLY_PAID) ──
     try {
@@ -303,6 +333,25 @@ export async function buildDailyProjection(
       futureReceivables = results[6];
       allInvoicesForVat = results[7];
       paymentEvents = [];
+
+      // Try loading expected payables (table may not exist)
+      try {
+        expectedPayables = await prisma.expectedPayable.findMany({
+          where: { organizationId, status: "ACTIVE", includeInForecast: true, ...ccFilter },
+          select: {
+            id: true,
+            description: true,
+            counterpart: true,
+            amount: true,
+            frequency: true,
+            dayOfMonth: true,
+            startDate: true,
+            endDate: true,
+          },
+        });
+      } catch {
+        expectedPayables = [];
+      }
     } catch (e) {
       console.error("[cashflow-projection] Both query attempts failed:", e);
       throw e;
@@ -420,6 +469,7 @@ export async function buildDailyProjection(
       recurringExpenses: 0,
       oneOffExpenses: 0,
       futureReceivables: 0,
+      futurePayables: 0,
       vatPayments: 0,
       netFlow: 0,
       details: [],
@@ -600,6 +650,38 @@ export async function buildDailyProjection(
     }
   }
 
+  // ── Expected payables (per-invoice amount placed at each occurrence) ──
+  for (const ep of expectedPayables) {
+    const amt = Number(ep.amount);
+    if (amt <= 0) continue;
+
+    const start = startOfDay(ep.startDate);
+    const end = ep.endDate ? startOfDay(ep.endDate) : endDate;
+    const targetDay = ep.dayOfMonth ?? start.getDate();
+
+    let current = start;
+    while (isBefore(current, endDate) || current.getTime() === endDate.getTime()) {
+      if (!isBefore(current, today) && !isAfter(current, end)) {
+        const key = format(current, "yyyy-MM-dd");
+        const point = dayMap.get(key);
+        if (point) {
+          point.futurePayables += amt;
+          point.details.push({
+            id: ep.id,
+            type: "expectedPayable",
+            label: ep.description,
+            counterpart: ep.counterpart,
+            amount: amt,
+          });
+        }
+      }
+      const months = ep.frequency === "QUARTERLY" ? 3 : ep.frequency === "ANNUAL" ? 12 : 1;
+      const next = addMonths(current, months);
+      const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+      current = new Date(next.getFullYear(), next.getMonth(), Math.min(targetDay, lastDay));
+    }
+  }
+
   // ── Scheduled payment events (predicted future installments) ──
   for (const pe of paymentEvents) {
     const amount = Number(pe.amount);
@@ -672,6 +754,7 @@ export async function buildDailyProjection(
       point.passiveInvoices -
       point.recurringExpenses -
       point.oneOffExpenses -
+      point.futurePayables -
       (point.vatPayments ?? 0);
     runningBalance += point.netFlow;
     point.balance = Math.round(runningBalance * 100) / 100;
@@ -779,6 +862,7 @@ async function buildHistoricalTimeline(
       recurringExpenses: 0,
       oneOffExpenses: 0,
       futureReceivables: 0,
+      futurePayables: 0,
       vatPayments: 0,
       netFlow: 0,
       details: [],

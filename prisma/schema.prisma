@@ -88,6 +88,15 @@ enum ReceivableStatus {
   @@schema("public")
 }
 
+enum PayableStatus {
+  ACTIVE
+  EXHAUSTED
+  CANCELLED
+
+  @@map("fin_payable_status")
+  @@schema("public")
+}
+
 // ─── Models ─────────────────────────────────────────────────
 
 model Organization {
@@ -115,6 +124,7 @@ model Organization {
   cashflowSnapshots    CashflowSnapshot[]
   forecastScenarios    ForecastScenario[]
   futureReceivables    FutureReceivable[]
+  expectedPayables     ExpectedPayable[]
   paymentEvents        PaymentEvent[]
   vatSnapshots         VatSnapshot[]
   bankAccounts         BankAccount[]
@@ -221,6 +231,7 @@ model CostCenter {
   oneOffExpenses     OneOffExpense[]
   bankStatements     BankStatement[]
   futureReceivables  FutureReceivable[]
+  expectedPayables   ExpectedPayable[]
 
   @@unique([organizationId, name])
   @@map("fin_cost_center")
@@ -424,6 +435,34 @@ model FutureReceivable {
 
   @@index([organizationId, status])
   @@map("fin_future_receivable")
+  @@schema("public")
+}
+
+// ─── Fatture Passive Attese ──────────────────────────────────
+
+model ExpectedPayable {
+  id               String           @id @default(cuid())
+  organizationId   String           @map("organization_id")
+  description      String
+  counterpart      String
+  amount           Decimal          @db.Decimal(12, 2)
+  frequency        ExpenseFrequency @default(MONTHLY)
+  dayOfMonth       Int?             @map("day_of_month")
+  startDate        DateTime         @map("start_date")
+  endDate          DateTime?        @map("end_date")
+  status           PayableStatus    @default(ACTIVE)
+  costCenterId     String?          @map("cost_center_id")
+  category         ExpenseCategory  @default(CONSULTING)
+  notes            String?
+  includeInForecast Boolean         @default(true) @map("include_in_forecast")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  costCenter   CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@map("fin_expected_payable")
   @@schema("public")
 }
 

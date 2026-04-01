@@ -7,25 +7,25 @@ import { cn } from "@/lib/utils";
 
 const accentMap = {
   blue: {
-    border: "border-l-indigo-500",
+    gradient: "gradient-border-top gradient-border-top-indigo",
     bg: "bg-indigo-50",
     text: "text-indigo-600",
     badge: "bg-indigo-50 text-indigo-700",
   },
   green: {
-    border: "border-l-emerald-500",
+    gradient: "gradient-border-top gradient-border-top-emerald",
     bg: "bg-emerald-50",
     text: "text-emerald-600",
     badge: "bg-emerald-50 text-emerald-700",
   },
   red: {
-    border: "border-l-red-500",
+    gradient: "gradient-border-top gradient-border-top-red",
     bg: "bg-red-50",
     text: "text-red-600",
     badge: "bg-red-50 text-red-700",
   },
   purple: {
-    border: "border-l-violet-500",
+    gradient: "gradient-border-top gradient-border-top-violet",
     bg: "bg-violet-50",
     text: "text-violet-600",
     badge: "bg-violet-50 text-violet-700",
@@ -58,8 +58,8 @@ export function KpiCard({
   return (
     <Card
       className={cn(
-        "shadow-card hover:shadow-card-hover relative overflow-hidden border-l-4 transition-shadow duration-200",
-        accent.border,
+        "shadow-card hover:shadow-card-hover relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5",
+        accent.gradient,
         className,
       )}
     >
@@ -68,7 +68,9 @@ export function KpiCard({
           <div className="space-y-1.5">
             <p className="text-muted-foreground text-sm font-medium">{title}</p>
             {subtitle && <p className="text-muted-foreground text-[11px]">{subtitle}</p>}
-            <p className="font-numeric text-2xl font-bold tracking-tight xl:text-3xl">{value}</p>
+            <p className="font-numeric text-[28px] leading-none font-bold tracking-tight">
+              {value}
+            </p>
             {trend && (
               <div
                 className={cn(

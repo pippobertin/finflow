@@ -6,6 +6,7 @@ export interface DailyItemDetail {
     | "recurringExpense"
     | "oneOffExpense"
     | "futureReceivable"
+    | "expectedPayable"
     | "vatPayment";
   label: string;
   counterpart?: string;
@@ -20,6 +21,7 @@ export interface DailyProjectionPoint {
   recurringExpenses: number;
   oneOffExpenses: number;
   futureReceivables: number;
+  futurePayables: number;
   vatPayments?: number;
   netFlow: number;
   details: DailyItemDetail[];

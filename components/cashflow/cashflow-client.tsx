@@ -13,6 +13,9 @@ import {
   Receipt,
   RotateCcw,
   ArrowDownUp,
+  ArrowUpRight,
+  Wallet,
+  Zap,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { Navbar } from "@/components/dashboard/navbar";
@@ -37,6 +40,7 @@ import { ThresholdLineInput } from "./threshold-line-input";
 import { MainForecastChart } from "./main-forecast-chart";
 import { DecompositionChart } from "./decomposition-chart";
 import { CashflowPdfExport } from "./cashflow-pdf-export";
+import { KpiCard } from "@/components/dashboard/kpi-card";
 import { formatEUR } from "@/lib/helpers/format";
 import type { CashflowTimelineResult, WhatIfEvent } from "@/lib/types/cashflow";
 
@@ -200,51 +204,41 @@ export function CashflowClient({ initialData }: CashflowClientProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
       >
-        {/* KPI row */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="bg-card shadow-card flex items-center gap-2 rounded-lg border px-3 py-2">
-            <Clock className="text-muted-foreground h-4 w-4" />
-            <div className="text-xs">
-              <span className="text-muted-foreground">DSO medio</span>
-              <span className="font-numeric ml-1.5 font-semibold">{timelineData.avgDso} gg</span>
-            </div>
-          </div>
-          <div className="bg-card shadow-card flex items-center gap-2 rounded-lg border px-3 py-2">
-            <div className="text-xs">
-              <span className="text-muted-foreground">Incassi attesi</span>
-              <span className="font-numeric ml-1.5 font-semibold">
-                {formatEUR(timelineData.totalPendingActiveGross)}
-              </span>
-            </div>
-          </div>
-          <div className="bg-card shadow-card flex items-center gap-2 rounded-lg border px-3 py-2">
-            <div className="text-xs">
-              <span className="text-muted-foreground">Saldo attuale</span>
-              <span className="font-numeric ml-1.5 font-semibold">
-                {formatEUR(timelineData.startingBalance)}
-              </span>
-            </div>
-          </div>
+        {/* KPI cards */}
+        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            title="DSO medio"
+            value={`${timelineData.avgDso} gg`}
+            icon={Clock}
+            accentColor="blue"
+          />
+          <KpiCard
+            title="Incassi attesi"
+            value={formatEUR(timelineData.totalPendingActiveGross)}
+            icon={ArrowUpRight}
+            accentColor="green"
+          />
+          <KpiCard
+            title="Saldo attuale"
+            value={formatEUR(timelineData.startingBalance)}
+            icon={Wallet}
+            accentColor="purple"
+          />
           {hasActiveEvents && (
-            <div
-              className={`shadow-card flex items-center gap-2 rounded-lg border px-3 py-2 ${
-                impactTotal >= 0 ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"
-              }`}
-            >
-              <div className="text-xs">
-                <span className={impactTotal >= 0 ? "text-emerald-700" : "text-red-700"}>
-                  Impatto What If
-                </span>
-                <span
-                  className={`font-numeric ml-1.5 font-bold ${
-                    impactTotal >= 0 ? "text-emerald-700" : "text-red-700"
-                  }`}
-                >
-                  {impactTotal >= 0 ? "+" : ""}
-                  {formatEUR(impactTotal)}
-                </span>
-              </div>
-            </div>
+            <KpiCard
+              title="Impatto What If"
+              value={`${impactTotal >= 0 ? "+" : ""}${formatEUR(impactTotal)}`}
+              icon={Zap}
+              accentColor="red"
+              trend={
+                impactTotal !== 0
+                  ? {
+                      value: `${impactTotal >= 0 ? "+" : ""}${formatEUR(impactTotal)}`,
+                      positive: impactTotal >= 0,
+                    }
+                  : undefined
+              }
+            />
           )}
         </div>
 

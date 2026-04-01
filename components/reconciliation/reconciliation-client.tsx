@@ -37,11 +37,13 @@ interface Suggestion {
     counterpart: string;
     grossAmount: number;
   }>;
-  type: "single" | "multi" | "expense";
+  type: "single" | "multi" | "expense" | "expectedPayable";
   confidence: number;
   pass: number;
   recurringExpenseId?: string;
   recurringExpenseName?: string;
+  expectedPayableId?: string;
+  expectedPayableName?: string;
 }
 
 interface UnmatchedInvoice {
@@ -88,7 +90,7 @@ export function ReconciliationClient() {
     fetchData();
   }, [fetchData]);
 
-  // --- Grouped expense suggestions ---
+  // --- Grouped expense/payable suggestions ---
   const { expenseGroups, invoiceSuggestions } = useMemo(() => {
     const groups = new Map<string, Suggestion[]>();
     const nonExpense: Suggestion[] = [];
@@ -96,6 +98,10 @@ export function ReconciliationClient() {
     for (const s of suggestions) {
       if (s.type === "expense" && s.recurringExpenseId) {
         const key = s.recurringExpenseId;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(s);
+      } else if (s.type === "expectedPayable" && s.expectedPayableId) {
+        const key = `ep-${s.expectedPayableId}`;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key)!.push(s);
       } else {
@@ -106,7 +112,7 @@ export function ReconciliationClient() {
     return {
       expenseGroups: Array.from(groups.entries()).map(([id, items]) => ({
         recurringExpenseId: id,
-        expenseName: items[0].recurringExpenseName ?? "Spesa ricorrente",
+        expenseName: items[0].recurringExpenseName ?? items[0].expectedPayableName ?? "Spesa",
         suggestions: items,
       })),
       invoiceSuggestions: nonExpense,
@@ -170,7 +176,9 @@ export function ReconciliationClient() {
             bankStatementId: s.bankStatementId,
             ...(s.type === "expense" && s.recurringExpenseId
               ? { recurringExpenseId: s.recurringExpenseId }
-              : { invoiceIds: s.invoices.map((i) => i.id) }),
+              : s.type === "expectedPayable" && s.expectedPayableId
+                ? { expectedPayableId: s.expectedPayableId }
+                : { invoiceIds: s.invoices.map((i) => i.id) }),
             accepted: true,
           })),
         }),
@@ -205,6 +213,8 @@ export function ReconciliationClient() {
       };
       if (suggestion.type === "expense" && suggestion.recurringExpenseId) {
         matchPayload.recurringExpenseId = suggestion.recurringExpenseId;
+      } else if (suggestion.type === "expectedPayable" && suggestion.expectedPayableId) {
+        matchPayload.expectedPayableId = suggestion.expectedPayableId;
       } else {
         matchPayload.invoiceIds = suggestion.invoices.map((i) => i.id);
       }
@@ -244,7 +254,11 @@ export function ReconciliationClient() {
           action: "confirm",
           matches: group.suggestions.map((s) => ({
             bankStatementId: s.bankStatementId,
-            recurringExpenseId: s.recurringExpenseId,
+            ...(s.recurringExpenseId
+              ? { recurringExpenseId: s.recurringExpenseId }
+              : s.expectedPayableId
+                ? { expectedPayableId: s.expectedPayableId }
+                : {}),
             accepted: true,
           })),
         }),
@@ -260,9 +274,13 @@ export function ReconciliationClient() {
     }
   }
 
-  function handleRejectGroup(recurringExpenseId: string) {
+  function handleRejectGroup(groupId: string) {
     setSuggestions((prev) =>
-      prev.filter((s) => !(s.type === "expense" && s.recurringExpenseId === recurringExpenseId)),
+      prev.filter((s) => {
+        if (s.type === "expense" && s.recurringExpenseId === groupId) return false;
+        if (s.type === "expectedPayable" && `ep-${s.expectedPayableId}` === groupId) return false;
+        return true;
+      }),
     );
   }
 
@@ -387,6 +405,7 @@ export function ReconciliationClient() {
                     key={s.bankStatementId}
                     {...s}
                     recurringExpenseName={s.recurringExpenseName}
+                    expectedPayableName={s.expectedPayableName}
                     selected={selectedIds.has(s.bankStatementId)}
                     onSelectClick={(e) => handleSelectClick(i, e)}
                   />

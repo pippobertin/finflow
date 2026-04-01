@@ -113,15 +113,15 @@
 
   --radius: 0.625rem;
 
-  /* Sidebar — Indigo deep gradient */
-  --sidebar: #1e1b4b;
-  --sidebar-foreground: rgba(255, 255, 255, 0.85);
-  --sidebar-primary: #818cf8;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(255, 255, 255, 0.1);
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #818cf8;
+  /* Sidebar — Light theme */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #64748b;
+  --sidebar-primary: #4f46e5;
+  --sidebar-primary-foreground: #1e293b;
+  --sidebar-accent: #eef2ff;
+  --sidebar-accent-foreground: #1e293b;
+  --sidebar-border: #e8ecf1;
+  --sidebar-ring: #4f46e5;
 }
 
 .dark {
@@ -156,13 +156,13 @@
   --chart-3: #ef4444;
   --chart-4: #fbbf24;
   --chart-5: #a78bfa;
-  --sidebar: #0f0e26;
-  --sidebar-foreground: rgba(255, 255, 255, 0.85);
+  --sidebar: #1e293b;
+  --sidebar-foreground: #cbd5e1;
   --sidebar-primary: #818cf8;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(255, 255, 255, 0.08);
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-primary-foreground: #f8fafc;
+  --sidebar-accent: rgba(129, 140, 248, 0.15);
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
   --sidebar-ring: #818cf8;
 }
 
@@ -200,6 +200,30 @@
   }
   .dark .glass {
     background: rgba(15, 23, 42, 0.8);
+  }
+  .gradient-border-top {
+    position: relative;
+  }
+  .gradient-border-top::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .gradient-border-top-indigo::before {
+    background: linear-gradient(90deg, #4f46e5, #818cf8);
+  }
+  .gradient-border-top-emerald::before {
+    background: linear-gradient(90deg, #059669, #34d399);
+  }
+  .gradient-border-top-red::before {
+    background: linear-gradient(90deg, #dc2626, #f87171);
+  }
+  .gradient-border-top-violet::before {
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
   }
 }
 

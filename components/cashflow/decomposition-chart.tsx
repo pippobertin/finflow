@@ -73,6 +73,12 @@ const TYPE_CONFIG = {
     badge: "bg-purple-100 text-purple-700",
     sign: "-",
   },
+  expectedPayable: {
+    label: "Fatture Passive Attese",
+    color: "text-orange-600",
+    badge: "bg-orange-100 text-orange-700",
+    sign: "-",
+  },
   vatPayment: {
     label: "Versamenti IVA",
     color: "text-violet-600",
@@ -114,6 +120,7 @@ function DetailSection({ point, onClose }: { point: DailyProjectionPoint; onClos
     passiveInvoice: details.filter((d) => d.type === "passiveInvoice"),
     recurringExpense: details.filter((d) => d.type === "recurringExpense"),
     oneOffExpense: details.filter((d) => d.type === "oneOffExpense"),
+    expectedPayable: details.filter((d) => d.type === "expectedPayable"),
     vatPayment: details.filter((d) => d.type === "vatPayment"),
   };
 
@@ -153,6 +160,7 @@ function DetailSection({ point, onClose }: { point: DailyProjectionPoint; onClos
               "passiveInvoice",
               "recurringExpense",
               "oneOffExpense",
+              "expectedPayable",
               "vatPayment",
             ] as const
           ).map((type) => {
@@ -222,6 +230,7 @@ export function DecompositionChart({ data }: DecompositionChartProps) {
     "Fatture Passive": -d.passiveInvoices,
     "Spese Ricorrenti": -d.recurringExpenses,
     "Spese Una Tantum": -d.oneOffExpenses,
+    "Fatture Passive Attese": -(d.futurePayables ?? 0),
     "Versamenti IVA": -(d.vatPayments ?? 0),
   }));
 
@@ -231,24 +240,35 @@ export function DecompositionChart({ data }: DecompositionChartProps) {
         <CardTitle>Composizione Flussi</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={280}>
           <AreaChart
             data={chartData}
-            margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+            margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
             onClick={handleClick}
             style={{ cursor: "pointer" }}
           >
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <CartesianGrid
+              strokeDasharray="none"
+              stroke="#f1f5f9"
+              strokeWidth={1}
+              vertical={false}
+            />
             <XAxis
               dataKey="date"
               tickFormatter={formatDate}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 10, fill: "#94A3B8" }}
               interval="preserveStartEnd"
+              stroke="transparent"
+              tickLine={false}
+              axisLine={false}
             />
             <YAxis
               tickFormatter={(v: number) => formatCurrency(v)}
-              tick={{ fontSize: 11 }}
-              width={90}
+              tick={{ fontSize: 10, fill: "#94A3B8", fontFamily: "JetBrains Mono, monospace" }}
+              width={70}
+              stroke="transparent"
+              tickLine={false}
+              axisLine={false}
             />
             <Tooltip content={<HoverTooltip />} />
             {selectedDate && (
@@ -256,56 +276,79 @@ export function DecompositionChart({ data }: DecompositionChartProps) {
                 x={selectedDate}
                 stroke="hsl(var(--primary))"
                 strokeDasharray="4 4"
-                strokeWidth={2}
+                strokeWidth={1.5}
+                strokeOpacity={0.6}
               />
             )}
             <Area
               type="monotone"
               dataKey="Fatture Attive"
               stackId="1"
-              stroke="hsl(142, 76%, 36%)"
-              fill="hsl(142, 76%, 36%)"
-              fillOpacity={0.5}
+              stroke="#059669"
+              fill="#059669"
+              fillOpacity={0.35}
+              strokeWidth={1.5}
+              strokeLinecap="round"
             />
             <Area
               type="monotone"
               dataKey="Incassi Futuri"
               stackId="1"
-              stroke="hsl(168, 76%, 36%)"
-              fill="hsl(168, 76%, 36%)"
-              fillOpacity={0.5}
+              stroke="#0d9488"
+              fill="#0d9488"
+              fillOpacity={0.3}
+              strokeWidth={1.5}
+              strokeLinecap="round"
             />
             <Area
               type="monotone"
               dataKey="Fatture Passive"
               stackId="2"
-              stroke="hsl(0, 84%, 60%)"
-              fill="hsl(0, 84%, 60%)"
-              fillOpacity={0.5}
+              stroke="#dc2626"
+              fill="#dc2626"
+              fillOpacity={0.3}
+              strokeWidth={1.5}
+              strokeLinecap="round"
             />
             <Area
               type="monotone"
               dataKey="Spese Ricorrenti"
               stackId="2"
-              stroke="hsl(38, 92%, 50%)"
-              fill="hsl(38, 92%, 50%)"
-              fillOpacity={0.5}
+              stroke="#d97706"
+              fill="#d97706"
+              fillOpacity={0.3}
+              strokeWidth={1.5}
+              strokeLinecap="round"
             />
             <Area
               type="monotone"
               dataKey="Spese Una Tantum"
               stackId="2"
-              stroke="hsl(270, 70%, 60%)"
-              fill="hsl(270, 70%, 60%)"
-              fillOpacity={0.5}
+              stroke="#7c3aed"
+              fill="#7c3aed"
+              fillOpacity={0.3}
+              strokeWidth={1.5}
+              strokeLinecap="round"
+            />
+            <Area
+              type="monotone"
+              dataKey="Fatture Passive Attese"
+              stackId="2"
+              stroke="#ea580c"
+              fill="#ea580c"
+              fillOpacity={0.25}
+              strokeWidth={1.5}
+              strokeLinecap="round"
             />
             <Area
               type="monotone"
               dataKey="Versamenti IVA"
               stackId="2"
-              stroke="hsl(263, 70%, 50%)"
-              fill="hsl(263, 70%, 50%)"
-              fillOpacity={0.5}
+              stroke="#6d28d9"
+              fill="#6d28d9"
+              fillOpacity={0.25}
+              strokeWidth={1.5}
+              strokeLinecap="round"
             />
           </AreaChart>
         </ResponsiveContainer>

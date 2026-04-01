@@ -83,10 +83,27 @@ export async function POST(request: NextRequest) {
       where: { bankAccount: { organizationId } },
     });
     if (!profile) {
-      return Response.json(
-        { error: "Nessun profilo bancario configurato. Importa prima un estratto conto." },
-        { status: 404 },
-      );
+      // No profile yet — auto-create from the first bank account
+      const bankAccount = await prisma.bankAccount.findFirst({
+        where: { organizationId },
+      });
+      if (!bankAccount) {
+        return Response.json(
+          { error: "Nessun conto bancario trovato. Importa prima un estratto conto." },
+          { status: 404 },
+        );
+      }
+      profile = await prisma.bankProfile.create({
+        data: {
+          bankAccountId: bankAccount.id,
+          bankName: bankAccount.bankName,
+          columnMapping: {},
+          dateFormat: "dd/MM/yyyy",
+          delimiter: ",",
+          decimalSeparator: ",",
+          skipRows: 0,
+        },
+      });
     }
   }
 
@@ -136,7 +153,7 @@ export async function DELETE(request: NextRequest) {
       where: { bankAccount: { organizationId } },
     });
     if (!profile) {
-      return Response.json({ error: "Nessun profilo bancario" }, { status: 404 });
+      return Response.json({ error: "Nessun pattern salvato" }, { status: 404 });
     }
   }
 
