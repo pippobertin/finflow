@@ -387,11 +387,40 @@ export async function getOverviewData(
 
   const distribution: DistributionSlice[] = [];
   for (const cc of costCenters) {
-    const agg = await prisma.invoice.aggregate({
+    let value = 0;
+
+    // Passive invoices
+    const invAgg = await prisma.invoice.aggregate({
       where: { organizationId, costCenterId: cc.id, direction: "PASSIVE" },
       _sum: { grossAmount: true },
     });
-    const value = Number(agg._sum.grossAmount ?? 0);
+    value += Number(invAgg._sum.grossAmount ?? 0);
+
+    // Recurring expenses
+    const recAgg = await prisma.recurringExpense.aggregate({
+      where: { organizationId, costCenterId: cc.id },
+      _sum: { amount: true },
+    });
+    value += Number(recAgg._sum.amount ?? 0);
+
+    // One-off expenses
+    const oofAgg = await prisma.oneOffExpense.aggregate({
+      where: { organizationId, costCenterId: cc.id },
+      _sum: { amount: true },
+    });
+    value += Number(oofAgg._sum.amount ?? 0);
+
+    // Expected payables
+    try {
+      const epAgg = await prisma.expectedPayable.aggregate({
+        where: { organizationId, costCenterId: cc.id, status: "ACTIVE" },
+        _sum: { amount: true },
+      });
+      value += Number(epAgg._sum.amount ?? 0);
+    } catch {
+      // table may not exist
+    }
+
     if (value > 0) {
       distribution.push({ name: cc.name, value, color: cc.color });
     }

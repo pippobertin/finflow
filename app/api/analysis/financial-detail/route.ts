@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
         frequency: true,
         startDate: true,
         endDate: true,
+        costCenterId: true,
       },
     }),
     prisma.oneOffExpense.findMany({
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
           lte: new Date(year, 11, 31),
         },
       },
-      select: { id: true, name: true, amount: true, date: true, isPaid: true },
+      select: { id: true, name: true, amount: true, date: true, isPaid: true, costCenterId: true },
     }),
     prisma.organization.findUnique({
       where: { id: organizationId },
@@ -167,6 +168,7 @@ export async function GET(request: NextRequest) {
     dayOfMonth: number | null;
     startDate: Date;
     endDate: Date | null;
+    costCenterId: string | null;
   }> = [];
   try {
     expectedPayables = await prisma.expectedPayable.findMany({
@@ -186,6 +188,7 @@ export async function GET(request: NextRequest) {
         dayOfMonth: true,
         startDate: true,
         endDate: true,
+        costCenterId: true,
       },
     });
   } catch {
@@ -431,19 +434,41 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // ── Cost centers (PASSIVE invoices) — placed by cash/payment date ──
+  // ── Cost centers (PASSIVE invoices + recurring expenses + expected payables + one-off) ──
   const costCentersList = costCenters.filter((cc) => cc.type === "COST");
   const costRows: MonthlyRow[] = [];
 
+  // Helper: check if a recurring expense applies to month m
+  function recurringApplies(
+    exp: { frequency: string; startDate: Date | string; endDate: Date | string | null },
+    m: number,
+  ) {
+    const amount_startMonth = new Date(exp.startDate).getMonth();
+    const amount_startYear = new Date(exp.startDate).getFullYear();
+    const amount_endMonth = exp.endDate ? new Date(exp.endDate).getMonth() : 11;
+    const amount_endYear = exp.endDate ? new Date(exp.endDate).getFullYear() : year;
+    const inRange =
+      (amount_startYear < year || (amount_startYear === year && amount_startMonth <= m)) &&
+      (amount_endYear > year || (amount_endYear === year && amount_endMonth >= m));
+    if (!inRange) return false;
+    if (exp.frequency === "MONTHLY") return true;
+    if (exp.frequency === "QUARTERLY" && m % 3 === amount_startMonth % 3) return true;
+    if (exp.frequency === "ANNUAL" && m === amount_startMonth) return true;
+    return false;
+  }
+
   for (const cc of costCentersList) {
     const months = Array.from({ length: 12 }, (_, m) => {
-      const matching = invoices.filter(
+      let total = 0;
+
+      // 1. Passive invoices for this cost center
+      const matchingInv = invoices.filter(
         (inv) =>
           inv.direction === "PASSIVE" &&
           inv.costCenterId === cc.id &&
           getInvoiceCashMonth(inv) === m,
       );
-      for (const inv of matching) {
+      for (const inv of matchingInv) {
         const cashDate = getInvoiceCashDate(inv);
         pushDetail(cc.name, m, {
           id: inv.id,
@@ -454,8 +479,73 @@ export async function GET(request: NextRequest) {
           date: format(cashDate, "yyyy-MM-dd"),
           status: inv.status,
         });
+        total += Number(inv.grossAmount);
       }
-      return matching.reduce((sum, inv) => sum + Number(inv.grossAmount), 0);
+
+      // 2. Recurring expenses for this cost center
+      for (const exp of recurringExpenses) {
+        if (exp.costCenterId !== cc.id) continue;
+        if (!recurringApplies(exp, m)) continue;
+        const amt = Number(exp.amount);
+        total += amt;
+        pushDetail(cc.name, m, {
+          id: exp.id,
+          label: exp.name,
+          amount: amt,
+          type: "recurringExpense",
+          date: format(new Date(year, m, 1), "yyyy-MM-dd"),
+        });
+      }
+
+      // 3. Expected payables for this cost center
+      for (const ep of expectedPayables) {
+        if (ep.costCenterId !== cc.id) continue;
+        const amt = Number(ep.amount);
+        if (amt <= 0) continue;
+        const epStartMonth = new Date(ep.startDate).getMonth();
+        const epStartYear = new Date(ep.startDate).getFullYear();
+        const epEndMonth = ep.endDate ? new Date(ep.endDate).getMonth() : 11;
+        const epEndYear = ep.endDate ? new Date(ep.endDate).getFullYear() : year;
+        const inRange =
+          (epStartYear < year || (epStartYear === year && epStartMonth <= m)) &&
+          (epEndYear > year || (epEndYear === year && epEndMonth >= m));
+        if (!inRange) continue;
+        let applies = false;
+        if (ep.frequency === "MONTHLY") applies = true;
+        else if (ep.frequency === "QUARTERLY" && m % 3 === epStartMonth % 3) applies = true;
+        else if (ep.frequency === "ANNUAL" && m === epStartMonth) applies = true;
+        else if (!ep.frequency) applies = true;
+        if (!applies) continue;
+        total += amt;
+        pushDetail(cc.name, m, {
+          id: ep.id,
+          label: ep.description,
+          counterpart: ep.counterpart,
+          amount: amt,
+          type: "expectedPayable",
+          date: format(new Date(year, m, ep.dayOfMonth ?? 1), "yyyy-MM-dd"),
+          status: "ACTIVE",
+        });
+      }
+
+      // 4. One-off expenses for this cost center
+      const matchingOneOff = oneOffExpenses.filter(
+        (exp) => exp.costCenterId === cc.id && new Date(exp.date).getMonth() === m,
+      );
+      for (const exp of matchingOneOff) {
+        const amt = Number(exp.amount);
+        total += amt;
+        pushDetail(cc.name, m, {
+          id: exp.id,
+          label: exp.name,
+          amount: amt,
+          type: "oneOffExpense",
+          date: format(new Date(exp.date), "yyyy-MM-dd"),
+          status: exp.isPaid ? "PAID" : "PENDING",
+        });
+      }
+
+      return total;
     });
     costRows.push({
       name: cc.name,
@@ -466,46 +556,35 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // ── Recurring expenses ──
+  // ── Recurring expenses (only those WITHOUT a cost center — others already counted in cost center rows) ──
   const recurringRowName = "Spese ricorrenti";
+  const costCenterIds = new Set(costCentersList.map((cc) => cc.id));
   const recurringMonths = Array.from({ length: 12 }, (_, m) => {
     let total = 0;
     for (const exp of recurringExpenses) {
+      if (exp.costCenterId && costCenterIds.has(exp.costCenterId)) continue;
+      if (!recurringApplies(exp, m)) continue;
       const amount = Number(exp.amount);
-      const startMonth = new Date(exp.startDate).getMonth();
-      const startYear = new Date(exp.startDate).getFullYear();
-      const endMonth = exp.endDate ? new Date(exp.endDate).getMonth() : 11;
-      const endYear = exp.endDate ? new Date(exp.endDate).getFullYear() : year;
-
-      const inRange =
-        (startYear < year || (startYear === year && startMonth <= m)) &&
-        (endYear > year || (endYear === year && endMonth >= m));
-
-      if (inRange) {
-        let applies = false;
-        if (exp.frequency === "MONTHLY") applies = true;
-        else if (exp.frequency === "QUARTERLY" && m % 3 === startMonth % 3) applies = true;
-        else if (exp.frequency === "ANNUAL" && m === startMonth) applies = true;
-
-        if (applies) {
-          total += amount;
-          pushDetail(recurringRowName, m, {
-            id: exp.id,
-            label: exp.name,
-            amount,
-            type: "recurringExpense",
-            date: format(new Date(year, m, 1), "yyyy-MM-dd"),
-          });
-        }
-      }
+      total += amount;
+      pushDetail(recurringRowName, m, {
+        id: exp.id,
+        label: exp.name,
+        amount,
+        type: "recurringExpense",
+        date: format(new Date(year, m, 1), "yyyy-MM-dd"),
+      });
     }
     return total;
   });
 
-  // ── One-off expenses ──
+  // ── One-off expenses (only those WITHOUT a cost center) ──
   const oneOffRowName = "Spese una tantum";
   const oneOffMonths = Array.from({ length: 12 }, (_, m) => {
-    const matching = oneOffExpenses.filter((exp) => new Date(exp.date).getMonth() === m);
+    const matching = oneOffExpenses.filter(
+      (exp) =>
+        new Date(exp.date).getMonth() === m &&
+        !(exp.costCenterId && costCenterIds.has(exp.costCenterId)),
+    );
     for (const exp of matching) {
       pushDetail(oneOffRowName, m, {
         id: exp.id,
@@ -519,10 +598,11 @@ export async function GET(request: NextRequest) {
     return matching.reduce((sum, exp) => sum + Number(exp.amount), 0);
   });
 
-  // ── Expected payables (fatture passive attese) ──
+  // ── Expected payables (only those WITHOUT a cost center) ──
   const epRowName = "Fatture passive attese";
   const epMonths = Array.from({ length: 12 }, () => 0);
   for (const ep of expectedPayables) {
+    if (ep.costCenterId && costCenterIds.has(ep.costCenterId)) continue;
     const amt = Number(ep.amount);
     if (amt <= 0) continue;
 
