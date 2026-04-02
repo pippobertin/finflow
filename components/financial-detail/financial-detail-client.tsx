@@ -344,8 +344,8 @@ export function FinancialDetailClient() {
         className={cn(
           "border-b transition-colors duration-150 last:border-0",
           isTotal && "bg-muted/20 font-semibold",
-          isSaldoRiportato && "bg-indigo-50/60 dark:bg-indigo-950/30",
-          isBankRow && "bg-blue-50/30 dark:bg-blue-950/10",
+          isSaldoRiportato && "bg-[var(--primary-light)]",
+          isBankRow && "bg-[var(--accent)]",
           isSeparator && "border-t-2",
           !isTotal && !isSaldoRiportato && !isBankRow && "hover:bg-muted/10",
         )}
@@ -353,10 +353,9 @@ export function FinancialDetailClient() {
         <td
           className={cn(
             "sticky left-0 z-10 px-4 py-2.5",
-            isTotal ? "bg-slate-100 font-bold dark:bg-slate-800" : "bg-white dark:bg-slate-950",
-            isSaldoRiportato &&
-              "bg-indigo-50 font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400",
-            isBankRow && "bg-blue-50 dark:bg-blue-950",
+            isTotal ? "bg-[var(--muted)] font-bold" : "bg-[var(--card)]",
+            isSaldoRiportato && "bg-[var(--primary-light)] font-bold text-[color:var(--primary)]",
+            isBankRow && "bg-[var(--accent)]",
           )}
         >
           <div className="flex items-center gap-2">
@@ -373,7 +372,7 @@ export function FinancialDetailClient() {
                   "text-red-700 dark:text-red-400",
                 row.type === "expectedPayable" && "text-orange-700 dark:text-orange-400",
                 row.type === "vat" && "text-violet-700 dark:text-violet-400",
-                isSaldoRiportato && "text-indigo-700 dark:text-indigo-400",
+                isSaldoRiportato && "text-[color:var(--primary)]",
                 row.type === "bankInflow" && "text-emerald-600 dark:text-emerald-400",
                 row.type === "bankOutflow" && "text-red-600 dark:text-red-400",
               )}
@@ -425,7 +424,7 @@ export function FinancialDetailClient() {
           className={cn(
             "font-numeric px-4 py-2.5 text-right font-bold tabular-nums",
             row.total < 0 && "text-red-600",
-            isSaldoRiportato && "text-indigo-700 dark:text-indigo-400",
+            isSaldoRiportato && "text-[color:var(--primary)]",
           )}
         >
           {formatEUR(row.total)}
@@ -493,7 +492,7 @@ export function FinancialDetailClient() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/30 border-b">
-                      <th className="sticky left-0 z-10 min-w-[200px] bg-slate-100 px-4 py-3 text-left font-semibold dark:bg-slate-800">
+                      <th className="sticky left-0 z-10 min-w-[200px] bg-[var(--muted)] px-4 py-3 text-left font-semibold">
                         Voce
                       </th>
                       {MONTH_LABELS.map((m, i) => (
@@ -512,7 +511,7 @@ export function FinancialDetailClient() {
                     {/* Data source badges row */}
                     {lastActualMonth >= 0 && (
                       <tr className="bg-muted/10 border-b">
-                        <th className="sticky left-0 z-10 min-w-[200px] bg-slate-50 px-4 py-1 dark:bg-slate-900" />
+                        <th className="sticky left-0 z-10 min-w-[200px] bg-[var(--secondary)] px-4 py-1" />
                         {monthDataSource.map((source, i) => (
                           <th
                             key={`badge-${i}`}
@@ -569,11 +568,11 @@ export function FinancialDetailClient() {
                             <tr
                               className={cn(
                                 "cursor-pointer border-b transition-colors duration-150 select-none",
-                                "bg-blue-50/30 hover:bg-blue-50/60 dark:bg-blue-950/10 dark:hover:bg-blue-950/20",
+                                "bg-[var(--accent)] hover:bg-[var(--accent)]/80",
                               )}
                               onClick={() => toggleSection(entry.sectionKey)}
                             >
-                              <td className="sticky left-0 z-10 bg-blue-50 px-4 py-2.5 dark:bg-blue-950">
+                              <td className="sticky left-0 z-10 bg-[var(--accent)] px-4 py-2.5">
                                 <div className="flex items-center gap-2">
                                   <ChevronRight
                                     className={cn(
@@ -661,7 +660,7 @@ export function FinancialDetailClient() {
                                     className="hover:bg-muted/10 border-b transition-colors duration-150"
                                   >
                                     <td
-                                      className="sticky left-0 z-10 bg-white py-2 dark:bg-slate-950"
+                                      className="sticky left-0 z-10 bg-[var(--card)] py-2"
                                       style={{ paddingLeft: 40, paddingRight: 16 }}
                                     >
                                       <div className="flex items-center gap-2">

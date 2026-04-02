@@ -8,27 +8,27 @@ import { cn } from "@/lib/utils";
 const accentMap = {
   blue: {
     gradient: "gradient-border-top gradient-border-top-indigo",
-    bg: "bg-indigo-50",
-    text: "text-indigo-600",
-    badge: "bg-indigo-50 text-indigo-700",
+    bg: "bg-[var(--primary-light)]",
+    text: "text-[color:var(--primary)]",
+    badge: "bg-[var(--primary-light)] text-[color:var(--primary)]",
   },
   green: {
     gradient: "gradient-border-top gradient-border-top-emerald",
-    bg: "bg-emerald-50",
-    text: "text-emerald-600",
-    badge: "bg-emerald-50 text-emerald-700",
+    bg: "bg-[var(--success-light)]",
+    text: "text-[color:var(--success)]",
+    badge: "bg-[var(--success-light)] text-[color:var(--success)]",
   },
   red: {
     gradient: "gradient-border-top gradient-border-top-red",
-    bg: "bg-red-50",
-    text: "text-red-600",
-    badge: "bg-red-50 text-red-700",
+    bg: "bg-[var(--danger-light)]",
+    text: "text-[color:var(--danger)]",
+    badge: "bg-[var(--danger-light)] text-[color:var(--danger)]",
   },
   purple: {
     gradient: "gradient-border-top gradient-border-top-violet",
-    bg: "bg-violet-50",
-    text: "text-violet-600",
-    badge: "bg-violet-50 text-violet-700",
+    bg: "bg-violet-50 dark:bg-violet-950/30",
+    text: "text-violet-600 dark:text-violet-400",
+    badge: "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400",
   },
 } as const;
 
@@ -75,7 +75,9 @@ export function KpiCard({
               <div
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
-                  trend.positive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700",
+                  trend.positive
+                    ? "bg-[var(--success-light)] text-[color:var(--success)]"
+                    : "bg-[var(--danger-light)] text-[color:var(--danger)]",
                 )}
               >
                 {trend.positive ? (

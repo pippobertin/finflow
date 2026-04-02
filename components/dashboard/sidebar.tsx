@@ -17,11 +17,14 @@ import {
   TableProperties,
   ArrowLeftRight,
   TrendingUp,
+  Monitor,
+  Terminal,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useThemeStore } from "@/lib/stores/theme-store";
 
 interface NavItem {
   href: string;
@@ -38,6 +41,7 @@ interface NavGroup {
 export function Sidebar() {
   const pathname = usePathname();
   const [unreconciledCount, setUnreconciledCount] = useState(0);
+  const { theme, toggleTheme } = useThemeStore();
 
   useEffect(() => {
     fetch("/api/reconciliation/count")
@@ -90,7 +94,10 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-[var(--sidebar-border)] px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-sm font-bold text-white">
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white"
+          style={{ background: "linear-gradient(135deg, var(--primary), var(--ring))" }}
+        >
           F
         </div>
         <span
@@ -128,7 +135,7 @@ export function Sidebar() {
                       "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
                       isActive
                         ? "bg-[var(--sidebar-accent)] font-semibold text-[var(--sidebar-primary)]"
-                        : "text-[var(--sidebar-foreground)] hover:bg-slate-100 hover:text-[var(--sidebar-primary-foreground)] dark:hover:bg-slate-800",
+                        : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]",
                     )}
                   >
                     {isActive && (
@@ -152,12 +159,29 @@ export function Sidebar() {
         ))}
       </nav>
 
+      {/* Theme Toggle */}
+      <div className="border-t border-[var(--sidebar-border)] px-3 py-2">
+        <button
+          onClick={toggleTheme}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[var(--sidebar-foreground)] transition-colors hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]"
+        >
+          {theme === "terminal" ? (
+            <Monitor className="h-4 w-4" />
+          ) : (
+            <Terminal className="h-4 w-4" />
+          )}
+          <span className="flex-1 text-left">
+            {theme === "terminal" ? "Tema Standard" : "Tema Terminal"}
+          </span>
+        </button>
+      </div>
+
       {/* Logout */}
       <div className="border-t border-[var(--sidebar-border)] p-3">
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-3 text-[var(--sidebar-foreground)] hover:bg-slate-100 hover:text-[var(--sidebar-primary-foreground)] dark:hover:bg-slate-800"
+          className="w-full justify-start gap-3 text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]"
           onClick={() => signOut({ callbackUrl: "/login" })}
         >
           <LogOut className="h-4 w-4" />

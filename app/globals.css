@@ -166,6 +166,62 @@
   --sidebar-ring: #818cf8;
 }
 
+/* ═══ Terminal Theme (Bloomberg) ═══ */
+[data-theme="terminal"],
+[data-theme="terminal"] .dark {
+  --background: #0d1117;
+  --foreground: #e6edf3;
+
+  --card: #161b22;
+  --card-foreground: #e6edf3;
+  --popover: #161b22;
+  --popover-foreground: #e6edf3;
+
+  --primary: #00d4aa;
+  --primary-foreground: #0d1117;
+  --primary-hover: #00b894;
+  --primary-light: rgba(0, 212, 170, 0.12);
+
+  --secondary: #21262d;
+  --secondary-foreground: #e6edf3;
+
+  --muted: #21262d;
+  --muted-foreground: #8b949e;
+
+  --accent: rgba(0, 212, 170, 0.12);
+  --accent-foreground: #e6edf3;
+
+  --destructive: #f85149;
+
+  --border: #30363d;
+  --input: #30363d;
+  --ring: #00d4aa;
+
+  --success: #3fb950;
+  --success-light: rgba(63, 185, 80, 0.12);
+  --danger: #f85149;
+  --danger-light: rgba(248, 81, 73, 0.12);
+  --warning: #d29922;
+  --warning-light: rgba(210, 153, 34, 0.12);
+
+  --chart-1: #00d4aa;
+  --chart-2: #3fb950;
+  --chart-3: #f85149;
+  --chart-4: #d29922;
+  --chart-5: #bc8cff;
+
+  --radius: 0.1875rem;
+
+  --sidebar: #161b22;
+  --sidebar-foreground: #8b949e;
+  --sidebar-primary: #00d4aa;
+  --sidebar-primary-foreground: #e6edf3;
+  --sidebar-accent: rgba(0, 212, 170, 0.12);
+  --sidebar-accent-foreground: #e6edf3;
+  --sidebar-border: #30363d;
+  --sidebar-ring: #00d4aa;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -241,4 +297,38 @@
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ═══ Terminal Theme — Density & Utility Overrides ═══ */
+[data-theme="terminal"] body {
+  font-size: 13px;
+}
+
+[data-theme="terminal"] .shadow-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="terminal"] .glass {
+  background: rgba(22, 27, 34, 0.85);
+}
+
+[data-theme="terminal"] .gradient-border-top-indigo::before {
+  background: linear-gradient(90deg, #00d4aa, #00b894);
+}
+
+[data-theme="terminal"] .gradient-border-top-emerald::before {
+  background: linear-gradient(90deg, #3fb950, #2ea043);
+}
+
+[data-theme="terminal"] .gradient-border-top-red::before {
+  background: linear-gradient(90deg, #f85149, #da3633);
+}
+
+[data-theme="terminal"] .gradient-border-top-violet::before {
+  background: linear-gradient(90deg, #bc8cff, #8b5cf6);
+}
+
+[data-theme="terminal"] .skeleton-shimmer {
+  background: linear-gradient(90deg, #161b22 25%, #21262d 50%, #161b22 75%);
+  background-size: 200% 100%;
 }
