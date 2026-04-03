@@ -418,7 +418,13 @@ export interface ConfirmEnhancedMatchInput {
 
 // Custom pattern shape from BankProfile.descriptionPatterns
 interface DescriptionPatterns {
-  counterpartPatterns?: Array<{ label: string; regex: string; flags?: string; sample: string }>;
+  counterpartPatterns?: Array<{
+    label: string;
+    regex: string;
+    flags?: string;
+    sample: string;
+    recurringExpenseId?: string;
+  }>;
   invoiceRefPatterns?: Array<{ label: string; regex: string; flags?: string; sample: string }>;
 }
 
@@ -473,11 +479,15 @@ function findSubsetSum(
 /**
  * Load custom regex patterns from BankProfile.descriptionPatterns for the org.
  */
-async function loadCustomPatterns(
-  organizationId: string,
-): Promise<{ counterpart: RegExp[]; invoiceRef: RegExp[] }> {
+async function loadCustomPatterns(organizationId: string): Promise<{
+  counterpart: RegExp[];
+  invoiceRef: RegExp[];
+  linkedExpenses: Map<string, string>;
+}> {
   const counterpart: RegExp[] = [];
   const invoiceRef: RegExp[] = [];
+  // Maps regex source → recurringExpenseId for patterns linked to an expense
+  const linkedExpenses = new Map<string, string>();
 
   try {
     const profiles = await prisma.bankProfile.findMany({
@@ -494,7 +504,11 @@ async function loadCustomPatterns(
 
       for (const p of patterns.counterpartPatterns ?? []) {
         try {
-          counterpart.push(new RegExp(p.regex, p.flags ?? "i"));
+          const re = new RegExp(p.regex, p.flags ?? "i");
+          counterpart.push(re);
+          if (p.recurringExpenseId) {
+            linkedExpenses.set(re.source, p.recurringExpenseId);
+          }
         } catch {
           /* skip invalid */
         }
@@ -511,7 +525,7 @@ async function loadCustomPatterns(
     // descriptionPatterns column may not exist yet — ignore
   }
 
-  return { counterpart, invoiceRef };
+  return { counterpart, invoiceRef, linkedExpenses };
 }
 
 /**
@@ -529,6 +543,20 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
     customPatterns.counterpart.length > 0 ? customPatterns.counterpart : undefined;
   const customInvoiceRefPatterns =
     customPatterns.invoiceRef.length > 0 ? customPatterns.invoiceRef : undefined;
+
+  // Load dismissed matches so we skip previously rejected pairs
+  let dismissedPairs = new Set<string>();
+  try {
+    const dismissed = await prisma.dismissedMatch.findMany({
+      where: { organizationId },
+      select: { bankStatementId: true, targetId: true, targetType: true },
+    });
+    dismissedPairs = new Set(
+      dismissed.map((d) => `${d.bankStatementId}::${d.targetId}::${d.targetType}`),
+    );
+  } catch {
+    // Table may not exist yet — proceed without filtering
+  }
 
   const rawBs = await prisma.bankStatement.findMany({
     where: { organizationId, isReconciled: false },
@@ -587,6 +615,10 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
   const activeInv = invoices.filter((inv) => inv.direction === "ACTIVE");
   const passiveInv = invoices.filter((inv) => inv.direction === "PASSIVE");
 
+  function isDismissed(bsId: string, targetId: string, targetType: string): boolean {
+    return dismissedPairs.has(`${bsId}::${targetId}::${targetType}`);
+  }
+
   function matchDirection(bsList: typeof bankStatements, invList: typeof invoices) {
     // ── Pass 1a: Counterpart + Invoice Number (strongest identification) ──
     // No amount gate — invoice ref + counterpart is definitive identification.
@@ -605,6 +637,7 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
 
       for (const inv of invList) {
         if (usedInvIds.has(inv.id)) continue;
+        if (isDismissed(bs.id, inv.id, "INVOICE")) continue;
         if (!matchesInvoiceNumber(inv.number, invoiceRefs)) continue;
 
         // Counterpart score for disambiguation (same invoice # from different suppliers)
@@ -669,6 +702,7 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
 
       for (const inv of invList) {
         if (usedInvIds.has(inv.id)) continue;
+        if (isDismissed(bs.id, inv.id, "INVOICE")) continue;
 
         let cpScore = counterpartScore(bs.description, inv.counterpart);
         if (extracted) {
@@ -736,7 +770,10 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
       const absAmt = Math.abs(bs.amount);
 
       const amountMatches = invList.filter(
-        (inv) => !usedInvIds.has(inv.id) && Math.abs(inv.grossAmount - absAmt) < 0.02,
+        (inv) =>
+          !usedInvIds.has(inv.id) &&
+          !isDismissed(bs.id, inv.id, "INVOICE") &&
+          Math.abs(inv.grossAmount - absAmt) < 0.02,
       );
 
       if (amountMatches.length === 1) {
@@ -774,6 +811,7 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
 
       const candidates = invList.filter((inv) => {
         if (usedInvIds.has(inv.id)) return false;
+        if (isDismissed(bs.id, inv.id, "INVOICE")) return false;
         return counterpartScore(extracted, inv.counterpart) >= 0.4;
       });
 
@@ -810,6 +848,47 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
   matchDirection(inflows, activeInv);
   matchDirection(outflows, passiveInv);
 
+  // Pass 1.25: Custom pattern → linked RecurringExpense (outflows only)
+  // For patterns explicitly linked to a recurring expense via the training wizard,
+  // match outflows by regex + amount ±10% → confidence 90.
+  if (customPatterns.linkedExpenses.size > 0 && recurringExpenses.length > 0) {
+    for (const bs of outflows) {
+      if (usedBsIds.has(bs.id)) continue;
+      const absAmt = Math.abs(bs.amount);
+
+      for (const re of customPatterns.counterpart) {
+        const expenseId = customPatterns.linkedExpenses.get(re.source);
+        if (!expenseId) continue;
+
+        re.lastIndex = 0;
+        if (!re.test(bs.description)) continue;
+
+        if (isDismissed(bs.id, expenseId, "EXPENSE")) continue;
+
+        const expense = recurringExpenses.find((e) => e.id === expenseId);
+        if (!expense) continue;
+
+        // Amount within ±10%
+        if (Math.abs(expense.amount - absAmt) > expense.amount * 0.1) continue;
+
+        usedBsIds.add(bs.id);
+        matches.push({
+          bankStatementId: bs.id,
+          bankStatementDate: bs.date.toISOString(),
+          bankStatementDescription: bs.description,
+          bankStatementAmount: bs.amount,
+          invoices: [],
+          type: "expense",
+          confidence: 90,
+          pass: 1.5,
+          recurringExpenseId: expense.id,
+          recurringExpenseName: expense.name,
+        });
+        break; // First matching pattern wins for this BS
+      }
+    }
+  }
+
   // Pass 1.5: RecurringExpense matching (outflows only)
   if (recurringExpenses.length > 0) {
     for (const bs of outflows) {
@@ -819,6 +898,7 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
       let bestExpense: { expense: (typeof recurringExpenses)[0]; score: number } | null = null;
 
       for (const expense of recurringExpenses) {
+        if (isDismissed(bs.id, expense.id, "EXPENSE")) continue;
         // Amount must be within ±5%
         if (Math.abs(expense.amount - absAmt) > expense.amount * 0.05) continue;
 
@@ -876,6 +956,7 @@ export async function findMatchesEnhanced(organizationId: string): Promise<Enhan
       let bestPayable: { payable: (typeof expectedPayables)[0]; score: number } | null = null;
 
       for (const payable of expectedPayables) {
+        if (isDismissed(bs.id, payable.id, "EXPECTED_PAYABLE")) continue;
         // Amount tolerance: ±15% of the per-invoice amount
         if (Math.abs(payable.amount - absAmt) > payable.amount * 0.15) continue;
 
@@ -971,7 +1052,7 @@ export async function confirmMatchesEnhanced(
           try {
             await tx.bankStatement.update({
               where: { id: match.bankStatementId },
-              data: { ...updateData, reconciledType: "INVOICE" },
+              data: { ...updateData, reconciledInvoiceIds: invoiceIds, reconciledType: "INVOICE" },
             });
           } catch {
             await tx.bankStatement.update({

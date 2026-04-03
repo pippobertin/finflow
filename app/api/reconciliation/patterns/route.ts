@@ -8,6 +8,7 @@ interface PatternEntry {
   regex: string;
   flags?: string;
   sample: string;
+  recurringExpenseId?: string;
 }
 
 interface DescriptionPatterns {
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
   if (error) return error;
 
   const body = await request.json();
-  const { bankAccountId, type, regex, flags, label, sample } = body;
+  const { bankAccountId, type, regex, flags, label, sample, recurringExpenseId } = body;
 
   if (!type || !regex || !label) {
     return Response.json({ error: "Campi obbligatori: type, regex, label" }, { status: 400 });
@@ -111,12 +112,14 @@ export async function POST(request: NextRequest) {
   const existing = (profile.descriptionPatterns as DescriptionPatterns | null) ?? {};
   const patterns = existing[type] ?? [];
 
-  patterns.push({
+  const entry: PatternEntry = {
     label,
     regex,
     flags: flags ?? (type === "invoiceRefPatterns" ? "gi" : "i"),
     sample,
-  });
+  };
+  if (recurringExpenseId) entry.recurringExpenseId = recurringExpenseId;
+  patterns.push(entry);
   existing[type] = patterns;
 
   await prisma.bankProfile.update({
@@ -125,6 +128,57 @@ export async function POST(request: NextRequest) {
   });
 
   return Response.json({ success: true, patternCount: patterns.length });
+}
+
+// PATCH: Update a pattern (e.g. link recurringExpenseId after expense creation)
+export async function PATCH(request: NextRequest) {
+  const { error, organizationId } = await getAuthSession();
+  if (error) return error;
+
+  const body = await request.json();
+  const { bankAccountId, type, index, recurringExpenseId } = body;
+
+  if (!type || index === undefined || !recurringExpenseId) {
+    return Response.json(
+      { error: "Campi obbligatori: type, index, recurringExpenseId" },
+      { status: 400 },
+    );
+  }
+
+  let profile;
+  if (bankAccountId) {
+    profile = await prisma.bankProfile.findUnique({
+      where: { bankAccountId },
+      include: { bankAccount: { select: { organizationId: true } } },
+    });
+    if (!profile || profile.bankAccount.organizationId !== organizationId) {
+      return Response.json({ error: "Profilo non trovato" }, { status: 404 });
+    }
+  } else {
+    profile = await prisma.bankProfile.findFirst({
+      where: { bankAccount: { organizationId } },
+    });
+    if (!profile) {
+      return Response.json({ error: "Nessun pattern salvato" }, { status: 404 });
+    }
+  }
+
+  const existing = (profile.descriptionPatterns as DescriptionPatterns | null) ?? {};
+  const patterns = existing[type as keyof DescriptionPatterns] ?? [];
+
+  if (index < 0 || index >= patterns.length) {
+    return Response.json({ error: "Indice non valido" }, { status: 400 });
+  }
+
+  patterns[index] = { ...patterns[index], recurringExpenseId };
+  existing[type as keyof DescriptionPatterns] = patterns;
+
+  await prisma.bankProfile.update({
+    where: { id: profile.id },
+    data: { descriptionPatterns: existing as unknown as Prisma.InputJsonValue },
+  });
+
+  return Response.json({ success: true });
 }
 
 // DELETE: Remove a pattern by index

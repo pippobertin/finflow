@@ -483,54 +483,64 @@ export async function GET(request: NextRequest) {
       }
 
       // 2. Recurring expenses for this cost center
-      for (const exp of recurringExpenses) {
-        if (exp.costCenterId !== cc.id) continue;
-        if (!recurringApplies(exp, m)) continue;
-        const amt = Number(exp.amount);
-        total += amt;
-        pushDetail(cc.name, m, {
-          id: exp.id,
-          label: exp.name,
-          amount: amt,
-          type: "recurringExpense",
-          date: format(new Date(year, m, 1), "yyyy-MM-dd"),
-        });
+      // Skip for actual months — these costs are already captured in bank outflows
+      if (monthDataSource[m] !== "bank") {
+        for (const exp of recurringExpenses) {
+          if (exp.costCenterId !== cc.id) continue;
+          if (!recurringApplies(exp, m)) continue;
+          const amt = Number(exp.amount);
+          total += amt;
+          pushDetail(cc.name, m, {
+            id: exp.id,
+            label: exp.name,
+            amount: amt,
+            type: "recurringExpense",
+            date: format(new Date(year, m, 1), "yyyy-MM-dd"),
+          });
+        }
       }
 
       // 3. Expected payables for this cost center
-      for (const ep of expectedPayables) {
-        if (ep.costCenterId !== cc.id) continue;
-        const amt = Number(ep.amount);
-        if (amt <= 0) continue;
-        const epStartMonth = new Date(ep.startDate).getMonth();
-        const epStartYear = new Date(ep.startDate).getFullYear();
-        const epEndMonth = ep.endDate ? new Date(ep.endDate).getMonth() : 11;
-        const epEndYear = ep.endDate ? new Date(ep.endDate).getFullYear() : year;
-        const inRange =
-          (epStartYear < year || (epStartYear === year && epStartMonth <= m)) &&
-          (epEndYear > year || (epEndYear === year && epEndMonth >= m));
-        if (!inRange) continue;
-        let applies = false;
-        if (ep.frequency === "MONTHLY") applies = true;
-        else if (ep.frequency === "QUARTERLY" && m % 3 === epStartMonth % 3) applies = true;
-        else if (ep.frequency === "ANNUAL" && m === epStartMonth) applies = true;
-        else if (!ep.frequency) applies = true;
-        if (!applies) continue;
-        total += amt;
-        pushDetail(cc.name, m, {
-          id: ep.id,
-          label: ep.description,
-          counterpart: ep.counterpart,
-          amount: amt,
-          type: "expectedPayable",
-          date: format(new Date(year, m, ep.dayOfMonth ?? 1), "yyyy-MM-dd"),
-          status: "ACTIVE",
-        });
+      // Skip for actual months — these costs are already captured in bank outflows
+      if (monthDataSource[m] !== "bank") {
+        for (const ep of expectedPayables) {
+          if (ep.costCenterId !== cc.id) continue;
+          const amt = Number(ep.amount);
+          if (amt <= 0) continue;
+          const epStartMonth = new Date(ep.startDate).getMonth();
+          const epStartYear = new Date(ep.startDate).getFullYear();
+          const epEndMonth = ep.endDate ? new Date(ep.endDate).getMonth() : 11;
+          const epEndYear = ep.endDate ? new Date(ep.endDate).getFullYear() : year;
+          const inRange =
+            (epStartYear < year || (epStartYear === year && epStartMonth <= m)) &&
+            (epEndYear > year || (epEndYear === year && epEndMonth >= m));
+          if (!inRange) continue;
+          let applies = false;
+          if (ep.frequency === "MONTHLY") applies = true;
+          else if (ep.frequency === "QUARTERLY" && m % 3 === epStartMonth % 3) applies = true;
+          else if (ep.frequency === "ANNUAL" && m === epStartMonth) applies = true;
+          else if (!ep.frequency) applies = true;
+          if (!applies) continue;
+          total += amt;
+          pushDetail(cc.name, m, {
+            id: ep.id,
+            label: ep.description,
+            counterpart: ep.counterpart,
+            amount: amt,
+            type: "expectedPayable",
+            date: format(new Date(year, m, ep.dayOfMonth ?? 1), "yyyy-MM-dd"),
+            status: "ACTIVE",
+          });
+        }
       }
 
       // 4. One-off expenses for this cost center
+      // For actual months, only include paid one-offs (unpaid are projections)
       const matchingOneOff = oneOffExpenses.filter(
-        (exp) => exp.costCenterId === cc.id && new Date(exp.date).getMonth() === m,
+        (exp) =>
+          exp.costCenterId === cc.id &&
+          new Date(exp.date).getMonth() === m &&
+          (monthDataSource[m] !== "bank" || exp.isPaid),
       );
       for (const exp of matchingOneOff) {
         const amt = Number(exp.amount);
@@ -557,9 +567,11 @@ export async function GET(request: NextRequest) {
   }
 
   // ── Recurring expenses (only those WITHOUT a cost center — others already counted in cost center rows) ──
+  // Skip for actual months — these costs are already captured in bank outflows
   const recurringRowName = "Spese ricorrenti";
   const costCenterIds = new Set(costCentersList.map((cc) => cc.id));
   const recurringMonths = Array.from({ length: 12 }, (_, m) => {
+    if (monthDataSource[m] === "bank") return 0;
     let total = 0;
     for (const exp of recurringExpenses) {
       if (exp.costCenterId && costCenterIds.has(exp.costCenterId)) continue;
@@ -578,12 +590,14 @@ export async function GET(request: NextRequest) {
   });
 
   // ── One-off expenses (only those WITHOUT a cost center) ──
+  // For actual months, only include paid one-offs (unpaid are projections already in bank data)
   const oneOffRowName = "Spese una tantum";
   const oneOffMonths = Array.from({ length: 12 }, (_, m) => {
     const matching = oneOffExpenses.filter(
       (exp) =>
         new Date(exp.date).getMonth() === m &&
-        !(exp.costCenterId && costCenterIds.has(exp.costCenterId)),
+        !(exp.costCenterId && costCenterIds.has(exp.costCenterId)) &&
+        (monthDataSource[m] !== "bank" || exp.isPaid),
     );
     for (const exp of matching) {
       pushDetail(oneOffRowName, m, {
@@ -599,6 +613,7 @@ export async function GET(request: NextRequest) {
   });
 
   // ── Expected payables (only those WITHOUT a cost center) ──
+  // Skip for actual months — these costs are already captured in bank outflows
   const epRowName = "Fatture passive attese";
   const epMonths = Array.from({ length: 12 }, () => 0);
   for (const ep of expectedPayables) {
@@ -612,6 +627,8 @@ export async function GET(request: NextRequest) {
     const endYear = ep.endDate ? new Date(ep.endDate).getFullYear() : year;
 
     for (let m = 0; m < 12; m++) {
+      if (monthDataSource[m] === "bank") continue;
+
       const inRange =
         (startYear < year || (startYear === year && startMonth <= m)) &&
         (endYear > year || (endYear === year && endMonth >= m));
@@ -647,8 +664,10 @@ export async function GET(request: NextRequest) {
     date: new Date(inv.date),
   }));
   const vatCalcs = calculateVatForYear(vatPeriods, vatInvoices);
+  // Skip IVA for actual months — VAT payments are already captured in bank outflows
   const vatRowName = "IVA";
   const vatMonths = Array.from({ length: 12 }, (_, m) => {
+    if (monthDataSource[m] === "bank") return 0;
     const matching = vatCalcs.filter(
       (c) =>
         c.amountDue > 0 &&
