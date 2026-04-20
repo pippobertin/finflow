@@ -31,7 +31,8 @@ export default function LoginPage() {
     if (result?.error) {
       setError("Credenziali non valide");
     } else {
-      router.push("/overview");
+      // Root page handles userType-based routing
+      router.push("/");
       router.refresh();
     }
   }

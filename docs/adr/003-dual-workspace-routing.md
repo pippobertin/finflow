@@ -2,7 +2,7 @@
 
 ## Status
 
-proposed
+accepted
 
 ## Context
 
@@ -15,14 +15,30 @@ L'attuale architettura V1 ha un unico workspace `app/(dashboard)/` che mescola l
 
 ## Decision
 
-Introdurre due route group Next.js distinti:
+Due workspace separati con routing basato su `userType`:
 
-- **`app/(firm)/`** — workspace controller (commercialista). Contiene tutte le route di inserimento, configurazione, import, mapping, congelamento.
-- **`app/(client)/`** — workspace cliente (imprenditore). Contiene dashboard narrativa, report, indicatori, alert.
+- **`app/firm/`** — workspace controller (commercialista). Layout dedicato con `FirmSidebar`, auth guard `getFirmSession()` che verifica `userType === "CONTROLLER"`. Contiene: dashboard, lista clienti, nuovo cliente, anagrafica cliente.
+- **`app/(dashboard)/`** — workspace cliente (imprenditore, inalterato da V1). Dashboard narrative, report, indicatori, grafici.
 
-La logica di redirect iniziale sarà basata sull'`userType` dell'utente autenticato: un controller atterra su `/(firm)/dashboard`, un cliente su `/(client)/dashboard`.
+La root page (`app/page.tsx`) legge `session.user.userType` e redirige:
 
-L'implementazione effettiva e i dettagli su proxy, permessi e route protette vivranno in un ADR aggiornato o in un ADR dedicato quando Fase 1 partirà.
+- `CONTROLLER` → `/firm/dashboard`
+- altri → `/overview`
+
+Le API controller vivono in `app/api/firm/*` e usano `getFirmSession()` (vedi ADR-004) per scoping multi-tenant.
+
+### Struttura route implementata (Fase 1.3)
+
+```
+app/firm/
+├── layout.tsx           # CONTROLLER guard + FirmSidebar
+├── dashboard/page.tsx   # Server component, stats + lista clienti
+└── clients/
+    ├── page.tsx         # Client component, ricerca + tabella
+    ├── new/page.tsx     # Form creazione organizzazione
+    └── [id]/
+        └── anagrafica/page.tsx  # Form modifica + conti bancari (read-only)
+```
 
 ## Considerazioni di test
 
@@ -37,4 +53,8 @@ L'implementazione effettiva e i dettagli su proxy, permessi e route protette viv
 
 ## Consequences
 
-Da dettagliare in Fase 1.
+- Workspace controller completamente separato — nessun rischio che il cliente veda route `/firm/*`
+- Auth guard `getFirmSession()` in ogni API route controller garantisce ownership check
+- Il workspace V1 `(dashboard)` resta inalterato, zero rischio di regressioni
+- Sidebar controller dedicata (`FirmSidebar`) con navigazione minima (Dashboard, Clienti)
+- Pattern estensibile: future pagine controller (import BdV, piano dei conti, congelamento periodi) si aggiungono sotto `app/firm/`
