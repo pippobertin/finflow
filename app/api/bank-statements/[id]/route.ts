@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/helpers/auth-guard";
+import { checkFrozen } from "@/lib/helpers/frozen-guard";
 import { reassignBankStatementCostCenter } from "@/lib/queries/bank-statements";
 import { bankStatementReassignSchema } from "@/lib/validations/bank-statements";
 
@@ -10,6 +11,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (error) return error;
 
   const { id } = await params;
+
+  const frozen = await checkFrozen("bankStatement", id, organizationId);
+  if (frozen) return frozen;
+
   const body = await request.json();
   const parsed = bankStatementReassignSchema.safeParse(body);
   if (!parsed.success) {

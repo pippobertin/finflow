@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/helpers/auth-guard";
+import { checkFrozen } from "@/lib/helpers/frozen-guard";
 import { updateInvoice, deleteInvoice } from "@/lib/queries/invoices";
 import { invoiceUpdateSchema } from "@/lib/validations/invoices";
 
@@ -10,6 +11,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (error) return error;
 
   const { id } = await params;
+
+  const frozen = await checkFrozen("invoice", id, organizationId);
+  if (frozen) return frozen;
+
   const body = await request.json();
   const parsed = invoiceUpdateSchema.safeParse(body);
   if (!parsed.success) {
@@ -31,6 +36,10 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   if (error) return error;
 
   const { id } = await params;
+
+  const frozen = await checkFrozen("invoice", id, organizationId);
+  if (frozen) return frozen;
+
   const deleted = await deleteInvoice(id, organizationId);
   if (!deleted) {
     return Response.json({ error: "Fattura non trovata" }, { status: 404 });

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthSession, getAdminSession } from "@/lib/helpers/auth-guard";
+import { checkFrozen } from "@/lib/helpers/frozen-guard";
 import { getOneOffExpense, updateOneOffExpense, deleteOneOffExpense } from "@/lib/queries/expenses";
 import { oneOffExpenseUpdateSchema } from "@/lib/validations/expenses";
 
@@ -22,6 +23,10 @@ export async function PUT(request: NextRequest, { params }: Params) {
   if (error) return error;
 
   const { id } = await params;
+
+  const frozen = await checkFrozen("oneOffExpense", id, organizationId);
+  if (frozen) return frozen;
+
   const body = await request.json();
   const parsed = oneOffExpenseUpdateSchema.safeParse(body);
   if (!parsed.success) {
@@ -43,6 +48,10 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   if (error) return error;
 
   const { id } = await params;
+
+  const frozen = await checkFrozen("oneOffExpense", id, organizationId);
+  if (frozen) return frozen;
+
   const data = await deleteOneOffExpense(id, organizationId);
   if (!data) {
     return Response.json({ error: "Spesa non trovata" }, { status: 404 });

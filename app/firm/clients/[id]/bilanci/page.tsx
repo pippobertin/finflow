@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { Upload, FileSpreadsheet, Lock, Trash2, ArrowLeft } from "lucide-react";
+import { Upload, FileSpreadsheet, Lock, Unlock, Trash2, ArrowLeft } from "lucide-react";
 
 interface Snapshot {
   id: string;
@@ -41,6 +41,28 @@ export default function FirmBilanciPage({ params }: { params: Promise<{ id: stri
     } else {
       const data = await res.json();
       alert(data.error || "Errore durante l'eliminazione");
+    }
+  }
+
+  async function handleFreeze(snapshotId: string, freeze: boolean) {
+    const action = freeze ? "Confermare" : "Sbloccare";
+    if (
+      !confirm(
+        `${action} questo periodo? I dati contabili del periodo verranno ${freeze ? "congelati" : "sbloccati"}.`,
+      )
+    )
+      return;
+
+    const res = await fetch(`/api/firm/clients/${id}/bilanci/${snapshotId}/freeze`, {
+      method: freeze ? "POST" : "DELETE",
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setSnapshots((prev) =>
+        prev.map((s) => (s.id === snapshotId ? { ...s, isLocked: freeze } : s)),
+      );
+    } else {
+      alert(data.error || "Errore");
     }
   }
 
@@ -138,15 +160,34 @@ export default function FirmBilanciPage({ params }: { params: Promise<{ id: stri
                     )}
                   </td>
                   <td className="px-4 py-2 text-right">
-                    {!s.isLocked && (
-                      <button
-                        onClick={() => handleDelete(s.id)}
-                        className="text-muted-foreground hover:text-red-600"
-                        title="Elimina"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      {s.isLocked ? (
+                        <button
+                          onClick={() => handleFreeze(s.id, false)}
+                          className="text-muted-foreground hover:text-amber-600"
+                          title="Sblocca periodo"
+                        >
+                          <Unlock className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleFreeze(s.id, true)}
+                            className="text-muted-foreground hover:text-emerald-600"
+                            title="Conferma periodo"
+                          >
+                            <Lock className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(s.id)}
+                            className="text-muted-foreground hover:text-red-600"
+                            title="Elimina"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
