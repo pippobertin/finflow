@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -22,14 +21,12 @@ import {
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useThemeStore } from "@/lib/stores/theme-store";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
 }
 
 interface NavGroup {
@@ -39,15 +36,7 @@ interface NavGroup {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [unreconciledCount, setUnreconciledCount] = useState(0);
   const { theme, toggleTheme } = useThemeStore();
-
-  useEffect(() => {
-    fetch("/api/reconciliation/count")
-      .then((r) => r.json())
-      .then((data) => setUnreconciledCount(data.count ?? 0))
-      .catch(() => {});
-  }, []);
 
   const navGroups: NavGroup[] = [
     {
@@ -62,12 +51,9 @@ export function Sidebar() {
       title: "Dati",
       items: [
         { href: "/invoices", label: "Fatture", icon: FileText },
-        {
-          href: "/bank-statements",
-          label: "Movimenti Bancari",
-          icon: Landmark,
-          badge: unreconciledCount > 0 ? unreconciledCount : undefined,
-        },
+        // Badge "unreconciledCount" rimosso in V2 Fase 0.4
+        // Ref: docs/adr/002-feature-flags-over-deletion.md (da creare in 0.5)
+        { href: "/bank-statements", label: "Movimenti Bancari", icon: Landmark },
         { href: "/expenses", label: "Spese Ricorrenti", icon: Receipt },
         { href: "/expected-payables", label: "Fatture Passive Attese", icon: FileWarning },
         { href: "/future-receivables", label: "Incassi Futuri", icon: HandCoins },
@@ -141,14 +127,6 @@ export function Sidebar() {
                     )}
                     <item.icon className="h-4 w-4" />
                     <span className="flex-1">{item.label}</span>
-                    {item.badge !== undefined && item.badge > 0 && (
-                      <Badge
-                        variant="secondary"
-                        className="h-5 min-w-5 justify-center border border-red-200 bg-red-50 px-1.5 text-[10px] font-bold text-red-600"
-                      >
-                        {item.badge > 99 ? "99+" : item.badge}
-                      </Badge>
-                    )}
                   </Link>
                 );
               })}
