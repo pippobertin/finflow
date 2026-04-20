@@ -116,6 +116,29 @@ enum CdgGranularity {
   @@schema("public")
 }
 
+enum CdgCategory {
+  REVENUE
+  VAR_COST_MATERIALS
+  VAR_COST_SERVICES
+  VAR_COST_DIRECT_LABOR
+  FIXED_COST_DEPRECIATION
+  FIXED_COST_ADMIN_COMPENSATION
+  FIXED_COST_RENT
+  FIXED_COST_UTILITIES
+  FIXED_COST_INSURANCE
+  FIXED_COST_CONSULTING
+  FIXED_COST_MARKETING
+  FIXED_COST_GENERAL
+  FINANCIAL_INCOME
+  FINANCIAL_EXPENSE
+  EXTRAORDINARY_INCOME
+  EXTRAORDINARY_EXPENSE
+  TAX_INCOME
+
+  @@map("cdg_category")
+  @@schema("finflow")
+}
+
 // ─── V2 Models (finflow schema) ─────────────────────────────
 
 model AccountingFirm {
@@ -146,6 +169,64 @@ model ClientGroup {
   organizations  Organization[]
 
   @@map("client_group")
+  @@schema("finflow")
+}
+
+model TrialBalanceSnapshot {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  periodStart    DateTime @map("period_start") @db.Date
+  periodEnd      DateTime @map("period_end") @db.Date
+  uploadedById   String   @map("uploaded_by_id")
+  uploadedAt     DateTime @default(now()) @map("uploaded_at")
+  sourceFilename String   @map("source_filename")
+  isLocked       Boolean  @default(false) @map("is_locked")
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id])
+  lines        TrialBalanceLine[]
+
+  @@index([organizationId, periodEnd])
+  @@map("trial_balance_snapshot")
+  @@schema("finflow")
+}
+
+model TrialBalanceLine {
+  id          String       @id @default(cuid())
+  snapshotId  String       @map("snapshot_id")
+  accountCode String       @map("account_code")
+  accountName String       @map("account_name")
+  debit       Decimal      @default(0) @db.Decimal(15, 2)
+  credit      Decimal      @default(0) @db.Decimal(15, 2)
+  balance     Decimal      @default(0) @db.Decimal(15, 2)
+  cdgCategory CdgCategory? @map("cdg_category")
+
+  snapshot TrialBalanceSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId])
+  @@map("trial_balance_line")
+  @@schema("finflow")
+}
+
+model ChartOfAccountsMapping {
+  id             String      @id @default(cuid())
+  organizationId String      @map("organization_id")
+  accountCode    String      @map("account_code")
+  accountName    String      @map("account_name")
+  cdgCategory    CdgCategory @map("cdg_category")
+  isVatable      Boolean     @default(false) @map("is_vatable")
+  vatRate        Decimal?    @map("vat_rate") @db.Decimal(5, 2)
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, accountCode])
+  @@map("chart_of_accounts_mapping")
   @@schema("finflow")
 }
 
@@ -190,6 +271,9 @@ model Organization {
   bankAccounts         BankAccount[]
   dataPeriods          DataPeriod[]
   dismissedMatches     DismissedMatch[]
+  // V2 Fase 2
+  trialBalanceSnapshots TrialBalanceSnapshot[]
+  chartOfAccountsMappings ChartOfAccountsMapping[]
 
   @@map("fin_organization")
   @@schema("public")
@@ -214,6 +298,8 @@ model User {
   accountingFirm AccountingFirm? @relation(fields: [accountingFirmId], references: [id])
   accounts       Account[]
   sessions       Session[]
+  // V2 Fase 2
+  uploadedSnapshots TrialBalanceSnapshot[]
 
   @@map("fin_user")
   @@schema("public")
@@ -331,6 +417,8 @@ model Invoice {
   bankDiscountType       String?   @map("bank_discount_type")
   bankLiquidationDate    DateTime? @map("bank_liquidation_date") @db.Date
   bankDiscountFee        Decimal?  @map("bank_discount_fee") @db.Decimal(15, 2)
+  // V2 — data freezing
+  isFrozen       Boolean?         @default(false) @map("is_frozen")
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
@@ -379,6 +467,8 @@ model RecurringExpense {
   customDays      Int?             @map("custom_days")
   description     String?
   counterpart     String?
+  // V2 — data freezing
+  isFrozen        Boolean?         @default(false) @map("is_frozen")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
@@ -403,6 +493,8 @@ model OneOffExpense {
   paidAt         DateTime?       @map("paid_at")
   description    String?
   counterpart    String?
+  // V2 — data freezing
+  isFrozen       Boolean?        @default(false) @map("is_frozen")
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
@@ -432,6 +524,8 @@ model BankStatement {
   reconciledExpenseId   String?      @map("reconciled_expense_id")
   reconciledType        String?      @map("reconciled_type")
   reconciledAt          DateTime?    @map("reconciled_at") @db.Timestamptz(6)
+  // V2 — data freezing
+  isFrozen              Boolean?     @default(false) @map("is_frozen")
   createdAt             DateTime     @default(now()) @map("created_at")
 
   organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
