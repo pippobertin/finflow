@@ -348,37 +348,40 @@ export async function confirmMatches(
   const accepted = matches.filter((m) => m.accepted);
   const rejected = matches.filter((m) => !m.accepted);
 
-  await prisma.$transaction(async (tx) => {
-    for (const match of accepted) {
-      // Verify ownership
-      const bs = await tx.bankStatement.findFirst({
-        where: { id: match.bankStatementId, organizationId, isReconciled: false },
-      });
-      if (!bs) continue;
+  await prisma.$transaction(
+    async (tx) => {
+      for (const match of accepted) {
+        // Verify ownership
+        const bs = await tx.bankStatement.findFirst({
+          where: { id: match.bankStatementId, organizationId, isReconciled: false },
+        });
+        if (!bs) continue;
 
-      const inv = await tx.invoice.findFirst({
-        where: { id: match.invoiceId, organizationId },
-      });
-      if (!inv) continue;
+        const inv = await tx.invoice.findFirst({
+          where: { id: match.invoiceId, organizationId },
+        });
+        if (!inv) continue;
 
-      await tx.bankStatement.update({
-        where: { id: match.bankStatementId },
-        data: {
-          isReconciled: true,
-          reconciledInvoiceId: match.invoiceId,
-          reconciledAt: new Date(),
-        },
-      });
+        await tx.bankStatement.update({
+          where: { id: match.bankStatementId },
+          data: {
+            isReconciled: true,
+            reconciledInvoiceId: match.invoiceId,
+            reconciledAt: new Date(),
+          },
+        });
 
-      await tx.invoice.update({
-        where: { id: match.invoiceId },
-        data: {
-          status: "PAID",
-          paidAt: bs.date,
-        },
-      });
-    }
-  });
+        await tx.invoice.update({
+          where: { id: match.invoiceId },
+          data: {
+            status: "PAID",
+            paidAt: bs.date,
+          },
+        });
+      }
+    },
+    { timeout: 60000 },
+  );
 
   return {
     reconciled: accepted.length,

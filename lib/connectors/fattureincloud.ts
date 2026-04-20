@@ -398,16 +398,21 @@ export async function syncInvoices(
     const existingInv = existingByRef.get(ref);
 
     if (existingInv) {
-      // Update status and/or number of existing invoice if changed
-      const newStatus = mapFicStatus(doc);
-      const paidAt = newStatus === "PAID" ? mapPaidAt(doc) : null;
+      // Update existing invoice — never downgrade PAID → PENDING
+      const ficStatus = mapFicStatus(doc);
       const correctNumber = formatInvoiceNumber(doc);
 
-      if (existingInv.status !== newStatus || existingInv.number !== correctNumber) {
+      // If locally PAID and FiC doesn't confirm PAID, keep local status
+      const effectiveStatus =
+        existingInv.status === "PAID" && ficStatus !== "PAID" ? "PAID" : ficStatus;
+      const paidAt =
+        effectiveStatus === "PAID" && existingInv.status !== "PAID" ? mapPaidAt(doc) : undefined;
+
+      if (existingInv.status !== effectiveStatus || existingInv.number !== correctNumber) {
         await prisma.invoice.update({
           where: { id: existingInv.id },
           data: {
-            status: newStatus,
+            status: effectiveStatus,
             number: correctNumber,
             ...(paidAt && { paidAt }),
           },

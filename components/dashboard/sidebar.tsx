@@ -15,7 +15,6 @@ import {
   SlidersHorizontal,
   LogOut,
   TableProperties,
-  ArrowLeftRight,
   TrendingUp,
   Monitor,
   Terminal,
@@ -63,16 +62,15 @@ export function Sidebar() {
       title: "Dati",
       items: [
         { href: "/invoices", label: "Fatture", icon: FileText },
-        { href: "/bank-statements", label: "Movimenti Bancari", icon: Landmark },
+        {
+          href: "/bank-statements",
+          label: "Movimenti Bancari",
+          icon: Landmark,
+          badge: unreconciledCount > 0 ? unreconciledCount : undefined,
+        },
         { href: "/expenses", label: "Spese Ricorrenti", icon: Receipt },
         { href: "/expected-payables", label: "Fatture Passive Attese", icon: FileWarning },
         { href: "/future-receivables", label: "Incassi Futuri", icon: HandCoins },
-        {
-          href: "/reconciliation",
-          label: "Riconciliazione",
-          icon: ArrowLeftRight,
-          badge: unreconciledCount > 0 ? unreconciledCount : undefined,
-        },
       ],
     },
     {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -12,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 
 interface Movement {
@@ -27,6 +30,7 @@ interface Invoice {
   counterpart: string;
   grossAmount: number;
   direction: string;
+  date: string;
   status: string;
 }
 
@@ -47,12 +51,22 @@ export function ManualMatch({
 }: ManualMatchProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [directionFilter, setDirectionFilter] = useState("AUTO");
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (!movement) return null;
   const currentMovement = movement;
 
-  const direction = currentMovement.amount < 0 ? "PASSIVE" : "ACTIVE";
-  const compatibleInvoices = invoices.filter((inv) => inv.direction === direction);
+  const autoDirection = currentMovement.amount < 0 ? "PASSIVE" : "ACTIVE";
+  const effectiveDirection = directionFilter === "AUTO" ? autoDirection : directionFilter;
+  const query = searchQuery.toLowerCase().trim();
+  const compatibleInvoices = invoices.filter(
+    (inv) =>
+      inv.direction === effectiveDirection &&
+      (!query ||
+        inv.counterpart.toLowerCase().includes(query) ||
+        inv.number.toLowerCase().includes(query)),
+  );
   const absAmount = Math.abs(currentMovement.amount);
   const selectedTotal = compatibleInvoices
     .filter((inv) => selectedIds.has(inv.id))
@@ -94,7 +108,7 @@ export function ManualMatch({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="flex flex-col sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Riconciliazione Manuale</DialogTitle>
         </DialogHeader>
@@ -114,6 +128,35 @@ export function ManualMatch({
             </p>
           </div>
 
+          {/* Direction filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">Filtra fatture:</span>
+            <Tabs value={directionFilter} onValueChange={setDirectionFilter}>
+              <TabsList className="h-7">
+                <TabsTrigger value="AUTO" className="h-6 px-2 text-xs">
+                  Auto
+                </TabsTrigger>
+                <TabsTrigger value="ACTIVE" className="h-6 px-2 text-xs">
+                  Attive
+                </TabsTrigger>
+                <TabsTrigger value="PASSIVE" className="h-6 px-2 text-xs">
+                  Passive
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-slate-400" />
+            <Input
+              placeholder="Cerca controparte o n. fattura..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+
           {/* Invoice selection */}
           <div className="max-h-64 overflow-y-auto rounded-lg border">
             <Table>
@@ -121,6 +164,7 @@ export function ManualMatch({
                 <TableRow>
                   <TableHead className="w-10" />
                   <TableHead>Fattura</TableHead>
+                  <TableHead>Data</TableHead>
                   <TableHead>Controparte</TableHead>
                   <TableHead className="text-right">Importo</TableHead>
                 </TableRow>
@@ -138,9 +182,12 @@ export function ManualMatch({
                         onCheckedChange={() => toggleInvoice(inv.id)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{inv.number}</TableCell>
-                    <TableCell>{inv.counterpart}</TableCell>
-                    <TableCell className="font-numeric text-right">
+                    <TableCell className="text-xs font-medium">{inv.number}</TableCell>
+                    <TableCell className="text-xs text-slate-500">
+                      {new Date(inv.date).toLocaleDateString("it-IT")}
+                    </TableCell>
+                    <TableCell className="text-xs">{inv.counterpart}</TableCell>
+                    <TableCell className="font-numeric text-right text-xs">
                       {inv.grossAmount.toLocaleString("it-IT", {
                         style: "currency",
                         currency: "EUR",

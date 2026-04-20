@@ -129,6 +129,7 @@ model Organization {
   vatSnapshots         VatSnapshot[]
   bankAccounts         BankAccount[]
   dataPeriods          DataPeriod[]
+  dismissedMatches     DismissedMatch[]
   @@map("fin_organization")
   @@schema("public")
 }
@@ -362,6 +363,7 @@ model BankStatement {
   fingerprint           String?
   isReconciled          Boolean      @default(false) @map("is_reconciled")
   reconciledInvoiceId   String?      @map("reconciled_invoice_id")
+  reconciledInvoiceIds  String[]     @default([]) @map("reconciled_invoice_ids")
   reconciledExpenseId   String?      @map("reconciled_expense_id")
   reconciledType        String?      @map("reconciled_type")
   reconciledAt          DateTime?    @map("reconciled_at") @db.Timestamptz(6)
@@ -376,7 +378,26 @@ model BankStatement {
   @@index([organizationId, date])
   @@index([organizationId, isReconciled], map: "idx_bank_statement_reconciled", where: raw("(is_reconciled = false)"))
   @@index([organizationId, fingerprint])
+  dismissedMatches  DismissedMatch[]
+
   @@map("fin_bank_statement")
+  @@schema("public")
+}
+
+model DismissedMatch {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  bankStatementId String   @map("bank_statement_id")
+  targetId        String   @map("target_id")
+  targetType      String   @map("target_type") // INVOICE, EXPENSE, EXPECTED_PAYABLE
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankStatement BankStatement @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
+
+  @@unique([bankStatementId, targetId, targetType], map: "uq_dismissed_match")
+  @@index([organizationId, bankStatementId])
+  @@map("fin_dismissed_match")
   @@schema("public")
 }
 

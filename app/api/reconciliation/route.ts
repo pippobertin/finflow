@@ -11,7 +11,7 @@ export async function GET() {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;
 
-  const [unreconciledMovements, suggestions, unmatchedInvoices] = await Promise.all([
+  const [unreconciledMovements, suggestions, rawUnmatchedInvoices] = await Promise.all([
     prisma.bankStatement.findMany({
       where: { organizationId, isReconciled: false },
       orderBy: { date: "desc" },
@@ -47,6 +47,21 @@ export async function GET() {
       },
     }),
   ]);
+
+  // Filter out invoices that appear in reconciledInvoiceIds (multi-match array)
+  let unmatchedInvoices = rawUnmatchedInvoices;
+  try {
+    const reconciledWithArray = await prisma.bankStatement.findMany({
+      where: { organizationId, isReconciled: true, reconciledInvoiceIds: { isEmpty: false } },
+      select: { reconciledInvoiceIds: true },
+    });
+    const usedIds = new Set(reconciledWithArray.flatMap((bs) => bs.reconciledInvoiceIds));
+    if (usedIds.size > 0) {
+      unmatchedInvoices = rawUnmatchedInvoices.filter((inv) => !usedIds.has(inv.id));
+    }
+  } catch {
+    // reconciledInvoiceIds column may not exist yet
+  }
 
   return Response.json({
     unreconciledMovements: unreconciledMovements.map((m) => ({
@@ -91,14 +106,23 @@ export async function POST(request: NextRequest) {
     if (!bs) return Response.json({ error: "Movimento non trovato" }, { status: 404 });
 
     await prisma.$transaction(async (tx) => {
-      await tx.bankStatement.update({
-        where: { id: bankStatementId },
-        data: {
-          isReconciled: true,
-          reconciledInvoiceId: invoiceIds[0],
-          reconciledAt: new Date(),
-        },
-      });
+      const updateData: Record<string, unknown> = {
+        isReconciled: true,
+        reconciledInvoiceId: invoiceIds[0],
+        reconciledAt: new Date(),
+      };
+      try {
+        await tx.bankStatement.update({
+          where: { id: bankStatementId },
+          data: { ...updateData, reconciledInvoiceIds: invoiceIds, reconciledType: "INVOICE" },
+        });
+      } catch {
+        // reconciledInvoiceIds / reconciledType columns may not exist yet
+        await tx.bankStatement.update({
+          where: { id: bankStatementId },
+          data: updateData,
+        });
+      }
 
       for (const invoiceId of invoiceIds) {
         await tx.invoice.update({
@@ -112,6 +136,63 @@ export async function POST(request: NextRequest) {
       reconciled: 1,
       invoicesUpdated: invoiceIds.length,
     });
+  }
+
+  if (action === "dismiss") {
+    // Persist rejected suggestion so it won't reappear
+    const { dismissals } = body as {
+      dismissals: Array<{
+        bankStatementId: string;
+        targetId: string;
+        targetType: string; // INVOICE, EXPENSE, EXPECTED_PAYABLE
+      }>;
+    };
+    if (!dismissals?.length) {
+      return Response.json({ error: "Nessun rifiuto specificato" }, { status: 400 });
+    }
+
+    try {
+      await prisma.dismissedMatch.createMany({
+        data: dismissals.map((d) => ({
+          organizationId,
+          bankStatementId: d.bankStatementId,
+          targetId: d.targetId,
+          targetType: d.targetType,
+        })),
+        skipDuplicates: true,
+      });
+    } catch {
+      // Table may not exist yet — try to auto-create it
+      try {
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS public.fin_dismissed_match (
+            id                TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+            organization_id   TEXT NOT NULL REFERENCES public.fin_organization(id) ON DELETE CASCADE,
+            bank_statement_id TEXT NOT NULL REFERENCES public.fin_bank_statement(id) ON DELETE CASCADE,
+            target_id         TEXT NOT NULL,
+            target_type       TEXT NOT NULL,
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS uq_dismissed_match
+            ON public.fin_dismissed_match(bank_statement_id, target_id, target_type);
+          CREATE INDEX IF NOT EXISTS idx_dismissed_match_org_bs
+            ON public.fin_dismissed_match(organization_id, bank_statement_id);
+        `);
+        // Retry the insert
+        await prisma.dismissedMatch.createMany({
+          data: dismissals.map((d) => ({
+            organizationId,
+            bankStatementId: d.bankStatementId,
+            targetId: d.targetId,
+            targetType: d.targetType,
+          })),
+          skipDuplicates: true,
+        });
+      } catch (retryErr) {
+        console.error("[reconciliation] dismiss: could not create table or insert:", retryErr);
+      }
+    }
+    return Response.json({ dismissed: dismissals.length });
   }
 
   if (action === "ignore") {
@@ -132,6 +213,66 @@ export async function POST(request: NextRequest) {
         data: ignoreData,
       });
     }
+    return Response.json({ success: true });
+  }
+
+  if (action === "unreconcile") {
+    // Reset a reconciled bank statement back to unreconciled
+    const bs = await prisma.bankStatement.findFirst({
+      where: { id: bankStatementId, organizationId, isReconciled: true },
+    });
+    if (!bs) return Response.json({ error: "Movimento non trovato" }, { status: 404 });
+
+    await prisma.$transaction(async (tx) => {
+      // Reset the bank statement
+      const resetData: Record<string, unknown> = {
+        isReconciled: false,
+        reconciledInvoiceId: null,
+        reconciledAt: null,
+      };
+      try {
+        await tx.bankStatement.update({
+          where: { id: bankStatementId },
+          data: {
+            ...resetData,
+            reconciledInvoiceIds: [],
+            reconciledType: null,
+            reconciledExpenseId: null,
+          },
+        });
+      } catch {
+        await tx.bankStatement.update({
+          where: { id: bankStatementId },
+          data: resetData,
+        });
+      }
+
+      // Revert linked invoices back to PENDING
+      // Check both the single FK and the array field
+      const invoiceIdsToReset: string[] = [];
+      if (bs.reconciledInvoiceId) invoiceIdsToReset.push(bs.reconciledInvoiceId);
+      try {
+        const bsFull = await tx.bankStatement.findUnique({
+          where: { id: bankStatementId },
+          select: { reconciledInvoiceIds: true },
+        });
+        if (bsFull?.reconciledInvoiceIds) {
+          for (const id of bsFull.reconciledInvoiceIds) {
+            if (!invoiceIdsToReset.includes(id)) invoiceIdsToReset.push(id);
+          }
+        }
+      } catch {
+        // column may not exist
+      }
+
+      if (invoiceIdsToReset.length > 0) {
+        await tx.invoice.updateMany({
+          where: { id: { in: invoiceIdsToReset }, organizationId },
+          data: { status: "PENDING", paidAt: null },
+        });
+      }
+    });
+
     return Response.json({ success: true });
   }
 
