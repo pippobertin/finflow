@@ -2,14 +2,17 @@
 
 ## Commit chain
 
-| #   | Hash      | Messaggio                                                        |
-| --- | --------- | ---------------------------------------------------------------- |
-| 1.1 | `41e51d8` | Schema Prisma multi-tenant + migration SQL applicata             |
-| 1.2 | `50e02a0` | ADR-004 scoped query + NextAuth V2 fields + getFirmSession guard |
-| 1.3 | `bc17ff3` | Dual-workspace routing + 4 pagine controller minime              |
-| 1.4 | `d02eaba` | Script idempotente migrazione dati BLM (eseguito su DB dev)      |
+| #   | Hash      | Messaggio                                                         |
+| --- | --------- | ----------------------------------------------------------------- |
+| 1.1 | `41e51d8` | Schema Prisma multi-tenant + migration SQL applicata              |
+| 1.2 | `50e02a0` | ADR-004 scoped query + NextAuth V2 fields + getFirmSession guard  |
+| 1.3 | `bc17ff3` | Dual-workspace routing + 4 pagine controller minime               |
+| 1.4 | `d02eaba` | Script idempotente migrazione dati BLM (eseguito su DB dev)       |
+| 1.5 | `46f44e1` | Report finale Fase 1 (Checkpoint 3)                               |
+| 1.6 | `8c3cf7c` | Utility reset-password.ts + reset password admin e viewer BLM     |
+| 1.7 | `bcbc944` | Fix reset-password.ts con guard compareSync (bug shell expansion) |
 
-Branch: `v2/cdg-integration` — 4 commit non pushati.
+Branch: `v2/cdg-integration` — tutti pushati.
 
 ## Checklist di verifica
 
@@ -86,6 +89,20 @@ Il componente Button di questo progetto usa `@base-ui/react/button` che non espo
 - [ ] Feature flag `LEGACY_RECONCILIATION` ancora false — da riattivare quando riconciliazione V2 è pronta
 - [ ] Pulizia tabelle non-FinFlow dallo schema `finflow` (tech debt P4002)
 
+## Bug noti risolti in Fase 1
+
+### Shell expansion `!` in reset-password.ts (Fase 1.7)
+
+**Sintomo:** Dopo il reset password con `npx tsx scripts/reset-password.ts admin@blmproject.com 'Blm2026!'`, il login dal browser falliva con "credenziali non valide".
+
+**Root cause:** Il carattere `!` nel parametro CLI viene espanso dalla shell (bash history expansion) anche all'interno di single quotes quando passato attraverso determinati tool chain. Lo script `hashSync(newPassword, 12)` riceveva una stringa diversa da `Blm2026!`, producendo un hash bcrypt valido ma per la password sbagliata.
+
+**Diagnosi:** `bcrypt.compare('Blm2026!', dbHash)` restituiva `false`. Anche `compare('Password123!', dbHash)` restituiva `false`, confermando che l'hash nel DB non corrispondeva a nessuna password nota. Un self-test in-memory (`hashSync` + `compare` sullo stesso processo) funzionava correttamente, isolando il problema al passaggio CLI → process.argv.
+
+**Fix:** Aggiunto guard `compareSync(newPassword, passwordHash)` nel script prima della scrittura a DB. Se l'hash appena generato non corrisponde alla password in input, lo script si interrompe con errore esplicito invece di scrivere un hash inutilizzabile. Password ri-resettate con hash generato e verificato in-memory nello stesso processo Node.
+
+**Lezione:** Non passare password con caratteri speciali (`!`, `$`, backtick) come argomenti CLI. Preferire variabili d'ambiente, file, o generazione in-code. Se si deve usare CLI, aggiungere sempre un check `compareSync` pre-scrittura come safety net.
+
 ## Golden test BLM
 
-Login `admin@blmproject.com` / `Password123!` → `/firm/dashboard` → "BLM Project Srl" (543 fatture, 723 movimenti, 1 conto) → click → `/firm/clients/<id>/anagrafica` con dati editabili. **VERIFIED.**
+Login `admin@blmproject.com` / `Blm2026!` → `/firm/dashboard` → "BLM Project Srl" (543 fatture, 723 movimenti, 1 conto) → click → `/firm/clients/<id>/anagrafica` con dati editabili. **VERIFIED.**
