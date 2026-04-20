@@ -43,6 +43,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           role: user.role,
           organizationId: user.organizationId,
+          // V2 multi-tenant fields
+          userType: user.userType,
+          accountingFirmId: user.accountingFirmId,
+          clientGroupId: user.organization.clientGroupId,
         };
       },
     }),
@@ -52,6 +56,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.role = user.role;
         token.organizationId = user.organizationId;
+        // V2 multi-tenant fields
+        token.userType = user.userType;
+        token.accountingFirmId = user.accountingFirmId;
+        token.clientGroupId = user.clientGroupId;
       }
       return token;
     },
@@ -60,6 +68,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.sub!;
         session.user.role = token.role;
         session.user.organizationId = token.organizationId;
+        // V2 multi-tenant fields
+        session.user.userType = token.userType;
+        session.user.accountingFirmId = token.accountingFirmId;
+        session.user.clientGroupId = token.clientGroupId;
       }
       return session;
     },
