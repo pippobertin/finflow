@@ -24,6 +24,17 @@ La logica di redirect iniziale sarà basata sull'`userType` dell'utente autentic
 
 L'implementazione effettiva e i dettagli su proxy, permessi e route protette vivranno in un ADR aggiornato o in un ADR dedicato quando Fase 1 partirà.
 
+## Considerazioni di test
+
+<!-- TODO Fase 1: quando cashflow-projection.ts viene modificato per lo scoping
+     multi-tenant (scopedQuery), scrivere un test smoke di integrazione minimo:
+     - invocare buildDailyProjection con un organizationId reale del DB dev
+     - verificare che restituisca un array non vuoto con struttura attesa
+       (date in range, campi presenti, totali numerici)
+     - NON validare la logica di proiezione (quella va in Fase 3 con unit test)
+     - Serve solo a intercettare rotture accidentali delle query interne
+       durante l'introduzione del multi-tenant -->
+
 ## Consequences
 
 Da dettagliare in Fase 1.
