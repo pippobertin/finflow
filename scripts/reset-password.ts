@@ -7,7 +7,7 @@
 
 import { config } from "dotenv";
 import path from "path";
-import { hashSync } from "bcryptjs";
+import { hashSync, compareSync } from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
@@ -35,6 +35,13 @@ async function main() {
   }
 
   const passwordHash = hashSync(newPassword, 12);
+
+  // Sanity check: verify hash matches the input before writing to DB.
+  // Guards against shell expansion mangling the password string (e.g. ! in bash).
+  if (!compareSync(newPassword, passwordHash)) {
+    console.error("Hash verification failed — aborting. Check for shell expansion issues.");
+    process.exit(1);
+  }
 
   await prisma.user.update({
     where: { id: user.id },
