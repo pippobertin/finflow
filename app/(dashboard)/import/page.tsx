@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ImportClient } from "@/components/import/import-client";
 import { BankStatementImportClient } from "@/components/import/bank-statement-import-client";
 import { FatturapaImportClient } from "@/components/import/fatturapa-import-client";
+import { FEATURES } from "@/lib/feature-flags";
 
 export default function ImportPage() {
   return (
@@ -15,7 +16,9 @@ export default function ImportPage() {
           <TabsList>
             <TabsTrigger value="invoices">Fatture CSV</TabsTrigger>
             <TabsTrigger value="bank-statement">Estratto Conto</TabsTrigger>
-            <TabsTrigger value="fatturapa">Fatture XML (FatturaPA)</TabsTrigger>
+            {FEATURES.LEGACY_FATTURAPA_IMPORT && (
+              <TabsTrigger value="fatturapa">Fatture XML (FatturaPA)</TabsTrigger>
+            )}
           </TabsList>
           <TabsContent value="invoices">
             <ImportClient />
@@ -23,9 +26,11 @@ export default function ImportPage() {
           <TabsContent value="bank-statement">
             <BankStatementImportClient />
           </TabsContent>
-          <TabsContent value="fatturapa">
-            <FatturapaImportClient />
-          </TabsContent>
+          {FEATURES.LEGACY_FATTURAPA_IMPORT && (
+            <TabsContent value="fatturapa">
+              <FatturapaImportClient />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </>

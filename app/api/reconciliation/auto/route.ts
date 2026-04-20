@@ -1,8 +1,11 @@
 import { getAuthSession } from "@/lib/helpers/auth-guard";
+import { FEATURES } from "@/lib/feature-flags";
 import { findMatches, confirmMatches } from "@/lib/reconciliation/reconciliation-engine";
 import { prisma } from "@/lib/prisma";
 
 export async function POST() {
+  if (!FEATURES.LEGACY_RECONCILIATION) return new Response(null, { status: 404 });
+
   const { error, organizationId } = await getAuthSession();
   if (error) return error;
 

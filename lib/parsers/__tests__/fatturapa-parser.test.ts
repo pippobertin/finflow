@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseFatturaPA } from "../fatturapa-parser";
+import { FEATURES } from "@/lib/feature-flags";
 
 function xmlToBuffer(xml: string): Buffer {
   return Buffer.from(xml, "utf-8");
@@ -322,7 +323,12 @@ const MULTIPLE_PAYMENTS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 
 // ─── Tests ──────────────────────────────────────────────────
 
-describe("parseFatturaPA", () => {
+/**
+ * Test sospesi durante migrazione V2 (flag LEGACY_FATTURAPA_IMPORT = false).
+ * Saranno riattivati o cancellati a fine Fase 3 secondo esito migrazione.
+ * Ref: docs/adr/002-feature-flags-over-deletion.md
+ */
+describe.skipIf(!FEATURES.LEGACY_FATTURAPA_IMPORT)("parseFatturaPA", () => {
   it("parses a simple TD01 invoice", () => {
     const result = parseFatturaPA(xmlToBuffer(SIMPLE_TD01), "test.xml");
 

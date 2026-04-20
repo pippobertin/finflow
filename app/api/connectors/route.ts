@@ -1,8 +1,11 @@
 import { getAuthSession, getAdminSession } from "@/lib/helpers/auth-guard";
+import { FEATURES } from "@/lib/feature-flags";
 import { listConnectors, createConnector } from "@/lib/queries/connectors";
 import { connectorCreateSchema } from "@/lib/validations/connector";
 
 export async function GET() {
+  if (!FEATURES.LEGACY_FATTUREINCLOUD) return new Response(null, { status: 404 });
+
   try {
     const { error, organizationId } = await getAuthSession();
     if (error) return error;
@@ -16,6 +19,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!FEATURES.LEGACY_FATTUREINCLOUD) return new Response(null, { status: 404 });
+
   try {
     const { error, organizationId } = await getAdminSession();
     if (error) return error;

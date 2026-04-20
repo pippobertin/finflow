@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthSession } from "@/lib/helpers/auth-guard";
+import { FEATURES } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
@@ -19,6 +20,8 @@ interface DescriptionPatterns {
 
 // GET: Load all patterns for the org
 export async function GET() {
+  if (!FEATURES.LEGACY_RECONCILIATION) return new Response(null, { status: 404 });
+
   const { error, organizationId } = await getAuthSession();
   if (error) return error;
 
@@ -44,6 +47,8 @@ export async function GET() {
 
 // POST: Add a pattern to a bank profile (auto-selects first bank account)
 export async function POST(request: NextRequest) {
+  if (!FEATURES.LEGACY_RECONCILIATION) return new Response(null, { status: 404 });
+
   const { error, organizationId } = await getAuthSession();
   if (error) return error;
 
@@ -132,6 +137,8 @@ export async function POST(request: NextRequest) {
 
 // PATCH: Update a pattern (e.g. link recurringExpenseId after expense creation)
 export async function PATCH(request: NextRequest) {
+  if (!FEATURES.LEGACY_RECONCILIATION) return new Response(null, { status: 404 });
+
   const { error, organizationId } = await getAuthSession();
   if (error) return error;
 
@@ -183,6 +190,8 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE: Remove a pattern by index
 export async function DELETE(request: NextRequest) {
+  if (!FEATURES.LEGACY_RECONCILIATION) return new Response(null, { status: 404 });
+
   const { error, organizationId } = await getAuthSession();
   if (error) return error;
 

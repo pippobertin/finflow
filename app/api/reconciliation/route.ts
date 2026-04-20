@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthSession } from "@/lib/helpers/auth-guard";
+import { FEATURES } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 import {
   findMatchesEnhanced,
@@ -8,6 +9,8 @@ import {
 
 // GET: Fetch reconciliation data (unreconciled movements, suggestions, unmatched invoices)
 export async function GET() {
+  if (!FEATURES.LEGACY_RECONCILIATION) return new Response(null, { status: 404 });
+
   const { error, organizationId } = await getAuthSession();
   if (error) return error;
 
@@ -79,6 +82,8 @@ export async function GET() {
 
 // POST: Confirm or reject matches
 export async function POST(request: NextRequest) {
+  if (!FEATURES.LEGACY_RECONCILIATION) return new Response(null, { status: 404 });
+
   const { error, organizationId } = await getAuthSession();
   if (error) return error;
 

@@ -1,7 +1,10 @@
 import { getAdminSession } from "@/lib/helpers/auth-guard";
+import { FEATURES } from "@/lib/feature-flags";
 import { fetchCompanies } from "@/lib/connectors/fattureincloud";
 
 export async function POST(request: Request) {
+  if (!FEATURES.LEGACY_FATTUREINCLOUD) return new Response(null, { status: 404 });
+
   const { error } = await getAdminSession();
   if (error) return error;
 

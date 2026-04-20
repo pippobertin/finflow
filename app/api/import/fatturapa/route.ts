@@ -1,4 +1,5 @@
 import { getAdminSession } from "@/lib/helpers/auth-guard";
+import { FEATURES } from "@/lib/feature-flags";
 import { parseFatturaPA } from "@/lib/parsers/fatturapa-parser";
 import { importFatturaPA } from "@/lib/connectors/fatturapa-import";
 import { fatturapaImportSchema } from "@/lib/validations/fatturapa-import";
@@ -7,6 +8,8 @@ import { prisma } from "@/lib/prisma";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(request: Request) {
+  if (!FEATURES.LEGACY_FATTURAPA_IMPORT) return new Response(null, { status: 404 });
+
   const { error, organizationId } = await getAdminSession();
   if (error) return error;
 

@@ -41,3 +41,6 @@ A fine Fase 3, dopo il golden test BLM (EBITDA 2024: 106.659, utile netto: 101.0
 
 **Nota operativa backup:**
 Il dump di Fase 0 (`scripts/dump-fin-tables.mjs`) copre schema DDL + dati delle tabelle `fin_*` ma non cattura trigger, RLS policies, sequences o altri oggetti DB. Prima della dismissione di Fase 3, eseguire un backup completo via Supabase Dashboard (tab Database > Backups) o via Supabase CLI (`supabase db dump`) se disponibile. Lo script Node resta utile come backup rapido delle sole tabelle `fin_*`.
+
+**Tabelle non-finflow nello schema `public`:**
+Lo schema `public` contiene anche tabelle non appartenenti a FinFlow (es. `scadenze_bandi_documenti_formazione` con FK verso `auth.users`), residui di altri progetti che condividono lo stesso progetto Supabase. Non vanno toccate durante lo sviluppo V2. In futuro, queste tabelle andrebbero migrate in uno schema dedicato al loro progetto per evitare collisioni — fuori dallo scope V2.

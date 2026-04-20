@@ -28,6 +28,7 @@ import {
 } from "@/lib/validations/connector";
 import { useFicCompanies } from "@/lib/hooks/use-connectors";
 import { Loader2, ExternalLink } from "lucide-react";
+import { FEATURES } from "@/lib/feature-flags";
 
 interface ConnectorFormDialogProps {
   open: boolean;
@@ -38,11 +39,15 @@ interface ConnectorFormDialogProps {
   isPending?: boolean;
 }
 
-const CONNECTOR_TYPES = [
+const ALL_CONNECTOR_TYPES = [
   { value: "FATTURE_IN_CLOUD", label: "Fatture in Cloud" },
   { value: "CSV_IMPORT", label: "Import CSV" },
   { value: "MANUAL", label: "Manuale" },
 ] as const;
+
+const CONNECTOR_TYPES = FEATURES.LEGACY_FATTUREINCLOUD
+  ? ALL_CONNECTOR_TYPES
+  : ALL_CONNECTOR_TYPES.filter((t) => t.value !== "FATTURE_IN_CLOUD");
 
 const DEFAULT_SYNC_FROM_DATE = `${new Date().getFullYear()}-01-01`;
 const DEFAULT_SYNC_TO_DATE = new Date().toISOString().slice(0, 10);
@@ -147,7 +152,7 @@ export function ConnectorFormDialog({
             </Select>
           </div>
 
-          {connectorType === "FATTURE_IN_CLOUD" && (
+          {FEATURES.LEGACY_FATTUREINCLOUD && connectorType === "FATTURE_IN_CLOUD" && (
             <div className="space-y-4 rounded-lg border p-4">
               {/* Instructions */}
               <div className="bg-muted/50 text-muted-foreground space-y-1.5 rounded-md p-3 text-xs">
