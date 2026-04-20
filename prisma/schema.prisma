@@ -97,22 +97,82 @@ enum PayableStatus {
   @@schema("public")
 }
 
-// ─── Models ─────────────────────────────────────────────────
+// ─── V2 Enums ───────────────────────────────────────────────
 
-model Organization {
+enum UserType {
+  CONTROLLER
+  CLIENT_OWNER
+  CLIENT_ADMIN_BANK_ONLY
+
+  @@map("fin_user_type")
+  @@schema("public")
+}
+
+enum CdgGranularity {
+  MONTHLY
+  QUARTERLY
+
+  @@map("fin_cdg_granularity")
+  @@schema("public")
+}
+
+// ─── V2 Models (finflow schema) ─────────────────────────────
+
+model AccountingFirm {
   id        String   @id @default(cuid())
   name      String
   vatNumber String?  @map("vat_number")
-  address   String?
-  city      String?
-  province  String?
-  zipCode   String?  @map("zip_code")
-  country   String   @default("IT")
   email     String?
   phone     String?
-  settings  Json     @default("{}")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  organizations Organization[]
+  users         User[]
+  clientGroups  ClientGroup[]
+
+  @@map("accounting_firm")
+  @@schema("finflow")
+}
+
+model ClientGroup {
+  id               String   @id @default(cuid())
+  name             String
+  accountingFirmId String   @map("accounting_firm_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  accountingFirm AccountingFirm @relation(fields: [accountingFirmId], references: [id], onDelete: Cascade)
+  organizations  Organization[]
+
+  @@map("client_group")
+  @@schema("finflow")
+}
+
+// ─── Models ─────────────────────────────────────────────────
+
+model Organization {
+  id               String          @id @default(cuid())
+  name             String
+  vatNumber        String?         @map("vat_number")
+  address          String?
+  city             String?
+  province         String?
+  zipCode          String?         @map("zip_code")
+  country          String          @default("IT")
+  email            String?
+  phone            String?
+  settings         Json            @default("{}")
+  // V2 multi-tenant columns
+  accountingFirmId String?         @map("accounting_firm_id")
+  clientGroupId    String?         @map("client_group_id")
+  cdgGranularity   CdgGranularity? @default(MONTHLY) @map("cdg_granularity")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  // V2 relations
+  accountingFirm   AccountingFirm? @relation(fields: [accountingFirmId], references: [id])
+  clientGroup      ClientGroup?    @relation(fields: [clientGroupId], references: [id])
 
   users                User[]
   connectors           Connector[]
@@ -130,25 +190,30 @@ model Organization {
   bankAccounts         BankAccount[]
   dataPeriods          DataPeriod[]
   dismissedMatches     DismissedMatch[]
+
   @@map("fin_organization")
   @@schema("public")
 }
 
 model User {
-  id             String       @id @default(cuid())
-  email          String       @unique
-  name           String?
-  passwordHash   String?      @map("password_hash")
-  role           UserRole     @default(VIEWER)
-  organizationId String       @map("organization_id")
-  emailVerified  DateTime?    @map("email_verified")
-  image          String?
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  id               String       @id @default(cuid())
+  email            String       @unique
+  name             String?
+  passwordHash     String?      @map("password_hash")
+  role             UserRole     @default(VIEWER)
+  organizationId   String       @map("organization_id")
+  emailVerified    DateTime?    @map("email_verified")
+  image            String?
+  // V2 multi-tenant columns
+  userType         UserType?    @map("user_type")
+  accountingFirmId String?      @map("accounting_firm_id")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  accounts     Account[]
-  sessions     Session[]
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accountingFirm AccountingFirm? @relation(fields: [accountingFirmId], references: [id])
+  accounts       Account[]
+  sessions       Session[]
 
   @@map("fin_user")
   @@schema("public")
