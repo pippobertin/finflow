@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Building2, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, Save, Building2, FileSpreadsheet, BarChart3 } from "lucide-react";
 
 interface BankAccount {
   id: string;
@@ -127,13 +127,19 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
             <p className="text-muted-foreground text-sm">Anagrafica</p>
           </div>
         </div>
-        <Link
-          href={`/firm/clients/${id}/bilanci`}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Bilanci di verifica
-        </Link>
+        <div className="flex gap-2">
+          <Link href={`/firm/clients/${id}/cdg`} className={buttonVariants({ variant: "outline" })}>
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Controllo di Gestione
+          </Link>
+          <Link
+            href={`/firm/clients/${id}/bilanci`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Bilanci di verifica
+          </Link>
+        </div>
       </div>
 
       {message && (
