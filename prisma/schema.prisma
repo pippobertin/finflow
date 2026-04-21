@@ -482,6 +482,7 @@ model BankStatement {
   balance        Decimal  @db.Decimal(12, 2)
   netAmount      Decimal? @map("net_amount") @db.Decimal(12, 2)
   vatAmount      Decimal? @map("vat_amount") @db.Decimal(12, 2)
+  cdgCategory    String?  @map("cdg_category") // CdgCategory enum stored as text (cross-schema)
   costCenterId   String?  @map("cost_center_id")
   reference      String?
   sourceFile     String?  @map("source_file")
