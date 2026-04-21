@@ -1,23 +1,6 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck — Legacy auto-tagging API, behind feature flags. Will be removed in Block D.
-import { NextRequest } from "next/server";
-import { getAdminSession } from "@/lib/helpers/auth-guard";
-import { autoTagInvoices } from "@/lib/tagging/auto-tagger";
-import { autoTagSchema } from "@/lib/validations/invoices";
+// Legacy auto-tagging API — disabled in V2 Phase 3 (Invoice no longer has costCenterId).
+// Will be removed in Block D.
 
-export async function POST(request: NextRequest) {
-  const { error, organizationId } = await getAdminSession();
-  if (error) return error;
-
-  const body = await request.json();
-  const parsed = autoTagSchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json(
-      { error: "Dati non validi", details: parsed.error.flatten() },
-      { status: 400 },
-    );
-  }
-
-  const result = await autoTagInvoices(organizationId, parsed.data.invoiceIds);
-  return Response.json(result);
+export async function POST() {
+  return Response.json({ error: "Auto-tagging disabilitato in V2" }, { status: 404 });
 }

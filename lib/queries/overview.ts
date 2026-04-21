@@ -328,7 +328,7 @@ export async function getOverviewData(
   // ── Projection from cashflow plan (same data as piano finanziario) ──
   const projectionChart: ProjectedChartPoint[] = [];
   try {
-    const cashflow = await buildDailyProjection(organizationId, costCenterIds);
+    const cashflow = await buildDailyProjection(organizationId);
     // Aggregate daily points to monthly: take end-of-month balance
     const monthlyProjected = new Map<string, number>();
     for (const dp of cashflow.projection) {
