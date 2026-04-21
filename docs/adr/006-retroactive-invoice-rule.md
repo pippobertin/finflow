@@ -20,20 +20,15 @@ Dopo che un periodo e' stato congelato (ADR-005), possono arrivare fatture con d
 
 ### Comportamento inserimento
 
-- Una fattura con data in un periodo congelato viene inserita normalmente in `fin_invoice` con `is_frozen = false` (e' un record nuovo, non congelato).
-- La data originale (`date`) non viene alterata.
-- La fattura non viene conteggiata nel CdG del periodo congelato (quello e' gia' chiuso).
-- La fattura viene conteggiata nel CdG del primo periodo aperto successivo.
+- Una fattura con `issueDate` che cade in un periodo congelato viene inserita normalmente in `fin_invoice` con `is_frozen = false` (e' un record nuovo, non congelato).
+- **Il campo `date` (issueDate) non viene mai modificato.** La fattura conserva la sua data contabile originale (es. 15/09/2025).
+- La fattura entra nel cashflow come dato informativo (il cashflow usa le date reali).
+- La fattura **non** contribuisce al CE riclassificato del periodo chiuso. Il CE di quel periodo e' alimentato esclusivamente dal bilancio di verifica caricato, non dalla somma delle fatture.
 
-### Logica CdG
+### Distinzione CE vs cashflow
 
-Il calcolo CdG, quando aggrega le fatture per periodo, applica questa regola:
-
-```
-per ogni fattura:
-  se fattura.date cade in un periodo frozen → attribuisci al periodo corrente (primo aperto)
-  altrimenti → attribuisci al periodo naturale della data
-```
+- **CE riclassificato** (Fase 3): alimentato dal bilancio di verifica. Le fatture retroattive vengono escluse dal CE del periodo chiuso ed incluse nel CE del primo periodo aperto. Questa logica verra' implementata nel motore di riclassificazione.
+- **Cashflow**: usa le date reali delle fatture. Una fattura retroattiva appare nella posizione corretta del cashflow indipendentemente dallo stato frozen del periodo.
 
 ### UI
 
@@ -42,7 +37,7 @@ per ogni fattura:
 
 ### Nessun campo aggiuntivo nel DB
 
-Per ora non serve un campo `cdgPeriodOverride` nel DB. La logica e' calcolata a runtime verificando se il periodo della data fattura e' frozen. Se in futuro servira' persistere questa informazione (es. per performance o audit), si aggiungera' il campo.
+Per ora non serve un campo `cdgPeriodOverride` nel DB. La logica di esclusione dal CE e' calcolata a runtime nel motore di riclassificazione (Fase 3) verificando se il periodo della data fattura e' frozen. Se in futuro servira' persistere questa informazione (es. per performance o audit), si aggiungera' il campo.
 
 ## Consequences
 
