@@ -6,7 +6,7 @@
  * Eventuali discrepanze con la spec AdE sono annotate come BUG POTENZIALE
  * e saranno gestite in ADR-004 / Fase 5.
  *
- * @see docs/adr/002-feature-flags-over-deletion.md
+ * @see docs/adr/002-feature-flags-over-deletion.md (superseded — Fase 3 Block D)
  */
 import { describe, it, expect } from "vitest";
 import {

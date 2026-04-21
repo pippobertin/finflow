@@ -2,26 +2,22 @@
 
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { BankStatementUploadZone } from "./bank-statement-upload-zone";
 import { BankStatementColumnMapper } from "./bank-statement-column-mapper";
 import { BankStatementPreviewTable } from "./bank-statement-preview-table";
 import { BankStatementImportProgress } from "./bank-statement-import-progress";
-import { ReconciliationTable } from "./reconciliation-table";
-import { ReconciliationResult } from "./reconciliation-result";
 import { parseCsv } from "@/lib/parsers/csv-parser";
-import {
-  useBankStatementImport,
-  useReconciliationMatches,
-  useConfirmReconciliation,
-} from "@/lib/hooks/use-bank-statement-import";
+import { useBankStatementImport } from "@/lib/hooks/use-bank-statement-import";
 import type {
   BankStatementMapping,
   BankStatementImportInput,
 } from "@/lib/validations/bank-statement-import";
 import type { BankStatementImportResult } from "@/lib/connectors/bank-statement-import";
 import { toast } from "sonner";
+import { CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
 
-type Step = "upload" | "parsing" | "mapping" | "preview" | "importing" | "reconciliation" | "done";
+type Step = "upload" | "parsing" | "mapping" | "preview" | "importing" | "done";
 
 export function BankStatementImportClient() {
   const [step, setStep] = useState<Step>("upload");
@@ -31,16 +27,8 @@ export function BankStatementImportClient() {
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<Partial<BankStatementMapping>>({});
   const [importResult, setImportResult] = useState<BankStatementImportResult | null>(null);
-  const [reconResult, setReconResult] = useState<{ reconciled: number; rejected: number } | null>(
-    null,
-  );
 
   const bankStatementImport = useBankStatementImport();
-  const confirmReconciliation = useConfirmReconciliation();
-  const { data: matches, isLoading: matchesLoading } = useReconciliationMatches(
-    importResult?.bankStatementIds ?? [],
-    step === "reconciliation",
-  );
 
   function autoMapHeaders(parsedHeaders: string[]): Partial<BankStatementMapping> {
     const autoMapping: Partial<BankStatementMapping> = {};
@@ -165,11 +153,7 @@ export function BankStatementImportClient() {
         onSuccess: (res) => {
           setImportResult(res);
           toast.success(`Importati ${res.imported} movimenti`);
-          if (res.imported > 0) {
-            setStep("reconciliation");
-          } else {
-            setStep("done");
-          }
+          setStep("done");
         },
         onError: (err) => {
           toast.error(err.message);
@@ -180,24 +164,6 @@ export function BankStatementImportClient() {
     setStep("importing");
   }
 
-  function handleConfirmReconciliation(
-    decisions: { bankStatementId: string; invoiceId: string; accepted: boolean }[],
-  ) {
-    confirmReconciliation.mutate(decisions, {
-      onSuccess: (res) => {
-        setReconResult(res);
-        toast.success(`${res.reconciled} movimenti riconciliati`);
-        setStep("done");
-      },
-      onError: (err) => toast.error(err.message),
-    });
-  }
-
-  function handleSkipReconciliation() {
-    setReconResult({ reconciled: 0, rejected: 0 });
-    setStep("done");
-  }
-
   function handleReset() {
     setStep("upload");
     setFile(null);
@@ -206,7 +172,6 @@ export function BankStatementImportClient() {
     setRows([]);
     setMapping({});
     setImportResult(null);
-    setReconResult(null);
   }
 
   const stepLabels: Record<Step, string> = {
@@ -215,8 +180,7 @@ export function BankStatementImportClient() {
     mapping: "2. Mappa Colonne",
     preview: "3. Anteprima",
     importing: "4. Importazione",
-    reconciliation: "5. Riconciliazione",
-    done: "6. Completato",
+    done: "5. Completato",
   };
 
   // For the step indicator, merge parsing into upload visually
@@ -279,36 +243,42 @@ export function BankStatementImportClient() {
               <span className="text-muted-foreground ml-3 text-sm">Importazione in corso...</span>
             </div>
           )}
-          {step === "reconciliation" &&
-            (matchesLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2" />
-                <span className="text-muted-foreground ml-3 text-sm">Ricerca abbinamenti...</span>
+          {step === "done" && importResult && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                <div>
+                  <p className="text-lg font-semibold">Importazione completata</p>
+                  <p className="text-muted-foreground text-sm">
+                    {importResult.imported} movimenti importati
+                    {importResult.duplicates > 0 &&
+                      `, ${importResult.duplicates} duplicati ignorati`}
+                  </p>
+                </div>
               </div>
-            ) : (
-              <ReconciliationTable
-                matches={matches ?? []}
-                onConfirm={handleConfirmReconciliation}
-                onSkip={handleSkipReconciliation}
-                isPending={confirmReconciliation.isPending}
-              />
-            ))}
-          {step === "done" && (
-            <ReconciliationResult
-              imported={importResult?.imported ?? 0}
-              duplicates={importResult?.duplicates ?? 0}
-              totalParsed={importResult?.totalParsed}
-              reconciled={reconResult?.reconciled ?? 0}
-              rejected={reconResult?.rejected ?? 0}
-              unmatched={
-                (importResult?.imported ?? 0) -
-                (reconResult?.reconciled ?? 0) -
-                (reconResult?.rejected ?? 0)
-              }
-              errors={importResult?.errors.length ?? 0}
-              errorDetails={importResult?.errors}
-              onReset={handleReset}
-            />
+              {importResult.errors.length > 0 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+                  <div className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="h-4 w-4" />
+                    {importResult.errors.length} righe con errori
+                  </div>
+                  <ul className="mt-2 space-y-1 text-xs text-amber-600 dark:text-amber-500">
+                    {importResult.errors.slice(0, 5).map((err, i) => (
+                      <li key={i}>
+                        Riga {err.row}: {err.message}
+                      </li>
+                    ))}
+                    {importResult.errors.length > 5 && (
+                      <li>...e altri {importResult.errors.length - 5} errori</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+              <Button variant="outline" onClick={handleReset} className="gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Importa altro file
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

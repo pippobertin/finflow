@@ -2,7 +2,9 @@
 
 ## Status
 
-accepted
+**superseded** — Fase 3 Block D completata. Tutti i flag, il codice legacy e le tabelle DB
+elencate in questo ADR sono stati rimossi nel commit di chiusura Fase 3.
+Ref: `docs/fase-3-complete.md`
 
 ## Context
 

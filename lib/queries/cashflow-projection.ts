@@ -182,7 +182,7 @@ export function expandPayable(
 /**
  * Build a daily cashflow projection for up to 365 days.
  *
- * V2 paradigm — no DSO, no counterpart, no PaymentEvent.
+ * V2 paradigm — simplified cashflow projection.
  * Inflows:  pending ACTIVE invoices (by dueDate), FutureReceivable
  * Outflows: pending PASSIVE invoices (by dueDate), RecurringExpense,
  *           OneOffExpense, ExpectedPayable, VAT

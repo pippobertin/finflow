@@ -51,8 +51,6 @@ export function Sidebar() {
       title: "Dati",
       items: [
         { href: "/invoices", label: "Fatture", icon: FileText },
-        // Badge "unreconciledCount" rimosso in V2 Fase 0.4
-        // Ref: docs/adr/002-feature-flags-over-deletion.md (da creare in 0.5)
         { href: "/bank-statements", label: "Movimenti Bancari", icon: Landmark },
         { href: "/expenses", label: "Spese Ricorrenti", icon: Receipt },
         { href: "/expected-payables", label: "Fatture Passive Attese", icon: FileWarning },

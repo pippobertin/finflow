@@ -10,8 +10,6 @@ import { StepEcAnnual } from "./step-ec-annual";
 import { StepEcQuarterly } from "./step-ec-quarterly";
 import { StepMovements } from "./step-movements";
 import { StepInvoices } from "./step-invoices";
-import { StepReconciliation } from "./step-reconciliation";
-
 const STEPS = [
   { id: 0, title: "Organizzazione", description: "Dati aziendali" },
   { id: 1, title: "Conto Bancario", description: "Nome banca e IBAN" },
@@ -19,7 +17,6 @@ const STEPS = [
   { id: 3, title: "EC Trimestrali", description: "Saldi trimestrali" },
   { id: 4, title: "Movimenti", description: "Importa CSV" },
   { id: 5, title: "Fatture", description: "Fatture XML/CSV" },
-  { id: 6, title: "Riconciliazione", description: "Abbina automatico" },
 ];
 
 export function SetupWizard() {
@@ -134,8 +131,7 @@ export function SetupWizard() {
         {currentStep === 2 && <StepEcAnnual {...stepProps} />}
         {currentStep === 3 && <StepEcQuarterly {...stepProps} />}
         {currentStep === 4 && <StepMovements {...stepProps} />}
-        {currentStep === 5 && <StepInvoices {...stepProps} />}
-        {currentStep === 6 && <StepReconciliation {...stepProps} onComplete={handleComplete} />}
+        {currentStep === 5 && <StepInvoices {...stepProps} onNext={handleComplete} />}
       </div>
     </div>
   );

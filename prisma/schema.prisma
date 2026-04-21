@@ -18,15 +18,6 @@ enum UserRole {
   @@schema("public")
 }
 
-enum ConnectorType {
-  FATTURE_IN_CLOUD
-  CSV_IMPORT
-  MANUAL
-
-  @@map("fin_connector_type")
-  @@schema("public")
-}
-
 enum CostCenterType {
   COST
   REVENUE
@@ -256,7 +247,6 @@ model Organization {
   clientGroup      ClientGroup?    @relation(fields: [clientGroupId], references: [id])
 
   users                User[]
-  connectors           Connector[]
   costCenters          CostCenter[]
   invoices             Invoice[]
   recurringExpenses    RecurringExpense[]
@@ -266,11 +256,9 @@ model Organization {
   forecastScenarios    ForecastScenario[]
   futureReceivables    FutureReceivable[]
   expectedPayables     ExpectedPayable[]
-  paymentEvents        PaymentEvent[]
   vatSnapshots         VatSnapshot[]
   bankAccounts         BankAccount[]
   dataPeriods          DataPeriod[]
-  dismissedMatches     DismissedMatch[]
   // V2 Fase 2
   trialBalanceSnapshots TrialBalanceSnapshot[]
   chartOfAccountsMappings ChartOfAccountsMapping[]
@@ -348,23 +336,6 @@ model VerificationToken {
   @@schema("public")
 }
 
-model Connector {
-  id              String        @id @default(cuid())
-  organizationId  String        @map("organization_id")
-  type            ConnectorType
-  name            String
-  encryptedConfig String?       @map("encrypted_config")
-  isActive        Boolean       @default(true) @map("is_active")
-  lastSyncAt      DateTime?     @map("last_sync_at")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@map("fin_connector")
-  @@schema("public")
-}
-
 model CostCenter {
   id             String         @id @default(cuid())
   organizationId String         @map("organization_id")
@@ -410,7 +381,6 @@ model Invoice {
   organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   bankAccount       BankAccount?      @relation(fields: [bankAccountId], references: [id])
   futureReceivables FutureReceivable[]
-  paymentEvents     PaymentEvent[]
 
   @@index([organizationId, direction])
   @@index([organizationId, status])
@@ -466,7 +436,6 @@ model OneOffExpense {
 
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   costCenter     CostCenter?    @relation(fields: [costCenterId], references: [id])
-  paymentEvents  PaymentEvent[]
 
   @@map("fin_one_off_expense")
   @@schema("public")
@@ -495,29 +464,11 @@ model BankStatement {
   organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   bankAccount      BankAccount?     @relation(fields: [bankAccountId], references: [id])
   costCenter       CostCenter?      @relation(fields: [costCenterId], references: [id])
-  dismissedMatches DismissedMatch[]
 
   @@index([organizationId, date])
   @@index([organizationId, isReconciled], map: "idx_bank_statement_reconciled", where: raw("(is_reconciled = false)"))
   @@index([organizationId, fingerprint])
   @@map("fin_bank_statement")
-  @@schema("public")
-}
-
-model DismissedMatch {
-  id              String   @id @default(cuid())
-  organizationId  String   @map("organization_id")
-  bankStatementId String   @map("bank_statement_id")
-  targetId        String   @map("target_id")
-  targetType      String   @map("target_type") // INVOICE, EXPENSE, EXPECTED_PAYABLE
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  bankStatement BankStatement @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
-
-  @@unique([bankStatementId, targetId, targetType], map: "uq_dismissed_match")
-  @@index([organizationId, bankStatementId])
-  @@map("fin_dismissed_match")
   @@schema("public")
 }
 
@@ -604,31 +555,6 @@ model ExpectedPayable {
 
   @@index([organizationId, status])
   @@map("fin_expected_payable")
-  @@schema("public")
-}
-
-// ─── Fase 2: Pagamenti Parziali ─────────────────────────────
-
-model PaymentEvent {
-  id               String   @id @default(cuid())
-  organizationId   String   @map("organization_id")
-  invoiceId        String?  @map("invoice_id")
-  oneOffExpenseId  String?  @map("one_off_expense_id")
-  amount           Decimal  @db.Decimal(15, 2)
-  eventDate        DateTime @map("event_date") @db.Date
-  isActual         Boolean  @default(false) @map("is_actual")
-  notes            String?
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @default(now()) @map("updated_at")
-
-  organization  Organization  @relation(fields: [organizationId], references: [id])
-  invoice       Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  oneOffExpense OneOffExpense? @relation(fields: [oneOffExpenseId], references: [id], onDelete: Cascade)
-
-  @@index([invoiceId], map: "idx_payment_event_invoice")
-  @@index([oneOffExpenseId], map: "idx_payment_event_expense")
-  @@index([organizationId, eventDate], map: "idx_payment_event_date")
-  @@map("fin_payment_event")
   @@schema("public")
 }
 

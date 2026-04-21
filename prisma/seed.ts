@@ -2,7 +2,6 @@ import {
   PrismaClient,
   UserRole,
   CostCenterType,
-  ConnectorType,
   InvoiceDirection,
   InvoiceStatus,
   ExpenseFrequency,
@@ -79,7 +78,6 @@ async function main() {
   await prisma.recurringExpense.deleteMany();
   await prisma.oneOffExpense.deleteMany();
   await prisma.costCenter.deleteMany();
-  await prisma.connector.deleteMany();
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
   await prisma.user.deleteMany();
@@ -120,17 +118,6 @@ async function main() {
     },
   });
   console.log("✅ Users created");
-
-  // ─── Connector ──────────────────────────────────────────
-  await prisma.connector.create({
-    data: {
-      organizationId: org.id,
-      type: ConnectorType.MANUAL,
-      name: "Inserimento Manuale",
-      isActive: true,
-    },
-  });
-  console.log("✅ Connector created");
 
   // ─── Cost Centers ───────────────────────────────────────
   const costCentersData = [
