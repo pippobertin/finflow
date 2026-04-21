@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Landmark, Trash2, FileText, AlertTriangle } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Landmark, Trash2, FileText, Info } from "lucide-react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -27,17 +27,26 @@ import { formatDateShort } from "@/lib/helpers/format";
 
 const PAGE_SIZE = 50;
 
+type CategoryFilter = "ALL" | "UNCATEGORIZED" | "CATEGORIZED";
+
 export function BankStatementsClient() {
   const [tab, setTab] = useState("MOVEMENTS");
   const [search, setSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useBankStatements({
     search: search || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    categorized:
+      categoryFilter === "CATEGORIZED"
+        ? true
+        : categoryFilter === "UNCATEGORIZED"
+          ? false
+          : undefined,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -48,6 +57,11 @@ export function BankStatementsClient() {
   const statements = (data as { data: unknown[] } | undefined)?.data ?? [];
   const total = (data as { total: number } | undefined)?.total ?? 0;
   const totalPages = (data as { totalPages: number } | undefined)?.totalPages ?? 1;
+
+  // Build a suggestions map for uncategorized statements
+  // (suggestions are fetched lazily inside the table rows via individual hooks,
+  // but we pre-build a placeholder map structure here for batch display)
+  const suggestionMap = useMemo(() => new Map(), []);
 
   function handleSearchChange(v: string) {
     setSearch(v);
@@ -60,12 +74,12 @@ export function BankStatementsClient() {
       <div className="bg-background sticky top-0 z-10 border-b">
         <Navbar title="Estratti Conto" />
         <div className="space-y-3 px-6 pb-4">
-          {/* V2 restructuring banner */}
-          <div className="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-900/20">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <span className="text-sm text-amber-800 dark:text-amber-300">
-              Sezione in ristrutturazione per V2 — la riconciliazione automatica e la
-              categorizzazione movimenti saranno disponibili in nuova forma nel Blocco B.
+          {/* Info banner */}
+          <div className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-blue-50/60 px-4 py-2.5 dark:border-blue-800 dark:bg-blue-900/20">
+            <Info className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+            <span className="text-sm text-blue-800 dark:text-blue-300">
+              Categorizza i movimenti bancari verso le categorie CDG per abilitare il calcolo del
+              Conto Economico riclassificato. Lo scorporo IVA viene calcolato automaticamente.
             </span>
           </div>
 
@@ -82,6 +96,24 @@ export function BankStatementsClient() {
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-72"
               />
+              <Select
+                value={categoryFilter}
+                onValueChange={(v) => {
+                  if (v) {
+                    setCategoryFilter(String(v) as CategoryFilter);
+                    setPage(1);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tutti i movimenti</SelectItem>
+                  <SelectItem value="UNCATEGORIZED">Non categorizzati</SelectItem>
+                  <SelectItem value="CATEGORIZED">Categorizzati</SelectItem>
+                </SelectContent>
+              </Select>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-slate-500">Dal</span>
                 <input
@@ -113,7 +145,7 @@ export function BankStatementsClient() {
       <div className="space-y-4 p-6">
         <TabsContent value="MOVEMENTS" className="mt-0 space-y-4">
           {isLoading ? (
-            <DataTableSkeleton columns={6} rows={8} />
+            <DataTableSkeleton columns={7} rows={8} />
           ) : statements.length === 0 ? (
             <EmptyState
               icon={Landmark}
@@ -122,7 +154,10 @@ export function BankStatementsClient() {
             />
           ) : (
             <>
-              <BankStatementTableLight statements={statements as never[]} />
+              <BankStatementTableLight
+                statements={statements as never[]}
+                suggestions={suggestionMap}
+              />
               {totalPages > 1 && (
                 <Pagination
                   page={page}

@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   const data = await listBankStatements({
     organizationId,
     isReconciled: sp.has("isReconciled") ? sp.get("isReconciled") === "true" : undefined,
+    categorized: sp.has("categorized") ? sp.get("categorized") === "true" : undefined,
     search: sp.get("search") ?? undefined,
     costCenterId: sp.get("costCenterId") ?? undefined,
     startDate: sp.get("startDate") ? new Date(sp.get("startDate")!) : undefined,

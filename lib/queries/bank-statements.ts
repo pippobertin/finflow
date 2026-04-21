@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 export interface BankStatementListParams {
   organizationId: string;
   isReconciled?: boolean;
+  categorized?: boolean; // true = has cdgCategory, false = null, undefined = all
   search?: string;
   startDate?: Date;
   endDate?: Date;
@@ -16,6 +17,7 @@ export async function listBankStatements(params: BankStatementListParams) {
   const {
     organizationId,
     isReconciled,
+    categorized,
     search,
     startDate,
     endDate,
@@ -27,6 +29,9 @@ export async function listBankStatements(params: BankStatementListParams) {
   const where: Prisma.BankStatementWhereInput = {
     organizationId,
     ...(isReconciled !== undefined && { isReconciled }),
+    ...(categorized !== undefined && {
+      cdgCategory: categorized ? { not: null } : null,
+    }),
     ...(costCenterId && { costCenterId }),
     ...((startDate || endDate) && {
       date: {
@@ -139,4 +144,57 @@ export async function reassignBankStatementCostCenter(
     where: { id },
     data: { costCenterId },
   });
+}
+
+/**
+ * Categorize a single bank statement: set cdgCategory + compute VAT split.
+ */
+export async function categorizeBankStatement(
+  id: string,
+  organizationId: string,
+  cdgCategory: string,
+  netAmount: number,
+  vatAmount: number,
+) {
+  const statement = await prisma.bankStatement.findFirst({
+    where: { id, organizationId },
+  });
+  if (!statement) return null;
+
+  return prisma.bankStatement.update({
+    where: { id },
+    data: { cdgCategory, netAmount, vatAmount },
+  });
+}
+
+/**
+ * Bulk categorize bank statements with the same cdgCategory.
+ * Returns the count of updated records.
+ */
+export async function bulkCategorizeBankStatements(
+  ids: string[],
+  organizationId: string,
+  cdgCategory: string,
+  computeSplit: (grossAmount: number) => { netAmount: number; vatAmount: number },
+) {
+  // Fetch all statements to compute per-row VAT split
+  const statements = await prisma.bankStatement.findMany({
+    where: { id: { in: ids }, organizationId },
+    select: { id: true, amount: true },
+  });
+
+  if (statements.length === 0) return 0;
+
+  // Update each with its computed split
+  const updates = statements.map((s) => {
+    const gross = Number(s.amount);
+    const { netAmount, vatAmount } = computeSplit(gross);
+    return prisma.bankStatement.update({
+      where: { id: s.id },
+      data: { cdgCategory, netAmount, vatAmount },
+    });
+  });
+
+  await prisma.$transaction(updates);
+  return statements.length;
 }

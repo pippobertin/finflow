@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 interface BankStatementFilters {
   isReconciled?: boolean;
+  categorized?: boolean;
   search?: string;
   startDate?: string;
   endDate?: string;
@@ -27,6 +28,7 @@ export function useBankStatements(filters: BankStatementFilters = {}) {
 
   const params = new URLSearchParams();
   if (filters.isReconciled !== undefined) params.set("isReconciled", String(filters.isReconciled));
+  if (filters.categorized !== undefined) params.set("categorized", String(filters.categorized));
   if (filters.search) params.set("search", filters.search);
   if (filters.startDate) params.set("startDate", filters.startDate);
   if (filters.endDate) params.set("endDate", filters.endDate);
@@ -91,5 +93,59 @@ export function useReassignBankStatement() {
     onError: (err) => {
       toast.error(err.message);
     },
+  });
+}
+
+// ─── Categorization hooks ─────────────────────────────────────
+
+export function useCategorizeBankStatement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, cdgCategory }: { id: string; cdgCategory: string }) =>
+      fetchJson(`/api/bank-statements/${id}/categorize`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cdgCategory }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bank-statements"] });
+      toast.success("Categoria assegnata");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+export function useBulkCategorizeBankStatements() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ids, cdgCategory }: { ids: string[]; cdgCategory: string }) =>
+      fetchJson<{ categorized: number }>("/api/bank-statements/bulk-categorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, cdgCategory }),
+      }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["bank-statements"] });
+      toast.success(`${data.categorized} movimenti categorizzati`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+interface CategorySuggestion {
+  cdgCategory: string;
+  confidence: number;
+  matchedDescription: string;
+}
+
+export function useCategorySuggestion(description: string) {
+  return useQuery<{ suggestion: CategorySuggestion | null }>({
+    queryKey: ["category-suggestion", description],
+    queryFn: () =>
+      fetchJson(
+        `/api/bank-statements/suggest-category?description=${encodeURIComponent(description)}`,
+      ),
+    enabled: description.trim().length >= 3,
+    staleTime: 60_000,
   });
 }
