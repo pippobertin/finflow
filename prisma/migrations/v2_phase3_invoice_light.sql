@@ -5,8 +5,12 @@
 -- 1. Archives removed Invoice columns to invoice_legacy_archive
 -- 2. Archives removed BankStatement columns to bank_statement_legacy_archive
 -- 3. Archives InvoiceLine table to invoice_line_archive
--- 4. Drops columns and table
--- 5. Adds new columns (bank_account_id, notes on Invoice; net_amount, vat_amount on BankStatement)
+-- 4. Adds PK to all archive tables
+-- 5. SANITY CHECK PRE-DROP (RAISE EXCEPTION → rollback if mismatch)
+-- 6. Drops InvoiceLine table
+-- 7. Drops Invoice legacy columns + adds new columns
+-- 8. Drops BankStatement legacy columns + adds new columns
+-- 9. Drops stale indexes
 --
 -- Run on Supabase SQL Editor. Review before executing.
 -- ============================================================================
@@ -33,7 +37,6 @@ SELECT
   bank_discount_fee
 FROM public.fin_invoice;
 
--- Add PK to archive for lookups
 ALTER TABLE public.invoice_legacy_archive
   ADD CONSTRAINT invoice_legacy_archive_pkey PRIMARY KEY (id);
 
@@ -69,11 +72,46 @@ ALTER TABLE public.invoice_line_archive
 COMMENT ON TABLE public.invoice_line_archive IS
   'Full archive of fin_invoice_line table, dropped in V2 Phase 3.';
 
--- ── 4. Drop InvoiceLine table ────────────────────────────────────────────────
+-- ── 4. SANITY CHECK PRE-DROP ─────────────────────────────────────────────────
+-- Compares row counts between originals and archives.
+-- RAISE EXCEPTION aborts the transaction → automatic ROLLBACK, no data lost.
+
+DO $$
+DECLARE
+  orig_inv  INTEGER;
+  arch_inv  INTEGER;
+  orig_bs   INTEGER;
+  arch_bs   INTEGER;
+  orig_il   INTEGER;
+  arch_il   INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO orig_inv FROM public.fin_invoice;
+  SELECT COUNT(*) INTO arch_inv FROM public.invoice_legacy_archive;
+  IF orig_inv <> arch_inv THEN
+    RAISE EXCEPTION 'Archive mismatch invoice: orig=% arch=%', orig_inv, arch_inv;
+  END IF;
+
+  SELECT COUNT(*) INTO orig_bs FROM public.fin_bank_statement;
+  SELECT COUNT(*) INTO arch_bs FROM public.bank_statement_legacy_archive;
+  IF orig_bs <> arch_bs THEN
+    RAISE EXCEPTION 'Archive mismatch bank_statement: orig=% arch=%', orig_bs, arch_bs;
+  END IF;
+
+  SELECT COUNT(*) INTO orig_il FROM public.fin_invoice_line;
+  SELECT COUNT(*) INTO arch_il FROM public.invoice_line_archive;
+  IF orig_il <> arch_il THEN
+    RAISE EXCEPTION 'Archive mismatch invoice_line: orig=% arch=%', orig_il, arch_il;
+  END IF;
+
+  RAISE NOTICE 'Pre-drop sanity OK: invoice=%, bank_statement=%, invoice_line=%',
+    orig_inv, orig_bs, orig_il;
+END $$;
+
+-- ── 5. Drop InvoiceLine table ────────────────────────────────────────────────
 
 DROP TABLE IF EXISTS public.fin_invoice_line;
 
--- ── 5. Drop Invoice legacy columns ──────────────────────────────────────────
+-- ── 6. Drop Invoice legacy columns ──────────────────────────────────────────
 
 ALTER TABLE public.fin_invoice
   DROP COLUMN IF EXISTS counterpart,
@@ -90,14 +128,14 @@ ALTER TABLE public.fin_invoice
   DROP COLUMN IF EXISTS bank_liquidation_date,
   DROP COLUMN IF EXISTS bank_discount_fee;
 
--- ── 6. Add new Invoice columns ──────────────────────────────────────────────
+-- ── 7. Add new Invoice columns ──────────────────────────────────────────────
 
 ALTER TABLE public.fin_invoice
   ADD COLUMN IF NOT EXISTS bank_account_id TEXT
     REFERENCES public.fin_bank_account(id),
   ADD COLUMN IF NOT EXISTS notes TEXT;
 
--- ── 7. Drop BankStatement legacy columns ────────────────────────────────────
+-- ── 8. Drop BankStatement legacy columns ────────────────────────────────────
 
 ALTER TABLE public.fin_bank_statement
   DROP COLUMN IF EXISTS reconciled_invoice_id,
@@ -106,35 +144,22 @@ ALTER TABLE public.fin_bank_statement
   DROP COLUMN IF EXISTS reconciled_type,
   DROP COLUMN IF EXISTS reconciled_at;
 
--- ── 8. Add new BankStatement columns ────────────────────────────────────────
+-- ── 9. Add new BankStatement columns ────────────────────────────────────────
 
 ALTER TABLE public.fin_bank_statement
   ADD COLUMN IF NOT EXISTS net_amount DECIMAL(12, 2),
   ADD COLUMN IF NOT EXISTS vat_amount DECIMAL(12, 2);
 
--- ── 9. Drop stale indexes that referenced removed columns ───────────────────
+-- ── 10. Drop stale indexes ──────────────────────────────────────────────────
 
--- Invoice cost_center_id index (if exists)
 DROP INDEX IF EXISTS public."fin_invoice_cost_center_id_idx";
 DROP INDEX IF EXISTS public."fin_invoice_organization_id_cost_center_id_idx";
-
--- BankStatement reconciliation indexes (if exist)
 DROP INDEX IF EXISTS public."fin_bank_statement_reconciled_invoice_id_idx";
 
--- ── 10. Verify ──────────────────────────────────────────────────────────────
+-- ── 11. Post-migration notice ───────────────────────────────────────────────
 
--- Sanity checks (will raise notice, not error)
-DO $$
-DECLARE
-  inv_count INTEGER;
-  bs_count INTEGER;
-  il_count INTEGER;
-BEGIN
-  SELECT COUNT(*) INTO inv_count FROM public.invoice_legacy_archive;
-  SELECT COUNT(*) INTO bs_count FROM public.bank_statement_legacy_archive;
-  SELECT COUNT(*) INTO il_count FROM public.invoice_line_archive;
-  RAISE NOTICE 'Archive counts — invoices: %, bank_statements: %, invoice_lines: %',
-    inv_count, bs_count, il_count;
+DO $$ BEGIN
+  RAISE NOTICE 'Migration V2 Fase 3.A applied successfully';
 END $$;
 
 COMMIT;
