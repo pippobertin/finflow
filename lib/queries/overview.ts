@@ -137,24 +137,22 @@ export async function getOverviewData(
       orderBy: { date: "desc" },
     }),
 
-    // Credits: ALL pending ACTIVE invoices (if it's still PENDING, it's a pending credit)
+    // Credits: ALL pending ACTIVE invoices
     prisma.invoice.aggregate({
       where: {
         organizationId,
         direction: "ACTIVE",
         status: "PENDING",
-        ...ccFilter,
       },
       _sum: { grossAmount: true },
     }),
 
-    // Debits: ALL pending PASSIVE invoices (if it's still PENDING, it's a pending debit)
+    // Debits: ALL pending PASSIVE invoices
     prisma.invoice.aggregate({
       where: {
         organizationId,
         direction: "PASSIVE",
         status: "PENDING",
-        ...ccFilter,
       },
       _sum: { grossAmount: true },
     }),
@@ -353,29 +351,18 @@ export async function getOverviewData(
     // Cashflow projection may fail — chart will just show historical
   }
 
-  // ── Revenue distribution ────────────────────────────────────
-  const revenueCenters = await prisma.costCenter.findMany({
-    where: {
-      organizationId,
-      type: "REVENUE",
-      ...(costCenterIds?.length && { id: { in: costCenterIds } }),
-    },
-    select: { id: true, name: true, color: true },
+  // ── Revenue distribution (from active invoices — no cost center grouping in V2) ──
+  const activeInvAgg = await prisma.invoice.aggregate({
+    where: { organizationId, direction: "ACTIVE" },
+    _sum: { grossAmount: true },
   });
-
   const revenueDistribution: RevenueDistributionSlice[] = [];
-  for (const rc of revenueCenters) {
-    const agg = await prisma.invoice.aggregate({
-      where: { organizationId, costCenterId: rc.id, direction: "ACTIVE" },
-      _sum: { grossAmount: true },
-    });
-    const value = Number(agg._sum.grossAmount ?? 0);
-    if (value > 0) {
-      revenueDistribution.push({ name: rc.name, value, color: rc.color });
-    }
+  const totalActiveRevenue = Number(activeInvAgg._sum.grossAmount ?? 0);
+  if (totalActiveRevenue > 0) {
+    revenueDistribution.push({ name: "Ricavi", value: totalActiveRevenue, color: "#059669" });
   }
 
-  // ── Expense distribution ────────────────────────────────────
+  // ── Expense distribution (from cost centers: recurring, one-off, expected payables) ──
   const costCenters = await prisma.costCenter.findMany({
     where: {
       organizationId,
@@ -388,13 +375,6 @@ export async function getOverviewData(
   const distribution: DistributionSlice[] = [];
   for (const cc of costCenters) {
     let value = 0;
-
-    // Passive invoices
-    const invAgg = await prisma.invoice.aggregate({
-      where: { organizationId, costCenterId: cc.id, direction: "PASSIVE" },
-      _sum: { grossAmount: true },
-    });
-    value += Number(invAgg._sum.grossAmount ?? 0);
 
     // Recurring expenses
     const recAgg = await prisma.recurringExpense.aggregate({

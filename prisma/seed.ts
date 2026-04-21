@@ -66,46 +66,12 @@ const SUPPLIERS = [
   { name: "JetBrains Srl", vat: "CZ28204590" },
 ];
 
-const ACTIVE_INVOICE_DESCRIPTIONS = [
-  "Sviluppo applicazione web React/Next.js",
-  "Consulenza architettura cloud AWS",
-  "Manutenzione trimestrale sistemi IT",
-  "Sviluppo API REST backend Node.js",
-  "Workshop formativo TypeScript avanzato",
-  "Migrazione database PostgreSQL",
-  "Implementazione sistema CI/CD",
-  "Consulenza GDPR e sicurezza informatica",
-  "Sviluppo app mobile React Native",
-  "Supporto tecnico mensile",
-  "Audit infrastruttura IT",
-  "Sviluppo e-commerce headless",
-  "Configurazione server e networking",
-  "Formazione team sviluppo agile",
-  "Integrazione API fatturazione elettronica",
-];
-
-const PASSIVE_INVOICE_DESCRIPTIONS = [
-  "Servizio hosting cloud mensile",
-  "Licenza software Enterprise annuale",
-  "Canone servizi telefonici",
-  "Fornitura energia elettrica",
-  "Consulenza fiscale trimestrale",
-  "Abbonamento piattaforma cloud",
-  "Servizi di connettività internet",
-  "Polizza assicurativa RC professionale",
-  "Acquisto licenze Microsoft 365",
-  "Servizi di co-working mensile",
-  "Noleggio stampanti e materiale ufficio",
-  "Abbonamento strumenti sviluppo",
-];
-
 // ─── Main Seed ──────────────────────────────────────────────
 
 async function main() {
   console.log("🌱 Starting seed...");
 
   // Clean existing data
-  await prisma.invoiceLine.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.bankStatement.deleteMany();
   await prisma.cashflowSnapshot.deleteMany();
@@ -396,21 +362,18 @@ async function main() {
 
   // Active invoices (70)
   for (let i = 0; i < 70; i++) {
-    const client = randomItem(CLIENTS);
     const date = randomDate(oneYearAgo, now);
     const dueDate = addDays(date, randomItem([30, 60, 90]));
     const netAmount = randomBetween(500, 25000);
     const vatRate = 0.22;
     const vatAmount = Math.round(netAmount * vatRate * 100) / 100;
     const grossAmount = Math.round((netAmount + vatAmount) * 100) / 100;
-    const needsTagging = Math.random() > 0.85;
-    const assignedCenter = needsTagging ? null : randomItem(revenueCenterIds);
 
     const status: InvoiceStatus = Math.random() < 0.55 ? InvoiceStatus.PAID : InvoiceStatus.PENDING;
 
     const paidAt = status === InvoiceStatus.PAID ? addDays(date, randomBetween(5, 45)) : null;
 
-    const invoice = await prisma.invoice.create({
+    await prisma.invoice.create({
       data: {
         organizationId: org.id,
         direction: InvoiceDirection.ACTIVE,
@@ -418,53 +381,24 @@ async function main() {
         number: `FT-${date.getFullYear()}-${String(i + 1).padStart(4, "0")}`,
         date,
         dueDate,
-        counterpart: client.name,
-        vatNumber: client.vat,
-        description: randomItem(ACTIVE_INVOICE_DESCRIPTIONS),
         netAmount: netAmount,
         vatAmount: vatAmount,
         grossAmount: grossAmount,
-        costCenterId: assignedCenter,
-        needsTagging,
         paidAt,
       },
     });
-
-    // Add 1-3 invoice lines
-    const lineCount = Math.floor(Math.random() * 3) + 1;
-    const lineAmounts: number[] = [];
-    for (let l = 0; l < lineCount; l++) {
-      const lineAmt = Math.round((netAmount / lineCount) * 100) / 100;
-      lineAmounts.push(lineAmt);
-    }
-
-    for (let l = 0; l < lineCount; l++) {
-      await prisma.invoiceLine.create({
-        data: {
-          invoiceId: invoice.id,
-          description: `${randomItem(ACTIVE_INVOICE_DESCRIPTIONS)} - Riga ${l + 1}`,
-          quantity: randomItem([1, 2, 5, 10, 20]),
-          unitPrice: lineAmounts[l],
-          amount: lineAmounts[l],
-          costCenterId: assignedCenter,
-        },
-      });
-    }
 
     invoiceCount++;
   }
 
   // Passive invoices (50)
   for (let i = 0; i < 50; i++) {
-    const supplier = randomItem(SUPPLIERS);
     const date = randomDate(oneYearAgo, now);
     const dueDate = addDays(date, randomItem([30, 60]));
     const netAmount = randomBetween(100, 8000);
     const vatRate = 0.22;
     const vatAmount = Math.round(netAmount * vatRate * 100) / 100;
     const grossAmount = Math.round((netAmount + vatAmount) * 100) / 100;
-    const needsTagging = Math.random() > 0.85;
-    const assignedCenter = needsTagging ? null : randomItem(costCenterIds);
 
     const status: InvoiceStatus = Math.random() < 0.6 ? InvoiceStatus.PAID : InvoiceStatus.PENDING;
 
@@ -478,14 +412,9 @@ async function main() {
         number: `ACQ-${date.getFullYear()}-${String(i + 1).padStart(4, "0")}`,
         date,
         dueDate,
-        counterpart: supplier.name,
-        vatNumber: supplier.vat,
-        description: randomItem(PASSIVE_INVOICE_DESCRIPTIONS),
         netAmount: netAmount,
         vatAmount: vatAmount,
         grossAmount: grossAmount,
-        costCenterId: assignedCenter,
-        needsTagging,
         paidAt,
       },
     });

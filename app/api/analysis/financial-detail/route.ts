@@ -26,7 +26,6 @@ interface MonthlyRow {
 interface CellDetail {
   id: string;
   label: string;
-  counterpart?: string;
   amount: number;
   type: string;
   date: string;
@@ -45,7 +44,6 @@ export async function GET(request: NextRequest) {
 
   // Fetch all data for the year
   const [
-    costCenters,
     invoices,
     recurringExpenses,
     oneOffExpenses,
@@ -53,40 +51,25 @@ export async function GET(request: NextRequest) {
     bankStatementsForYear,
     futureReceivables,
   ] = await Promise.all([
-    prisma.costCenter.findMany({
-      where: { organizationId },
-      select: { id: true, name: true, type: true, color: true },
-    }),
-    // Fetch invoices whose effective cash date falls in this year.
-    // Effective date = paidAt > expectedCollectionDate > dueDate > date.
-    // We need a broad query since paidAt/dueDate can place a prior-year invoice into this year.
     prisma.invoice.findMany({
       where: {
         organizationId,
         OR: [
-          // Emitted this year (fallback date in range)
           { date: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
-          // Paid this year (even if emitted earlier)
           { paidAt: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
-          // Due this year
           { dueDate: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
-          // Expected collection this year
-          { expectedCollectionDate: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) } },
         ],
       },
       select: {
         id: true,
         number: true,
-        counterpart: true,
         direction: true,
         grossAmount: true,
         vatAmount: true,
         date: true,
         dueDate: true,
-        expectedCollectionDate: true,
         status: true,
         paidAt: true,
-        costCenterId: true,
       },
     }),
     prisma.recurringExpense.findMany({
@@ -135,7 +118,6 @@ export async function GET(request: NextRequest) {
         amount: true,
         balance: true,
         isReconciled: true,
-        reconciledInvoiceId: true,
       },
     }),
     prisma.futureReceivable.findMany({
@@ -224,7 +206,6 @@ export async function GET(request: NextRequest) {
   );
 
   // ── Calculate year opening balance ──
-  // Priority: BalanceSnapshot EC_QUARTERLY (last quarter prev year) > MANUAL snapshot > manualBalance setting
   let yearOpeningBalance = 0;
   let usedBalanceSnapshot = false;
 
@@ -236,7 +217,6 @@ export async function GET(request: NextRequest) {
     if (bankAccount) {
       const prevYearEnd = new Date(year - 1, 11, 31);
 
-      // Priority 1: EC_QUARTERLY snapshot (closing balance from bank statement)
       const ecSnapshot = await prisma.balanceSnapshot.findFirst({
         where: {
           bankAccountId: bankAccount.id,
@@ -250,7 +230,6 @@ export async function GET(request: NextRequest) {
         yearOpeningBalance = Number(ecSnapshot.balance);
         usedBalanceSnapshot = true;
       } else {
-        // Priority 2: Any other snapshot (MANUAL, EC_ANNUAL)
         const anySnapshot = await prisma.balanceSnapshot.findFirst({
           where: {
             bankAccountId: bankAccount.id,
@@ -270,11 +249,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (!usedBalanceSnapshot) {
-    // Priority 3: manualBalance from settings
     if (manualBalance !== null) {
       yearOpeningBalance = manualBalance;
     } else if (hasBankDataForYear) {
-      // Priority 4: reverse-calc from first bank transaction
       const firstTx = bankStatementsForYear[0];
       yearOpeningBalance = Number(firstTx.balance) - Number(firstTx.amount);
     }
@@ -290,10 +267,9 @@ export async function GET(request: NextRequest) {
     detailMap[rowName][month].push(detail);
   }
 
-  // Effective cash date for an invoice: paidAt > expectedCollectionDate > dueDate > date
+  // Effective cash date for an invoice: paidAt > dueDate > date
   type InvoiceForCashDate = {
     paidAt: Date | null;
-    expectedCollectionDate: Date | null;
     dueDate: Date | null;
     date: Date;
     status: string;
@@ -301,41 +277,28 @@ export async function GET(request: NextRequest) {
 
   function getInvoiceCashDate(inv: InvoiceForCashDate): Date {
     if (inv.paidAt) return new Date(inv.paidAt);
-    if (inv.expectedCollectionDate) return new Date(inv.expectedCollectionDate);
     if (inv.dueDate) return new Date(inv.dueDate);
     return new Date(inv.date);
   }
 
   const isPaidStatus = (s: string) => s === "PAID";
-  const firstProjectionMonth = lastActualMonth + 1; // 0 if no bank data
+  const firstProjectionMonth = lastActualMonth + 1;
 
-  /**
-   * Determine which month column an invoice should appear in.
-   *
-   * - Paid invoices (paidAt set): always placed at paidAt month
-   * - Unpaid invoices: placed at expected date; if that falls in an
-   *   actual month (≤ lastActualMonth), bumped to first projection month.
-   *   If all 12 months are actual, excluded (null).
-   */
   function getInvoiceCashMonth(inv: InvoiceForCashDate): number | null {
     const cashDate = getInvoiceCashDate(inv);
 
     if (isPaidStatus(inv.status) && inv.paidAt) {
-      // Paid: strict placement at paidAt month
       if (new Date(inv.paidAt).getFullYear() !== year) return null;
       return new Date(inv.paidAt).getMonth();
     }
 
-    // Unpaid: expected cash date
     let m = cashDate.getFullYear() === year ? cashDate.getMonth() : null;
 
-    // If expected date is in an actual month, bump to first projection month
     if (m !== null && m <= lastActualMonth) {
-      if (firstProjectionMonth > 11) return null; // all months are actual
+      if (firstProjectionMonth > 11) return null;
       m = firstProjectionMonth;
     }
 
-    // If expected date is in a different year, check if it should land in first projection month
     if (m === null && cashDate.getFullYear() < year && firstProjectionMonth <= 11) {
       m = firstProjectionMonth;
     }
@@ -343,7 +306,7 @@ export async function GET(request: NextRequest) {
     return m;
   }
 
-  // ── Bank inflows & outflows (aggregated by month) ──
+  // ── Bank inflows & outflows ──
   const bankInflowName = "Entrate bancarie";
   const bankOutflowName = "Uscite bancarie";
   const bankInflowMonths = Array(12).fill(0);
@@ -370,53 +333,17 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // ── Revenue centers (ACTIVE invoices by cost center) — placed by cash date ──
-  const revenueCenters = costCenters.filter((cc) => cc.type === "REVENUE");
-  const revenueRows: MonthlyRow[] = [];
-
-  for (const cc of revenueCenters) {
-    const months = Array.from({ length: 12 }, (_, m) => {
-      const matching = invoices.filter(
-        (inv) =>
-          inv.direction === "ACTIVE" &&
-          inv.costCenterId === cc.id &&
-          getInvoiceCashMonth(inv) === m,
-      );
-      for (const inv of matching) {
-        const cashDate = getInvoiceCashDate(inv);
-        pushDetail(cc.name, m, {
-          id: inv.id,
-          label: `Fatt. ${inv.number}`,
-          counterpart: inv.counterpart,
-          amount: Number(inv.grossAmount),
-          type: "activeInvoice",
-          date: format(cashDate, "yyyy-MM-dd"),
-          status: inv.status,
-        });
-      }
-      return matching.reduce((sum, inv) => sum + Number(inv.grossAmount), 0);
-    });
-    revenueRows.push({
-      name: cc.name,
-      type: "revenue",
-      color: cc.color,
-      months,
-      total: months.reduce((a, b) => a + b, 0),
-    });
-  }
-
-  // Uncategorized revenue
-  const uncatRevName = "Altro (non classificato)";
-  const uncatRevMonths = Array.from({ length: 12 }, (_, m) => {
+  // ── Revenue (ACTIVE invoices) — placed by cash date ──
+  const revenueRowName = "Fatture attive";
+  const revenueMonths = Array.from({ length: 12 }, (_, m) => {
     const matching = invoices.filter(
-      (inv) => inv.direction === "ACTIVE" && !inv.costCenterId && getInvoiceCashMonth(inv) === m,
+      (inv) => inv.direction === "ACTIVE" && getInvoiceCashMonth(inv) === m,
     );
     for (const inv of matching) {
       const cashDate = getInvoiceCashDate(inv);
-      pushDetail(uncatRevName, m, {
+      pushDetail(revenueRowName, m, {
         id: inv.id,
         label: `Fatt. ${inv.number}`,
-        counterpart: inv.counterpart,
         amount: Number(inv.grossAmount),
         type: "activeInvoice",
         date: format(cashDate, "yyyy-MM-dd"),
@@ -425,19 +352,28 @@ export async function GET(request: NextRequest) {
     }
     return matching.reduce((sum, inv) => sum + Number(inv.grossAmount), 0);
   });
-  if (uncatRevMonths.some((v) => v > 0)) {
-    revenueRows.push({
-      name: uncatRevName,
-      type: "revenue",
-      months: uncatRevMonths,
-      total: uncatRevMonths.reduce((a, b) => a + b, 0),
-    });
-  }
 
-  // ── Cost centers (PASSIVE invoices + recurring expenses + expected payables + one-off) ──
-  const costCentersList = costCenters.filter((cc) => cc.type === "COST");
-  const costRows: MonthlyRow[] = [];
+  // ── Cost (PASSIVE invoices) ──
+  const costInvRowName = "Fatture passive";
+  const costInvMonths = Array.from({ length: 12 }, (_, m) => {
+    const matching = invoices.filter(
+      (inv) => inv.direction === "PASSIVE" && getInvoiceCashMonth(inv) === m,
+    );
+    for (const inv of matching) {
+      const cashDate = getInvoiceCashDate(inv);
+      pushDetail(costInvRowName, m, {
+        id: inv.id,
+        label: `Fatt. ${inv.number}`,
+        amount: Number(inv.grossAmount),
+        type: "passiveInvoice",
+        date: format(cashDate, "yyyy-MM-dd"),
+        status: inv.status,
+      });
+    }
+    return matching.reduce((sum, inv) => sum + Number(inv.grossAmount), 0);
+  });
 
+  // ── Recurring expenses (with cost center grouping) ──
   // Helper: check if a recurring expense applies to month m
   function recurringApplies(
     exp: { frequency: string; startDate: Date | string; endDate: Date | string | null },
@@ -457,124 +393,11 @@ export async function GET(request: NextRequest) {
     return false;
   }
 
-  for (const cc of costCentersList) {
-    const months = Array.from({ length: 12 }, (_, m) => {
-      let total = 0;
-
-      // 1. Passive invoices for this cost center
-      const matchingInv = invoices.filter(
-        (inv) =>
-          inv.direction === "PASSIVE" &&
-          inv.costCenterId === cc.id &&
-          getInvoiceCashMonth(inv) === m,
-      );
-      for (const inv of matchingInv) {
-        const cashDate = getInvoiceCashDate(inv);
-        pushDetail(cc.name, m, {
-          id: inv.id,
-          label: `Fatt. ${inv.number}`,
-          counterpart: inv.counterpart,
-          amount: Number(inv.grossAmount),
-          type: "passiveInvoice",
-          date: format(cashDate, "yyyy-MM-dd"),
-          status: inv.status,
-        });
-        total += Number(inv.grossAmount);
-      }
-
-      // 2. Recurring expenses for this cost center
-      // Skip for actual months — these costs are already captured in bank outflows
-      if (monthDataSource[m] !== "bank") {
-        for (const exp of recurringExpenses) {
-          if (exp.costCenterId !== cc.id) continue;
-          if (!recurringApplies(exp, m)) continue;
-          const amt = Number(exp.amount);
-          total += amt;
-          pushDetail(cc.name, m, {
-            id: exp.id,
-            label: exp.name,
-            amount: amt,
-            type: "recurringExpense",
-            date: format(new Date(year, m, 1), "yyyy-MM-dd"),
-          });
-        }
-      }
-
-      // 3. Expected payables for this cost center
-      // Skip for actual months — these costs are already captured in bank outflows
-      if (monthDataSource[m] !== "bank") {
-        for (const ep of expectedPayables) {
-          if (ep.costCenterId !== cc.id) continue;
-          const amt = Number(ep.amount);
-          if (amt <= 0) continue;
-          const epStartMonth = new Date(ep.startDate).getMonth();
-          const epStartYear = new Date(ep.startDate).getFullYear();
-          const epEndMonth = ep.endDate ? new Date(ep.endDate).getMonth() : 11;
-          const epEndYear = ep.endDate ? new Date(ep.endDate).getFullYear() : year;
-          const inRange =
-            (epStartYear < year || (epStartYear === year && epStartMonth <= m)) &&
-            (epEndYear > year || (epEndYear === year && epEndMonth >= m));
-          if (!inRange) continue;
-          let applies = false;
-          if (ep.frequency === "MONTHLY") applies = true;
-          else if (ep.frequency === "QUARTERLY" && m % 3 === epStartMonth % 3) applies = true;
-          else if (ep.frequency === "ANNUAL" && m === epStartMonth) applies = true;
-          else if (!ep.frequency) applies = true;
-          if (!applies) continue;
-          total += amt;
-          pushDetail(cc.name, m, {
-            id: ep.id,
-            label: ep.description,
-            counterpart: ep.counterpart,
-            amount: amt,
-            type: "expectedPayable",
-            date: format(new Date(year, m, ep.dayOfMonth ?? 1), "yyyy-MM-dd"),
-            status: "ACTIVE",
-          });
-        }
-      }
-
-      // 4. One-off expenses for this cost center
-      // For actual months, only include paid one-offs (unpaid are projections)
-      const matchingOneOff = oneOffExpenses.filter(
-        (exp) =>
-          exp.costCenterId === cc.id &&
-          new Date(exp.date).getMonth() === m &&
-          (monthDataSource[m] !== "bank" || exp.isPaid),
-      );
-      for (const exp of matchingOneOff) {
-        const amt = Number(exp.amount);
-        total += amt;
-        pushDetail(cc.name, m, {
-          id: exp.id,
-          label: exp.name,
-          amount: amt,
-          type: "oneOffExpense",
-          date: format(new Date(exp.date), "yyyy-MM-dd"),
-          status: exp.isPaid ? "PAID" : "PENDING",
-        });
-      }
-
-      return total;
-    });
-    costRows.push({
-      name: cc.name,
-      type: "cost",
-      color: cc.color,
-      months,
-      total: months.reduce((a, b) => a + b, 0),
-    });
-  }
-
-  // ── Recurring expenses (only those WITHOUT a cost center — others already counted in cost center rows) ──
-  // Skip for actual months — these costs are already captured in bank outflows
   const recurringRowName = "Spese ricorrenti";
-  const costCenterIds = new Set(costCentersList.map((cc) => cc.id));
   const recurringMonths = Array.from({ length: 12 }, (_, m) => {
     if (monthDataSource[m] === "bank") return 0;
     let total = 0;
     for (const exp of recurringExpenses) {
-      if (exp.costCenterId && costCenterIds.has(exp.costCenterId)) continue;
       if (!recurringApplies(exp, m)) continue;
       const amount = Number(exp.amount);
       total += amount;
@@ -589,15 +412,11 @@ export async function GET(request: NextRequest) {
     return total;
   });
 
-  // ── One-off expenses (only those WITHOUT a cost center) ──
-  // For actual months, only include paid one-offs (unpaid are projections already in bank data)
+  // ── One-off expenses ──
   const oneOffRowName = "Spese una tantum";
   const oneOffMonths = Array.from({ length: 12 }, (_, m) => {
     const matching = oneOffExpenses.filter(
-      (exp) =>
-        new Date(exp.date).getMonth() === m &&
-        !(exp.costCenterId && costCenterIds.has(exp.costCenterId)) &&
-        (monthDataSource[m] !== "bank" || exp.isPaid),
+      (exp) => new Date(exp.date).getMonth() === m && (monthDataSource[m] !== "bank" || exp.isPaid),
     );
     for (const exp of matching) {
       pushDetail(oneOffRowName, m, {
@@ -612,12 +431,10 @@ export async function GET(request: NextRequest) {
     return matching.reduce((sum, exp) => sum + Number(exp.amount), 0);
   });
 
-  // ── Expected payables (only those WITHOUT a cost center) ──
-  // Skip for actual months — these costs are already captured in bank outflows
+  // ── Expected payables ──
   const epRowName = "Fatture passive attese";
   const epMonths = Array.from({ length: 12 }, () => 0);
   for (const ep of expectedPayables) {
-    if (ep.costCenterId && costCenterIds.has(ep.costCenterId)) continue;
     const amt = Number(ep.amount);
     if (amt <= 0) continue;
 
@@ -645,7 +462,6 @@ export async function GET(request: NextRequest) {
         pushDetail(epRowName, m, {
           id: ep.id,
           label: ep.description,
-          counterpart: ep.counterpart,
           amount: amt,
           type: "expectedPayable",
           date: format(new Date(year, m, ep.dayOfMonth ?? 1), "yyyy-MM-dd"),
@@ -664,7 +480,6 @@ export async function GET(request: NextRequest) {
     date: new Date(inv.date),
   }));
   const vatCalcs = calculateVatForYear(vatPeriods, vatInvoices);
-  // Skip IVA for actual months — VAT payments are already captured in bank outflows
   const vatRowName = "IVA";
   const vatMonths = Array.from({ length: 12 }, (_, m) => {
     if (monthDataSource[m] === "bank") return 0;
@@ -686,21 +501,12 @@ export async function GET(request: NextRequest) {
     return matching.reduce((sum, c) => sum + c.amountDue, 0);
   });
 
-  // ── Compute totals per month using bank data for actual months, projections for forecast ──
-  const totalRevenueMonths = Array.from({ length: 12 }, (_, m) =>
-    revenueRows.reduce((sum, r) => sum + r.months[m], 0),
-  );
+  // ── Compute totals ──
+  const totalRevenueMonths = revenueMonths;
   const totalCostMonths = Array.from({ length: 12 }, (_, m) => {
-    let sum = 0;
-    for (const r of costRows) sum += r.months[m];
-    sum += recurringMonths[m];
-    sum += oneOffMonths[m];
-    sum += epMonths[m];
-    sum += vatMonths[m];
-    return sum;
+    return costInvMonths[m] + recurringMonths[m] + oneOffMonths[m] + epMonths[m] + vatMonths[m];
   });
 
-  // Effective monthly totals: bank data for actual months, projections for forecast
   const effectiveInflowMonths = Array.from({ length: 12 }, (_, m) =>
     monthDataSource[m] === "bank" ? bankInflowMonths[m] : totalRevenueMonths[m],
   );
@@ -708,14 +514,13 @@ export async function GET(request: NextRequest) {
     monthDataSource[m] === "bank" ? bankOutflowMonths[m] : totalCostMonths[m],
   );
 
-  // ── Future receivables (incassi futuri) — compute early so they feed into balances ──
+  // ── Future receivables ──
   const frMonths = Array.from({ length: 12 }, (_, m) => {
     const matching = (futureReceivables ?? []).filter(
       (fr) => fr.expectedPaymentDate && new Date(fr.expectedPaymentDate).getMonth() === m,
     );
     return matching.reduce((sum, fr) => sum + Number(fr.estimatedAmount), 0);
   });
-  // Include future receivables only in projection months (bank months already have real data)
   const frEffective = frMonths.map((v, m) => (monthDataSource[m] === "projection" ? v : 0));
   const effectiveInflowWithFr = effectiveInflowMonths.map((v, m) => v + frEffective[m]);
 
@@ -727,7 +532,6 @@ export async function GET(request: NextRequest) {
       saldoRiportatoMonths[m - 1] + effectiveInflowWithFr[m - 1] - effectiveOutflowMonths[m - 1];
   }
 
-  // Monthly balance and cumulative (includes future receivables)
   const monthlyBalance = Array.from(
     { length: 12 },
     (_, m) => effectiveInflowWithFr[m] - effectiveOutflowMonths[m],
@@ -737,17 +541,15 @@ export async function GET(request: NextRequest) {
     (_, m) => saldoRiportatoMonths[m] + monthlyBalance[m],
   );
 
-  // ── Assemble rows in order ──
+  // ── Assemble rows ──
 
-  // 1. SALDO RIPORTATO
   rows.push({
     name: "SALDO RIPORTATO",
     type: "saldoRiportato",
     months: saldoRiportatoMonths,
-    total: saldoRiportatoMonths[0], // Show opening balance as total
+    total: saldoRiportatoMonths[0],
   });
 
-  // 2. Bank inflows (actual months only)
   rows.push({
     name: bankInflowName,
     type: "bankInflow",
@@ -755,10 +557,14 @@ export async function GET(request: NextRequest) {
     total: bankInflowMonths.reduce((a: number, b: number) => a + b, 0),
   });
 
-  // 3. Revenue rows (projection months only)
-  for (const r of revenueRows) rows.push(r);
+  rows.push({
+    name: revenueRowName,
+    type: "revenue",
+    months: revenueMonths,
+    total: revenueMonths.reduce((a, b) => a + b, 0),
+  });
 
-  // 3b. Incassi futuri (amounts computed earlier for balance calc, here we push details + row)
+  // Future receivables
   const frRowName = "Incassi futuri";
   for (let m = 0; m < 12; m++) {
     const matching = (futureReceivables ?? []).filter(
@@ -784,7 +590,6 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // 4. TOTALE ENTRATE (include incassi futuri)
   rows.push({
     name: "TOTALE ENTRATE",
     type: "total",
@@ -792,7 +597,6 @@ export async function GET(request: NextRequest) {
     total: effectiveInflowWithFr.reduce((a, b) => a + b, 0),
   });
 
-  // 5. Bank outflows (actual months only)
   rows.push({
     name: bankOutflowName,
     type: "bankOutflow",
@@ -800,10 +604,13 @@ export async function GET(request: NextRequest) {
     total: bankOutflowMonths.reduce((a: number, b: number) => a + b, 0),
   });
 
-  // 6. Cost rows (projection months only)
-  for (const r of costRows) rows.push(r);
+  rows.push({
+    name: costInvRowName,
+    type: "cost",
+    months: costInvMonths,
+    total: costInvMonths.reduce((a, b) => a + b, 0),
+  });
 
-  // 7. Recurring expenses
   rows.push({
     name: recurringRowName,
     type: "recurring",
@@ -811,7 +618,6 @@ export async function GET(request: NextRequest) {
     total: recurringMonths.reduce((a, b) => a + b, 0),
   });
 
-  // 8. One-off expenses
   if (oneOffMonths.some((v) => v > 0)) {
     rows.push({
       name: oneOffRowName,
@@ -821,7 +627,6 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // 8b. Expected payables (fatture passive attese)
   if (epMonths.some((v) => v > 0)) {
     rows.push({
       name: epRowName,
@@ -831,7 +636,6 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // 9. IVA
   rows.push({
     name: vatRowName,
     type: "vat",
@@ -839,7 +643,6 @@ export async function GET(request: NextRequest) {
     total: vatMonths.reduce((a, b) => a + b, 0),
   });
 
-  // 10. TOTALE USCITE
   rows.push({
     name: "TOTALE USCITE",
     type: "total",
@@ -847,7 +650,6 @@ export async function GET(request: NextRequest) {
     total: effectiveOutflowMonths.reduce((a, b) => a + b, 0),
   });
 
-  // 11. SALDO MESE
   rows.push({
     name: "SALDO MESE",
     type: "total",
@@ -855,7 +657,6 @@ export async function GET(request: NextRequest) {
     total: monthlyBalance.reduce((a, b) => a + b, 0),
   });
 
-  // 12. SALDO CUMULATO
   rows.push({
     name: "SALDO CUMULATO",
     type: "cumulative",

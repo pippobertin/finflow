@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Tags, FileText, X, Trash2 } from "lucide-react";
+import { FileText, X, Trash2 } from "lucide-react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -19,15 +18,9 @@ import { BulkPaidDialog } from "./bulk-paid-dialog";
 import { DataTableSkeleton } from "@/components/dashboard/data-table-skeleton";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Pagination } from "@/components/dashboard/pagination";
-import {
-  useInvoices,
-  useAutoTag,
-  useBulkUpdateStatus,
-  useBulkDeleteInvoices,
-} from "@/lib/hooks/use-invoices";
+import { useInvoices, useBulkUpdateStatus, useBulkDeleteInvoices } from "@/lib/hooks/use-invoices";
 import { getStatusOptions } from "@/lib/helpers/invoice-labels";
 import { formatEUR } from "@/lib/helpers/format";
-import { toast } from "sonner";
 
 const PAGE_SIZE = 50;
 
@@ -43,11 +36,9 @@ export function InvoicesClient() {
   const [showBulkPaidDialog, setShowBulkPaidDialog] = useState(false);
 
   const direction = tab === "ACTIVE" ? "ACTIVE" : tab === "PASSIVE" ? "PASSIVE" : undefined;
-  const needsTagging = tab === "UNTAGGED" ? true : undefined;
 
   const { data, isLoading } = useInvoices({
     direction,
-    needsTagging,
     search: search || undefined,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
     startDate: startDate || undefined,
@@ -56,7 +47,6 @@ export function InvoicesClient() {
     pageSize: PAGE_SIZE,
   });
 
-  const autoTag = useAutoTag();
   const bulkUpdate = useBulkUpdateStatus();
   const bulkDelete = useBulkDeleteInvoices();
 
@@ -65,7 +55,6 @@ export function InvoicesClient() {
   const totalPages = (data as { totalPages: number } | undefined)?.totalPages ?? 1;
   const totalGrossAmount =
     (data as { totalGrossAmount: number } | undefined)?.totalGrossAmount ?? 0;
-  const untaggedCount = tab === "UNTAGGED" ? total : undefined;
 
   const statusOpts = useMemo(() => getStatusOptions(direction), [direction]);
 
@@ -107,18 +96,6 @@ export function InvoicesClient() {
   function handlePageChange(newPage: number) {
     setPage(newPage);
     resetSelection();
-  }
-
-  function handleAutoTag() {
-    autoTag.mutate(undefined, {
-      onSuccess: (data) => {
-        const result = data as { tagged: number; untagged: number };
-        toast.success(
-          `Classificate ${result.tagged} fatture, ${result.untagged} ancora da classificare`,
-        );
-      },
-      onError: (err) => toast.error(err.message),
-    });
   }
 
   const handleSelectionChange = useCallback((id: string, checked: boolean) => {
@@ -169,9 +146,7 @@ export function InvoicesClient() {
   // Invoices selected for bulk paid dialog
   const selectedInvoicesForDialog = useMemo(
     () =>
-      (invoices as Array<{ id: string; number: string; counterpart: string }>).filter((inv) =>
-        selectedIds.has(inv.id),
-      ),
+      (invoices as Array<{ id: string; number: string }>).filter((inv) => selectedIds.has(inv.id)),
     [invoices, selectedIds],
   );
 
@@ -185,22 +160,7 @@ export function InvoicesClient() {
               <TabsTrigger value="ALL">Tutte</TabsTrigger>
               <TabsTrigger value="ACTIVE">Attive</TabsTrigger>
               <TabsTrigger value="PASSIVE">Passive</TabsTrigger>
-              <TabsTrigger value="UNTAGGED" className="gap-1.5">
-                Da Classificare
-                {untaggedCount !== undefined && untaggedCount > 0 && (
-                  <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-[10px]">
-                    {untaggedCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
             </TabsList>
-
-            {tab === "UNTAGGED" && (
-              <Button size="sm" onClick={handleAutoTag} disabled={autoTag.isPending}>
-                <Tags className="mr-2 h-4 w-4" />
-                {autoTag.isPending ? "Classificazione..." : "Auto-classifica tutto"}
-              </Button>
-            )}
           </div>
 
           <InvoiceFilters
@@ -263,7 +223,7 @@ export function InvoicesClient() {
 
           <TabsContent value={tab} className="mt-4">
             {isLoading ? (
-              <DataTableSkeleton columns={7} />
+              <DataTableSkeleton columns={6} />
             ) : invoices.length === 0 ? (
               <EmptyState
                 icon={FileText}
@@ -277,7 +237,6 @@ export function InvoicesClient() {
                   selectedIds={selectedIds}
                   onSelectionChange={handleSelectionChange}
                   onSelectAll={handleSelectAll}
-                  direction={direction as "ACTIVE" | "PASSIVE" | undefined}
                 />
 
                 {/* Totals row */}

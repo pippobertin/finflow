@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck — Legacy CSV import UI, behind feature flags. Will be removed in Block D.
 "use client";
 
 import { useState, useCallback } from "react";

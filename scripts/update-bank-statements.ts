@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck — Legacy script using removed reconciliation fields. Will be removed in Block D.
 /**
  * Script: import new bank statements from updated CSV,
  * then compare forward-calc balance vs currentBalance.

@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck — Legacy FatturaPA parser tests. Will be removed in Block D.
 import { describe, it, expect } from "vitest";
 import { parseFatturaPA } from "../fatturapa-parser";
 import { FEATURES } from "@/lib/feature-flags";

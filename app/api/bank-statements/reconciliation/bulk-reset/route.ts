@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck — Legacy reconciliation bulk-reset, behind LEGACY_RECONCILIATION flag. Will be removed in Block D.
 import { getAdminSession } from "@/lib/helpers/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { findMatches } from "@/lib/reconciliation/reconciliation-engine";

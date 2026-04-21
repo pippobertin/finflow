@@ -377,8 +377,6 @@ model CostCenter {
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
   organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  invoices           Invoice[]
-  invoiceLines       InvoiceLine[]
   recurringExpenses  RecurringExpense[]
   oneOffExpenses     OneOffExpense[]
   bankStatements     BankStatement[]
@@ -398,57 +396,26 @@ model Invoice {
   number         String
   date           DateTime
   dueDate        DateTime?        @map("due_date")
-  counterpart    String
-  vatNumber      String?          @map("vat_number")
-  description    String?
   netAmount      Decimal          @map("net_amount") @db.Decimal(12, 2)
   vatAmount      Decimal          @map("vat_amount") @db.Decimal(12, 2)
   grossAmount    Decimal          @map("gross_amount") @db.Decimal(12, 2)
-  costCenterId   String?          @map("cost_center_id")
-  needsTagging   Boolean          @default(false) @map("needs_tagging")
+  bankAccountId  String?          @map("bank_account_id")
   paidAt         DateTime?        @map("paid_at")
-  connectorRef   String?          @map("connector_ref")
-  documentType   String?          @map("document_type")
-  // Fase 2 — DSO override
-  expectedCollectionDate DateTime? @map("expected_collection_date") @db.Date
-  counterpartCustomDso   Int?      @map("counterpart_custom_dso")
-  // Fase 2 — Sofisticazioni bancarie
-  isDiscountedAtBank     Boolean   @default(false) @map("is_discounted_at_bank")
-  bankDiscountType       String?   @map("bank_discount_type")
-  bankLiquidationDate    DateTime? @map("bank_liquidation_date") @db.Date
-  bankDiscountFee        Decimal?  @map("bank_discount_fee") @db.Decimal(15, 2)
+  notes          String?
   // V2 — data freezing
   isFrozen       Boolean?         @default(false) @map("is_frozen")
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
-  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  costCenter         CostCenter?        @relation(fields: [costCenterId], references: [id])
-  lines              InvoiceLine[]
-  bankStatements     BankStatement[]
-  futureReceivables  FutureReceivable[]
-  paymentEvents      PaymentEvent[]
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount       BankAccount?      @relation(fields: [bankAccountId], references: [id])
+  futureReceivables FutureReceivable[]
+  paymentEvents     PaymentEvent[]
 
   @@index([organizationId, direction])
   @@index([organizationId, status])
   @@index([organizationId, date])
   @@map("fin_invoice")
-  @@schema("public")
-}
-
-model InvoiceLine {
-  id           String  @id @default(cuid())
-  invoiceId    String  @map("invoice_id")
-  description  String
-  quantity     Decimal @default(1) @db.Decimal(10, 2)
-  unitPrice    Decimal @map("unit_price") @db.Decimal(12, 2)
-  amount       Decimal @db.Decimal(12, 2)
-  costCenterId String? @map("cost_center_id")
-
-  invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  costCenter CostCenter? @relation(fields: [costCenterId], references: [id])
-
-  @@map("fin_invoice_line")
   @@schema("public")
 }
 
@@ -474,7 +441,6 @@ model RecurringExpense {
 
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   costCenter     CostCenter?     @relation(fields: [costCenterId], references: [id])
-  bankStatements BankStatement[]
 
   @@map("fin_recurring_expense")
   @@schema("public")
@@ -507,38 +473,32 @@ model OneOffExpense {
 }
 
 model BankStatement {
-  id                    String       @id @default(cuid())
-  organizationId        String       @map("organization_id")
-  bankAccountId         String?      @map("bank_account_id")
-  date                  DateTime
-  description           String
-  amount                Decimal      @db.Decimal(12, 2)
-  balance               Decimal      @db.Decimal(12, 2)
-  costCenterId          String?      @map("cost_center_id")
-  reference             String?
-  sourceFile            String?      @map("source_file")
-  fingerprint           String?
-  isReconciled          Boolean      @default(false) @map("is_reconciled")
-  reconciledInvoiceId   String?      @map("reconciled_invoice_id")
-  reconciledInvoiceIds  String[]     @default([]) @map("reconciled_invoice_ids")
-  reconciledExpenseId   String?      @map("reconciled_expense_id")
-  reconciledType        String?      @map("reconciled_type")
-  reconciledAt          DateTime?    @map("reconciled_at") @db.Timestamptz(6)
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  bankAccountId  String?  @map("bank_account_id")
+  date           DateTime
+  description    String
+  amount         Decimal  @db.Decimal(12, 2)
+  balance        Decimal  @db.Decimal(12, 2)
+  netAmount      Decimal? @map("net_amount") @db.Decimal(12, 2)
+  vatAmount      Decimal? @map("vat_amount") @db.Decimal(12, 2)
+  costCenterId   String?  @map("cost_center_id")
+  reference      String?
+  sourceFile     String?  @map("source_file")
+  fingerprint    String?
+  isReconciled   Boolean  @default(false) @map("is_reconciled")
   // V2 — data freezing
-  isFrozen              Boolean?     @default(false) @map("is_frozen")
-  createdAt             DateTime     @default(now()) @map("created_at")
+  isFrozen       Boolean? @default(false) @map("is_frozen")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  bankAccount       BankAccount?      @relation(fields: [bankAccountId], references: [id])
-  costCenter        CostCenter?       @relation(fields: [costCenterId], references: [id])
-  reconciledInvoice Invoice?          @relation(fields: [reconciledInvoiceId], references: [id], onUpdate: NoAction, map: "fk_bank_statement_invoice")
-  reconciledExpense RecurringExpense? @relation(fields: [reconciledExpenseId], references: [id], onUpdate: NoAction, map: "fk_bank_statement_expense")
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount      BankAccount?     @relation(fields: [bankAccountId], references: [id])
+  costCenter       CostCenter?      @relation(fields: [costCenterId], references: [id])
+  dismissedMatches DismissedMatch[]
 
   @@index([organizationId, date])
   @@index([organizationId, isReconciled], map: "idx_bank_statement_reconciled", where: raw("(is_reconciled = false)"))
   @@index([organizationId, fingerprint])
-  dismissedMatches  DismissedMatch[]
-
   @@map("fin_bank_statement")
   @@schema("public")
 }
@@ -728,6 +688,7 @@ model BankAccount {
   closingBalances  BalanceSnapshot[]
   bankProfile      BankProfile?
   bankStatements   BankStatement[]
+  invoices         Invoice[]
 
   @@map("fin_bank_account")
   @@schema("public")

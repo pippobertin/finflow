@@ -16,7 +16,6 @@ import { getPaymentDateLabel } from "@/lib/helpers/invoice-labels";
 interface InvoiceEntry {
   id: string;
   number: string;
-  counterpart: string;
 }
 
 interface BulkPaidDialogProps {
@@ -63,7 +62,6 @@ export function BulkPaidDialog({
             <thead>
               <tr className="border-b text-left">
                 <th className="py-2 font-medium">Fattura</th>
-                <th className="py-2 font-medium">Controparte</th>
                 <th className="py-2 text-right font-medium">{dateLabel}</th>
               </tr>
             </thead>
@@ -71,7 +69,6 @@ export function BulkPaidDialog({
               {invoices.map((inv) => (
                 <tr key={inv.id} className="border-b last:border-0">
                   <td className="py-2 font-medium">{inv.number}</td>
-                  <td className="text-muted-foreground py-2">{inv.counterpart}</td>
                   <td className="py-2 text-right">
                     <input
                       type="date"

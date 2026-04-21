@@ -13,8 +13,6 @@ export async function GET(request: NextRequest) {
     organizationId,
     direction: sp.get("direction") as InvoiceDirection | undefined,
     status: sp.get("status") as InvoiceStatus | undefined,
-    costCenterId: sp.get("costCenterId") ?? undefined,
-    needsTagging: sp.has("needsTagging") ? sp.get("needsTagging") === "true" : undefined,
     search: sp.get("search") ?? undefined,
     startDate: sp.get("startDate") ? new Date(sp.get("startDate")!) : undefined,
     endDate: sp.get("endDate") ? new Date(sp.get("endDate")!) : undefined,

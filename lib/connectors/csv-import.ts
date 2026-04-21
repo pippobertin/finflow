@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck — Legacy connector, behind LEGACY_FATTURAPA_IMPORT flag. Will be removed in Block D.
 import { prisma } from "@/lib/prisma";
 import { parseCsv, parseItalianNumber, parseDate } from "@/lib/parsers/csv-parser";
 import { autoTagInvoices } from "@/lib/tagging/auto-tagger";

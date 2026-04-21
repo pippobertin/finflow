@@ -43,45 +43,15 @@ export async function listBankStatements(params: BankStatementListParams) {
   };
 
   const [data, total] = await Promise.all([
-    prisma.bankStatement
-      .findMany({
-        where,
-        include: {
-          costCenter: { select: { id: true, name: true, color: true } },
-          reconciledInvoice: { select: { id: true, number: true, counterpart: true } },
-        },
-        orderBy: { date: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      })
-      .then(async (rows) => {
-        // Resolve all reconciledInvoiceIds to full invoice data for multi-match display
-        try {
-          const multiIds = rows
-            .filter((r) => r.reconciledInvoiceIds && r.reconciledInvoiceIds.length > 1)
-            .flatMap((r) => r.reconciledInvoiceIds);
-          if (multiIds.length === 0) return rows;
-
-          const invoices = await prisma.invoice.findMany({
-            where: { id: { in: multiIds } },
-            select: { id: true, number: true, counterpart: true },
-          });
-          const invoiceMap = new Map(invoices.map((i) => [i.id, i]));
-
-          return rows.map((r) => {
-            if (!r.reconciledInvoiceIds || r.reconciledInvoiceIds.length <= 1) return r;
-            return {
-              ...r,
-              reconciledInvoices: r.reconciledInvoiceIds
-                .map((id) => invoiceMap.get(id))
-                .filter(Boolean),
-            };
-          });
-        } catch {
-          // reconciledInvoiceIds column may not exist — return rows as-is
-          return rows;
-        }
-      }),
+    prisma.bankStatement.findMany({
+      where,
+      include: {
+        costCenter: { select: { id: true, name: true, color: true } },
+      },
+      orderBy: { date: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
     prisma.bankStatement.count({ where }),
   ]);
 

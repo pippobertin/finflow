@@ -1,13 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCostCenterFilter } from "@/lib/stores/cost-center-filter";
 import { toast } from "sonner";
 
 interface InvoiceFilters {
   direction?: string;
   status?: string;
-  needsTagging?: boolean;
   search?: string;
   startDate?: string;
   endDate?: string;
@@ -25,23 +23,19 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function useInvoices(filters: InvoiceFilters = {}) {
-  const { selectedIds } = useCostCenterFilter();
-
   const params = new URLSearchParams();
   if (filters.direction) params.set("direction", filters.direction);
   if (filters.status) params.set("status", filters.status);
-  if (filters.needsTagging !== undefined) params.set("needsTagging", String(filters.needsTagging));
   if (filters.search) params.set("search", filters.search);
   if (filters.startDate) params.set("startDate", filters.startDate);
   if (filters.endDate) params.set("endDate", filters.endDate);
   if (filters.page) params.set("page", String(filters.page));
   if (filters.pageSize) params.set("pageSize", String(filters.pageSize));
-  if (selectedIds.length) params.set("costCenterId", selectedIds[0]);
 
   const qs = params.toString();
 
   return useQuery({
-    queryKey: ["invoices", filters, selectedIds],
+    queryKey: ["invoices", filters],
     queryFn: () => fetchJson(`/api/invoices${qs ? `?${qs}` : ""}`),
   });
 }
@@ -51,40 +45,25 @@ export function useUpdateInvoice() {
   return useMutation({
     mutationFn: ({
       invoiceId,
-      costCenterId,
       status,
       paidAt,
-      expectedCollectionDate,
-      counterpartCustomDso,
-      isDiscountedAtBank,
-      bankDiscountType,
-      bankLiquidationDate,
-      bankDiscountFee,
+      notes,
+      bankAccountId,
     }: {
       invoiceId: string;
-      costCenterId?: string | null;
       status?: string;
       paidAt?: string | null;
-      expectedCollectionDate?: string | null;
-      counterpartCustomDso?: number | null;
-      isDiscountedAtBank?: boolean;
-      bankDiscountType?: string | null;
-      bankLiquidationDate?: string | null;
-      bankDiscountFee?: number | null;
+      notes?: string | null;
+      bankAccountId?: string | null;
     }) =>
       fetchJson(`/api/invoices/${invoiceId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(costCenterId !== undefined && { costCenterId }),
           ...(status !== undefined && { status }),
           ...(paidAt !== undefined && { paidAt }),
-          ...(expectedCollectionDate !== undefined && { expectedCollectionDate }),
-          ...(counterpartCustomDso !== undefined && { counterpartCustomDso }),
-          ...(isDiscountedAtBank !== undefined && { isDiscountedAtBank }),
-          ...(bankDiscountType !== undefined && { bankDiscountType }),
-          ...(bankLiquidationDate !== undefined && { bankLiquidationDate }),
-          ...(bankDiscountFee !== undefined && { bankDiscountFee }),
+          ...(notes !== undefined && { notes }),
+          ...(bankAccountId !== undefined && { bankAccountId }),
         }),
       }),
     onSuccess: () => {
@@ -93,9 +72,6 @@ export function useUpdateInvoice() {
     },
   });
 }
-
-/** @deprecated Use useUpdateInvoice */
-export const useReassignInvoice = useUpdateInvoice;
 
 export function useBulkUpdateStatus() {
   const qc = useQueryClient();
@@ -154,21 +130,5 @@ export function useBulkDeleteInvoices() {
       toast.success(`${data.deleted} fatture eliminate`);
     },
     onError: (err) => toast.error(err.message),
-  });
-}
-
-export function useAutoTag() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (invoiceIds?: string[]) =>
-      fetchJson("/api/invoices/tag", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceIds }),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] });
-      qc.invalidateQueries({ queryKey: ["overview"] });
-    },
   });
 }

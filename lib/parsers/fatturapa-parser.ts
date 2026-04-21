@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck — Legacy FatturaPA parser, behind LEGACY_FATTURAPA_IMPORT flag. Will be removed in Block D.
 import { XMLParser } from "fast-xml-parser";
 import AdmZip from "adm-zip";
 

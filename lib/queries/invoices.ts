@@ -5,8 +5,6 @@ export interface InvoiceListParams {
   organizationId: string;
   direction?: InvoiceDirection;
   status?: InvoiceStatus;
-  costCenterId?: string;
-  needsTagging?: boolean;
   search?: string;
   startDate?: Date;
   endDate?: Date;
@@ -19,8 +17,6 @@ export async function listInvoices(params: InvoiceListParams) {
     organizationId,
     direction,
     status,
-    costCenterId,
-    needsTagging,
     search,
     startDate,
     endDate,
@@ -32,8 +28,6 @@ export async function listInvoices(params: InvoiceListParams) {
     organizationId,
     ...(direction && { direction }),
     ...(status && { status }),
-    ...(costCenterId && { costCenterId }),
-    ...(needsTagging !== undefined && { needsTagging }),
     ...((startDate || endDate) && {
       date: {
         ...(startDate && { gte: startDate }),
@@ -42,9 +36,8 @@ export async function listInvoices(params: InvoiceListParams) {
     }),
     ...(search && {
       OR: [
-        { counterpart: { contains: search, mode: "insensitive" as const } },
         { number: { contains: search, mode: "insensitive" as const } },
-        { description: { contains: search, mode: "insensitive" as const } },
+        { notes: { contains: search, mode: "insensitive" as const } },
       ],
     }),
   };
@@ -52,9 +45,6 @@ export async function listInvoices(params: InvoiceListParams) {
   const [data, total, agg] = await Promise.all([
     prisma.invoice.findMany({
       where,
-      include: {
-        costCenter: { select: { id: true, name: true, color: true, type: true } },
-      },
       orderBy: { date: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -80,15 +70,10 @@ export async function updateInvoice(
   invoiceId: string,
   organizationId: string,
   updates: {
-    costCenterId?: string | null;
     status?: InvoiceStatus;
     paidAt?: Date | null;
-    expectedCollectionDate?: Date | null;
-    counterpartCustomDso?: number | null;
-    isDiscountedAtBank?: boolean;
-    bankDiscountType?: string | null;
-    bankLiquidationDate?: Date | null;
-    bankDiscountFee?: number | null;
+    notes?: string | null;
+    bankAccountId?: string | null;
   },
 ) {
   const invoice = await prisma.invoice.findFirst({
@@ -97,11 +82,6 @@ export async function updateInvoice(
   if (!invoice) return null;
 
   const data: Prisma.InvoiceUncheckedUpdateInput = {};
-
-  if (updates.costCenterId !== undefined) {
-    data.costCenterId = updates.costCenterId;
-    data.needsTagging = updates.costCenterId === null;
-  }
 
   if (updates.status !== undefined) {
     data.status = updates.status;
@@ -112,41 +92,18 @@ export async function updateInvoice(
     }
   }
 
-  // DSO override fields
-  if (updates.expectedCollectionDate !== undefined) {
-    data.expectedCollectionDate = updates.expectedCollectionDate;
-  }
-  if (updates.counterpartCustomDso !== undefined) {
-    data.counterpartCustomDso = updates.counterpartCustomDso;
+  if (updates.notes !== undefined) {
+    data.notes = updates.notes;
   }
 
-  // Bank operations fields
-  if (updates.isDiscountedAtBank !== undefined) {
-    data.isDiscountedAtBank = updates.isDiscountedAtBank;
-  }
-  if (updates.bankDiscountType !== undefined) {
-    data.bankDiscountType = updates.bankDiscountType;
-  }
-  if (updates.bankLiquidationDate !== undefined) {
-    data.bankLiquidationDate = updates.bankLiquidationDate;
-  }
-  if (updates.bankDiscountFee !== undefined) {
-    data.bankDiscountFee = updates.bankDiscountFee;
+  if (updates.bankAccountId !== undefined) {
+    data.bankAccountId = updates.bankAccountId;
   }
 
   return prisma.invoice.update({
     where: { id: invoiceId },
     data,
   });
-}
-
-/** @deprecated Use updateInvoice */
-export async function reassignCostCenter(
-  invoiceId: string,
-  organizationId: string,
-  costCenterId: string | null,
-) {
-  return updateInvoice(invoiceId, organizationId, { costCenterId });
 }
 
 export async function bulkUpdateInvoiceStatus(
@@ -187,31 +144,12 @@ export async function deleteInvoice(invoiceId: string, organizationId: string) {
   });
   if (!invoice) return null;
 
-  // Clear reconciliation references from bank statements
-  await prisma.bankStatement.updateMany({
-    where: { reconciledInvoiceId: invoiceId },
-    data: { reconciledInvoiceId: null, isReconciled: false, reconciledAt: null },
-  });
-
-  // InvoiceLines cascade-delete automatically
   return prisma.invoice.delete({ where: { id: invoiceId } });
 }
 
 export async function bulkDeleteInvoices(invoiceIds: string[], organizationId: string) {
-  // Clear reconciliation references
-  await prisma.bankStatement.updateMany({
-    where: { reconciledInvoiceId: { in: invoiceIds } },
-    data: { reconciledInvoiceId: null, isReconciled: false, reconciledAt: null },
-  });
-
   const result = await prisma.invoice.deleteMany({
     where: { id: { in: invoiceIds }, organizationId },
   });
   return result.count;
-}
-
-export async function countNeedsTagging(organizationId: string) {
-  return prisma.invoice.count({
-    where: { organizationId, needsTagging: true },
-  });
 }

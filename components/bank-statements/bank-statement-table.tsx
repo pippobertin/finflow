@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck — Legacy reconciliation UI, behind LEGACY_RECONCILIATION flag. Will be removed in Block D.
 "use client";
 
 import { useState, Fragment } from "react";

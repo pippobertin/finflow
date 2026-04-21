@@ -1,19 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, FolderKanban, Pencil, Trash2, Tags } from "lucide-react";
+import { Plus, FolderKanban, Pencil, Trash2 } from "lucide-react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { CostCenterFormDialog } from "./cost-center-form-dialog";
 import {
@@ -22,8 +15,6 @@ import {
   useUpdateCostCenter,
   useDeleteCostCenter,
 } from "@/lib/hooks/use-cost-centers";
-import { useInvoices, useUpdateInvoice } from "@/lib/hooks/use-invoices";
-import { formatEUR } from "@/lib/helpers/format";
 import type { CostCenterCreateInput } from "@/lib/validations/cost-center";
 import { toast } from "sonner";
 
@@ -35,17 +26,10 @@ interface CostCenterItem {
   keywords: string[];
   description?: string;
   _count: {
-    invoices: number;
     recurringExpenses: number;
     oneOffExpenses: number;
+    bankStatements: number;
   };
-}
-
-interface UntaggedInvoice {
-  id: string;
-  number: string;
-  counterpart: string;
-  grossAmount: number | string;
 }
 
 export function CostCentersClient() {
@@ -57,12 +41,6 @@ export function CostCentersClient() {
   const createCC = useCreateCostCenter();
   const updateCC = useUpdateCostCenter();
   const deleteCC = useDeleteCostCenter();
-  const updateInvoice = useUpdateInvoice();
-
-  const { data: untaggedData } = useInvoices({ needsTagging: true, pageSize: 10 });
-  const untaggedInvoices = ((untaggedData as { data: unknown[] } | undefined)?.data ??
-    []) as UntaggedInvoice[];
-  const untaggedCount = (untaggedData as { total: number } | undefined)?.total ?? 0;
 
   const allItems = costCenters as CostCenterItem[];
   const items = allItems.filter((cc) => cc.type === tab);
@@ -141,157 +119,91 @@ export function CostCentersClient() {
           </TabsList>
 
           <TabsContent value={tab} className="mt-4">
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Main: center list */}
-              <div className="space-y-4 lg:col-span-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">
-                    {items.length} centr{items.length === 1 ? "o" : "i"} di {label}
-                  </h2>
-                  <Button size="sm" onClick={openCreate}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Aggiungi
-                  </Button>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">
+                  {items.length} centr{items.length === 1 ? "o" : "i"} di {label}
+                </h2>
+                <Button size="sm" onClick={openCreate}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Aggiungi
+                </Button>
+              </div>
+
+              {isLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-muted h-24 animate-pulse rounded-lg" />
+                  ))}
                 </div>
-
-                {isLoading ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="bg-muted h-24 animate-pulse rounded-lg" />
-                    ))}
-                  </div>
-                ) : items.length === 0 ? (
-                  <EmptyState
-                    icon={FolderKanban}
-                    title={emptyTitle}
-                    description={emptyDescription}
-                    action={
-                      <Button size="sm" onClick={openCreate}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Crea il primo
-                      </Button>
-                    }
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    {items.map((cc) => (
-                      <Card key={cc.id}>
-                        <CardContent className="flex items-start justify-between p-4">
-                          <div className="flex items-start gap-3">
-                            <span
-                              className="mt-1 inline-block h-4 w-4 rounded-full"
-                              style={{ backgroundColor: cc.color }}
-                            />
-                            <div>
-                              <h3 className="font-medium">{cc.name}</h3>
-                              {cc.description && (
-                                <p className="text-muted-foreground mt-0.5 text-xs">
-                                  {cc.description}
-                                </p>
-                              )}
-                              {cc.keywords.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                  {cc.keywords.map((kw) => (
-                                    <Badge key={kw} variant="secondary" className="text-[10px]">
-                                      {kw}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                              <p className="text-muted-foreground mt-1 text-xs">
-                                {cc._count.invoices} fatture &middot; {cc._count.recurringExpenses}{" "}
-                                spese ricorrenti &middot; {cc._count.oneOffExpenses} una tantum
+              ) : items.length === 0 ? (
+                <EmptyState
+                  icon={FolderKanban}
+                  title={emptyTitle}
+                  description={emptyDescription}
+                  action={
+                    <Button size="sm" onClick={openCreate}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crea il primo
+                    </Button>
+                  }
+                />
+              ) : (
+                <div className="space-y-3">
+                  {items.map((cc) => (
+                    <Card key={cc.id}>
+                      <CardContent className="flex items-start justify-between p-4">
+                        <div className="flex items-start gap-3">
+                          <span
+                            className="mt-1 inline-block h-4 w-4 rounded-full"
+                            style={{ backgroundColor: cc.color }}
+                          />
+                          <div>
+                            <h3 className="font-medium">{cc.name}</h3>
+                            {cc.description && (
+                              <p className="text-muted-foreground mt-0.5 text-xs">
+                                {cc.description}
                               </p>
-                            </div>
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => openEdit(cc)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive h-7 w-7"
-                              onClick={() => handleDelete(cc.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Sidebar: untagged invoices */}
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Tags className="h-4 w-4" />
-                      Da Classificare
-                      {untaggedCount > 0 && (
-                        <Badge variant="destructive" className="text-[10px]">
-                          {untaggedCount}
-                        </Badge>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {untaggedInvoices.length === 0 ? (
-                      <p className="text-muted-foreground text-sm">
-                        Tutte le fatture sono classificate.
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {untaggedInvoices.map((inv) => (
-                          <div
-                            key={inv.id}
-                            className="flex items-center justify-between gap-2 text-sm"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{inv.counterpart}</p>
-                              <p className="text-muted-foreground text-xs">
-                                {inv.number} &middot; {formatEUR(inv.grossAmount)}
-                              </p>
-                            </div>
-                            <Select
-                              value=""
-                              onValueChange={(ccId) =>
-                                ccId &&
-                                updateInvoice.mutate({ invoiceId: inv.id, costCenterId: ccId })
-                              }
-                            >
-                              <SelectTrigger className="h-7 w-28 text-xs">
-                                <SelectValue placeholder="Assegna" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {allItems.map((cc) => (
-                                  <SelectItem key={cc.id} value={cc.id}>
-                                    <span className="flex items-center gap-1">
-                                      <span
-                                        className="inline-block h-2 w-2 rounded-full"
-                                        style={{ backgroundColor: cc.color }}
-                                      />
-                                      {cc.name}
-                                    </span>
-                                  </SelectItem>
+                            )}
+                            {cc.keywords.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {cc.keywords.map((kw) => (
+                                  <Badge key={kw} variant="secondary" className="text-[10px]">
+                                    {kw}
+                                  </Badge>
                                 ))}
-                              </SelectContent>
-                            </Select>
+                              </div>
+                            )}
+                            <p className="text-muted-foreground mt-1 text-xs">
+                              {cc._count.recurringExpenses} spese ricorrenti &middot;{" "}
+                              {cc._count.oneOffExpenses} una tantum &middot;{" "}
+                              {cc._count.bankStatements} movimenti
+                            </p>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => openEdit(cc)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive h-7 w-7"
+                            onClick={() => handleDelete(cc.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>

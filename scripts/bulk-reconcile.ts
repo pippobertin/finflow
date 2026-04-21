@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck — Legacy reconciliation script. Will be removed in Block D.
 /**
  * Bulk re-reconciliation script.
  *

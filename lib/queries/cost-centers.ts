@@ -8,7 +8,6 @@ export async function listCostCenters(organizationId: string, type?: CostCenterT
     include: {
       _count: {
         select: {
-          invoices: true,
           recurringExpenses: true,
           oneOffExpenses: true,
           bankStatements: true,
@@ -25,7 +24,6 @@ export async function getCostCenterById(id: string, organizationId: string) {
     include: {
       _count: {
         select: {
-          invoices: true,
           recurringExpenses: true,
           oneOffExpenses: true,
           bankStatements: true,
