@@ -1,28 +1,18 @@
 "use client";
 
-import { Navbar } from "@/components/dashboard/navbar";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ImportClient } from "@/components/import/import-client";
 import { BankStatementImportClient } from "@/components/import/bank-statement-import-client";
 
 export default function ImportPage() {
   return (
-    <>
-      <Navbar title="Importa" />
-      <div className="space-y-6 p-6">
-        <Tabs defaultValue="invoices">
-          <TabsList>
-            <TabsTrigger value="invoices">Fatture CSV</TabsTrigger>
-            <TabsTrigger value="bank-statement">Estratto Conto</TabsTrigger>
-          </TabsList>
-          <TabsContent value="invoices">
-            <ImportClient />
-          </TabsContent>
-          <TabsContent value="bank-statement">
-            <BankStatementImportClient />
-          </TabsContent>
-        </Tabs>
+    <div className="space-y-6 p-6 lg:p-8">
+      {/* Header */}
+      <div>
+        <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase">Operativo</p>
+        <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Carica il tuo estratto conto</h1>
+        <p className="mt-1 text-sm text-slate-500">Trascina il file, noi lo leggiamo per te</p>
       </div>
-    </>
+
+      <BankStatementImportClient />
+    </div>
   );
 }

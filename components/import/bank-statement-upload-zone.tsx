@@ -47,7 +47,10 @@ export function BankStatementUploadZone({ onFileSelect }: BankStatementUploadZon
       <p className="text-muted-foreground mb-4 text-xs">
         Il segno dell&apos;importo determina la direzione (positivo = entrata, negativo = uscita)
       </p>
-      <label className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer rounded-md px-4 py-2 text-sm font-medium">
+      <label
+        className="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+        style={{ backgroundColor: "var(--brand, #0b4d8a)" }}
+      >
         Seleziona file
         <input type="file" accept=".csv,.pdf" className="hidden" onChange={handleChange} />
       </label>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BankStatementUploadZone } from "./bank-statement-upload-zone";
 import { BankStatementColumnMapper } from "./bank-statement-column-mapper";
@@ -194,8 +193,8 @@ export function BankStatementImportClient() {
             key={key}
             className={`rounded-full px-3 py-1 text-xs font-medium ${
               step === key || (step === "parsing" && key === "upload")
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
+                ? "bg-[var(--brand,#0b4d8a)] text-white"
+                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
             }`}
           >
             {label}
@@ -203,85 +202,87 @@ export function BankStatementImportClient() {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{step === "parsing" ? "Analisi PDF in corso..." : stepLabels[step]}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {step === "upload" && <BankStatementUploadZone onFileSelect={handleFileSelect} />}
-          {step === "parsing" && (
-            <div className="flex items-center justify-center py-8">
-              <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2" />
-              <span className="text-muted-foreground ml-3 text-sm">
-                Analisi del PDF in corso...
-              </span>
-            </div>
-          )}
-          {step === "mapping" && (
-            <BankStatementColumnMapper
-              headers={headers}
-              mapping={mapping}
-              onMappingChange={setMapping}
-              onConfirm={handleConfirmMapping}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+        <h2 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
+          {step === "parsing" ? "Analisi PDF in corso..." : stepLabels[step]}
+        </h2>
+
+        {step === "upload" && <BankStatementUploadZone onFileSelect={handleFileSelect} />}
+        {step === "parsing" && (
+          <div className="flex items-center justify-center py-8">
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-b-2"
+              style={{ borderColor: "var(--brand, #0b4d8a)" }}
             />
-          )}
-          {step === "preview" && (
-            <BankStatementPreviewTable
-              rows={rows}
-              mapping={mapping as BankStatementMapping}
-              onConfirm={handleImport}
-              onBack={() => setStep("mapping")}
-              isPending={bankStatementImport.isPending}
+            <span className="ml-3 text-sm text-slate-500">Analisi del PDF in corso...</span>
+          </div>
+        )}
+        {step === "mapping" && (
+          <BankStatementColumnMapper
+            headers={headers}
+            mapping={mapping}
+            onMappingChange={setMapping}
+            onConfirm={handleConfirmMapping}
+          />
+        )}
+        {step === "preview" && (
+          <BankStatementPreviewTable
+            rows={rows}
+            mapping={mapping as BankStatementMapping}
+            onConfirm={handleImport}
+            onBack={() => setStep("mapping")}
+            isPending={bankStatementImport.isPending}
+          />
+        )}
+        {step === "importing" && importResult && (
+          <BankStatementImportProgress result={importResult} />
+        )}
+        {step === "importing" && !importResult && (
+          <div className="flex items-center justify-center py-8">
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-b-2"
+              style={{ borderColor: "var(--brand, #0b4d8a)" }}
             />
-          )}
-          {step === "importing" && importResult && (
-            <BankStatementImportProgress result={importResult} />
-          )}
-          {step === "importing" && !importResult && (
-            <div className="flex items-center justify-center py-8">
-              <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2" />
-              <span className="text-muted-foreground ml-3 text-sm">Importazione in corso...</span>
-            </div>
-          )}
-          {step === "done" && importResult && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                <div>
-                  <p className="text-lg font-semibold">Importazione completata</p>
-                  <p className="text-muted-foreground text-sm">
-                    {importResult.imported} movimenti importati
-                    {importResult.duplicates > 0 &&
-                      `, ${importResult.duplicates} duplicati ignorati`}
-                  </p>
-                </div>
+            <span className="ml-3 text-sm text-slate-500">Importazione in corso...</span>
+          </div>
+        )}
+        {step === "done" && importResult && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+              <div>
+                <p className="text-lg font-semibold">Importazione completata</p>
+                <p className="text-sm text-slate-500">
+                  {importResult.imported} movimenti importati
+                  {importResult.duplicates > 0 && `, ${importResult.duplicates} duplicati ignorati`}
+                </p>
               </div>
-              {importResult.errors.length > 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
-                  <div className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
-                    <AlertTriangle className="h-4 w-4" />
-                    {importResult.errors.length} righe con errori
-                  </div>
-                  <ul className="mt-2 space-y-1 text-xs text-amber-600 dark:text-amber-500">
-                    {importResult.errors.slice(0, 5).map((err, i) => (
-                      <li key={i}>
-                        Riga {err.row}: {err.message}
-                      </li>
-                    ))}
-                    {importResult.errors.length > 5 && (
-                      <li>...e altri {importResult.errors.length - 5} errori</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-              <Button variant="outline" onClick={handleReset} className="gap-2">
-                <RotateCcw className="h-4 w-4" />
-                Importa altro file
-              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            {importResult.errors.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+                <div className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-4 w-4" />
+                  {importResult.errors.length} righe con errori
+                </div>
+                <ul className="mt-2 space-y-1 text-xs text-amber-600 dark:text-amber-500">
+                  {importResult.errors.slice(0, 5).map((err, i) => (
+                    <li key={i}>
+                      Riga {err.row}: {err.message}
+                    </li>
+                  ))}
+                  {importResult.errors.length > 5 && (
+                    <li>...e altri {importResult.errors.length - 5} errori</li>
+                  )}
+                </ul>
+              </div>
+            )}
+            <Button variant="outline" onClick={handleReset} className="gap-2">
+              <RotateCcw className="h-4 w-4" />
+              Importa altro file
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
