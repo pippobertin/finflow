@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { listFirmOrganizations, getFirmStats } from "@/lib/queries/firm";
-import { Building2, FileText, Users } from "lucide-react";
+import { listFirmOrganizations, getFirmStats, getLateBalanceClients } from "@/lib/queries/firm";
+import { Building2, FileText, Users, AlertTriangle, CheckCircle2, Upload } from "lucide-react";
 
 export default async function FirmDashboardPage() {
   const session = await auth();
   if (!session?.user?.accountingFirmId) redirect("/login");
 
   const accountingFirmId = session.user.accountingFirmId;
-  const [organizations, stats] = await Promise.all([
+  const [organizations, stats, lateClients] = await Promise.all([
     listFirmOrganizations(accountingFirmId),
     getFirmStats(accountingFirmId),
+    getLateBalanceClients(accountingFirmId),
   ]);
 
   return (
@@ -20,6 +21,9 @@ export default async function FirmDashboardPage() {
         <h1 className="text-2xl font-bold">Dashboard Studio</h1>
         <p className="text-muted-foreground text-sm">Panoramica del portafoglio clienti</p>
       </div>
+
+      {/* Late balance alert */}
+      <LateBalanceAlert clients={lateClients} />
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -116,6 +120,84 @@ export default async function FirmDashboardPage() {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LateBalanceAlert({
+  clients,
+}: {
+  clients: {
+    orgId: string;
+    orgName: string;
+    lastPeriodEnd: string | null;
+    daysLate: number;
+    severity: "amber" | "red";
+    neverUploaded: boolean;
+  }[];
+}) {
+  if (clients.length === 0) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+        <div>
+          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+            Tutti i bilanci sono aggiornati
+          </p>
+          <p className="text-xs text-emerald-600 dark:text-emerald-500">
+            Nessun cliente con bilancio in ritardo
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20">
+      <div className="flex items-center gap-2 border-b border-amber-200 px-4 py-3 dark:border-amber-900/50">
+        <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+          Bilanci da caricare
+        </h2>
+      </div>
+      <div className="divide-y divide-amber-100 dark:divide-amber-900/30">
+        {clients.map((client) => (
+          <div key={client.orgId} className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  client.severity === "red" ? "bg-red-500" : "bg-amber-500"
+                }`}
+              />
+              <div>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                  {client.orgName}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {client.neverUploaded
+                    ? "Mai caricato"
+                    : `Ultimo bilancio: ${client.lastPeriodEnd}`}
+                  {" · "}
+                  <span
+                    className={`font-semibold ${
+                      client.severity === "red" ? "text-red-600" : "text-amber-600"
+                    }`}
+                  >
+                    {client.daysLate} giorni
+                  </span>
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/firm/clients/${client.orgId}/bilanci/upload`}
+              className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-indigo-600 shadow-sm transition-colors hover:bg-indigo-50 dark:bg-slate-800 dark:text-indigo-400 dark:hover:bg-slate-700"
+            >
+              <Upload className="h-3 w-3" />
+              Carica
+            </Link>
+          </div>
+        ))}
       </div>
     </div>
   );

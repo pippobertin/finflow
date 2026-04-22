@@ -4,6 +4,13 @@ import { Sidebar } from "@/components/dashboard/sidebar";
 import { ClientSidebar } from "@/components/client/client-sidebar";
 import { prisma } from "@/lib/prisma";
 
+interface BrandingJson {
+  logoDataUrl?: string;
+  brandColor?: string;
+  accentColor?: string;
+  displayName?: string;
+}
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) {
@@ -25,12 +32,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
         where: { id: session.user.organizationId },
         select: {
           accountingFirm: {
-            select: { name: true },
+            select: { name: true, branding: true },
           },
         },
       });
       if (org?.accountingFirm) {
-        firmName = org.accountingFirm.name;
+        const branding = (org.accountingFirm.branding as BrandingJson) ?? {};
+        firmName = branding.displayName || org.accountingFirm.name;
+        firmLogoUrl = branding.logoDataUrl || undefined;
+        brandColor = branding.brandColor || undefined;
+        accentColor = branding.accentColor || undefined;
       }
     } catch {
       // Branding is optional, continue without it
@@ -50,8 +61,25 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {brandingStyle && (
         <style dangerouslySetInnerHTML={{ __html: `:root { ${brandingStyle} }` }} />
       )}
-      {isClientUser ? <ClientSidebar firmName={firmName} firmLogoUrl={firmLogoUrl} /> : <Sidebar />}
-      <main className="flex flex-1 flex-col overflow-auto">{children}</main>
+      {isClientUser ? (
+        <>
+          <ClientSidebar firmName={firmName} firmLogoUrl={firmLogoUrl} />
+          <div className="flex flex-1 flex-col overflow-auto">
+            <main className="flex-1">{children}</main>
+            {/* Powered by attribution */}
+            <footer className="border-t border-slate-100 px-6 py-3 text-center dark:border-slate-800">
+              <span className="text-[11px] text-slate-400 dark:text-slate-600">
+                powered by <span className="font-semibold">FinFlow</span>
+              </span>
+            </footer>
+          </div>
+        </>
+      ) : (
+        <>
+          <Sidebar />
+          <main className="flex flex-1 flex-col overflow-auto">{children}</main>
+        </>
+      )}
     </div>
   );
 }

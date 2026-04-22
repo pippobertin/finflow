@@ -45,6 +45,102 @@ export async function getFirmStats(accountingFirmId: string) {
   return { orgCount, invoiceCount };
 }
 
+// ─── Late Balance Alert ──────────────────────────────────────
+
+export interface LateBalanceClient {
+  orgId: string;
+  orgName: string;
+  lastPeriodEnd: string | null;
+  daysLate: number;
+  severity: "amber" | "red";
+  neverUploaded: boolean;
+}
+
+/**
+ * Find clients whose latest locked snapshot is stale.
+ * - 45 days since periodEnd → amber
+ * - 75 days since periodEnd → red
+ * - No snapshot + org created >30 days ago → red ("Mai caricato")
+ *
+ * Returns max 5 clients sorted by severity (red first, then amber).
+ */
+export async function getLateBalanceClients(
+  accountingFirmId: string,
+): Promise<LateBalanceClient[]> {
+  const orgs = await prisma.organization.findMany({
+    where: { accountingFirmId },
+    select: {
+      id: true,
+      name: true,
+      createdAt: true,
+    },
+  });
+
+  if (orgs.length === 0) return [];
+
+  const now = new Date();
+  const results: LateBalanceClient[] = [];
+
+  // Fetch latest locked snapshot for each org
+  for (const org of orgs) {
+    const latest = await prisma.trialBalanceSnapshot.findFirst({
+      where: { organizationId: org.id, isLocked: true },
+      orderBy: { periodEnd: "desc" },
+      select: { periodEnd: true },
+    });
+
+    if (!latest) {
+      // No snapshot at all — check if org is old enough
+      const orgAgeDays = Math.floor(
+        (now.getTime() - org.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (orgAgeDays > 30) {
+        results.push({
+          orgId: org.id,
+          orgName: org.name,
+          lastPeriodEnd: null,
+          daysLate: orgAgeDays,
+          severity: "red",
+          neverUploaded: true,
+        });
+      }
+      continue;
+    }
+
+    const daysSincePeriodEnd = Math.floor(
+      (now.getTime() - latest.periodEnd.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (daysSincePeriodEnd >= 75) {
+      results.push({
+        orgId: org.id,
+        orgName: org.name,
+        lastPeriodEnd: latest.periodEnd.toISOString().slice(0, 10),
+        daysLate: daysSincePeriodEnd,
+        severity: "red",
+        neverUploaded: false,
+      });
+    } else if (daysSincePeriodEnd >= 45) {
+      results.push({
+        orgId: org.id,
+        orgName: org.name,
+        lastPeriodEnd: latest.periodEnd.toISOString().slice(0, 10),
+        daysLate: daysSincePeriodEnd,
+        severity: "amber",
+        neverUploaded: false,
+      });
+    }
+  }
+
+  // Sort: red first, then amber, then by daysLate desc
+  results.sort((a, b) => {
+    if (a.severity !== b.severity) return a.severity === "red" ? -1 : 1;
+    return b.daysLate - a.daysLate;
+  });
+
+  return results.slice(0, 5);
+}
+
 // ─── Write ───────────────────────────────────────────────────
 
 export interface CreateOrganizationInput {

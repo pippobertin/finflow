@@ -138,6 +138,7 @@ model AccountingFirm {
   vatNumber String?  @map("vat_number")
   email     String?
   phone     String?
+  branding  Json?    @default("{}")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
