@@ -31,6 +31,7 @@ interface OrganizationDetail {
   province: string | null;
   zipCode: string | null;
   cdgGranularity: string | null;
+  cashThresholdEur: string | null;
   bankAccounts: BankAccount[];
 }
 
@@ -62,6 +63,7 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
     setMessage(null);
 
     const fd = new FormData(e.currentTarget);
+    const rawThreshold = (fd.get("cashThresholdEur") as string)?.trim();
     const body = {
       name: fd.get("name") as string,
       vatNumber: (fd.get("vatNumber") as string) || null,
@@ -72,6 +74,7 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
       province: (fd.get("province") as string) || null,
       zipCode: (fd.get("zipCode") as string) || null,
       cdgGranularity: fd.get("cdgGranularity") as string,
+      cashThresholdEur: rawThreshold ? parseFloat(rawThreshold.replace(",", ".")) : null,
     };
 
     try {
@@ -87,7 +90,16 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
       } else {
         setMessage({ type: "success", text: "Dati aggiornati con successo" });
         // Update local state with the saved values
-        setOrg((prev) => (prev ? { ...prev, ...body } : prev));
+        setOrg((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...body,
+                cashThresholdEur:
+                  body.cashThresholdEur != null ? String(body.cashThresholdEur) : null,
+              }
+            : prev,
+        );
       }
     } catch {
       setMessage({ type: "error", text: "Errore di rete" });
@@ -185,6 +197,22 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
                 <SelectItem value="QUARTERLY">Trimestrale</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label htmlFor="cashThresholdEur">Soglia attenzione cassa (€)</Label>
+            <Input
+              id="cashThresholdEur"
+              name="cashThresholdEur"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="5000 (default)"
+              defaultValue={org.cashThresholdEur ?? ""}
+              className="font-numeric"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Vuoto = default 5000€. Zero = soglia disabilitata.
+            </p>
           </div>
         </div>
 

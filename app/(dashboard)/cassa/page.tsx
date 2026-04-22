@@ -1,9 +1,20 @@
 "use client";
 
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useClientCassa } from "@/lib/hooks/use-client-cassa";
 import { formatEUR } from "@/lib/helpers/format";
 import { CHART_TOOLTIP_PROPS, formatTooltipEUR } from "@/components/client/chart-tooltip-styles";
-import { Landmark, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import {
+  Landmark,
+  TrendingUp,
+  TrendingDown,
+  ArrowRight,
+  SlidersHorizontal,
+  Check,
+  X,
+} from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -50,13 +61,19 @@ export default function CassaPage() {
     );
   }
 
-  const THRESHOLD = 5000;
-  const { currentBalance, milestones, chartData: rawChartData, nextItems } = data;
+  const {
+    currentBalance,
+    milestones,
+    chartData: rawChartData,
+    nextItems,
+    threshold: apiThreshold,
+  } = data;
+  const threshold = apiThreshold;
 
   // Compute danger zone for chart: when balance < threshold, show red area
   const chartData = rawChartData.map((d: { date: string; balance: number }) => ({
     ...d,
-    dangerBalance: d.balance < THRESHOLD ? d.balance : null,
+    dangerBalance: threshold > 0 && d.balance < threshold ? d.balance : null,
   }));
 
   const kpis: Array<{
@@ -180,9 +197,12 @@ export default function CassaPage() {
       {/* Projection Chart */}
       {chartData.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-          <h2 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Andamento saldo proiettato
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Andamento saldo proiettato
+            </h2>
+            <ThresholdEditor currentThreshold={threshold} />
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
@@ -223,28 +243,33 @@ export default function CassaPage() {
                   strokeWidth={2}
                   fill="url(#balanceGrad)"
                 />
-                <Area
-                  type="monotone"
-                  dataKey="dangerBalance"
-                  stroke="#ef4444"
-                  strokeWidth={1.5}
-                  strokeDasharray="4 2"
-                  fill="url(#dangerGrad)"
-                  connectNulls={false}
-                />
-                <ReferenceLine
-                  y={THRESHOLD}
-                  stroke="#f59e0b"
-                  strokeDasharray="6 3"
-                  strokeWidth={1.5}
-                  label={{
-                    value: "Soglia di attenzione",
-                    position: "insideTopRight",
-                    fill: "#d97706",
-                    fontSize: 10,
-                    fontWeight: 600,
-                  }}
-                />
+                {threshold > 0 && (
+                  <Area
+                    type="monotone"
+                    dataKey="dangerBalance"
+                    stroke="#ef4444"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 2"
+                    fill="url(#dangerGrad)"
+                    connectNulls={false}
+                  />
+                )}
+                {threshold > 0 && (
+                  <ReferenceLine
+                    y={threshold}
+                    stroke="#ef4444"
+                    strokeDasharray="6 3"
+                    strokeWidth={1.5}
+                    label={{
+                      value: `Soglia ${formatEUR(threshold)}`,
+                      position: "insideTopLeft",
+                      fill: "#dc2626",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      dy: -8,
+                    }}
+                  />
+                )}
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -289,6 +314,88 @@ export default function CassaPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ThresholdEditor({ currentThreshold }: { currentThreshold: number }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(String(currentThreshold));
+  const qc = useQueryClient();
+
+  const save = useMutation({
+    mutationFn: async (threshold: number | null) => {
+      const res = await fetch("/api/client/settings/cash-threshold", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threshold }),
+      });
+      if (!res.ok) throw new Error("Errore nel salvataggio");
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["client-cassa"] });
+      toast.success("Soglia aggiornata");
+      setOpen(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSave = () => {
+    const parsed = parseFloat(value.replace(",", "."));
+    if (value.trim() === "") {
+      save.mutate(null); // reset to default
+    } else if (!isNaN(parsed) && parsed >= 0) {
+      save.mutate(parsed);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => {
+          setValue(String(currentThreshold));
+          setOpen(true);
+        }}
+        className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-500 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+        title="Imposta soglia di attenzione"
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" />
+        Soglia
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <label className="text-xs text-slate-500">Soglia €</label>
+      <input
+        type="number"
+        min="0"
+        step="100"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="5000"
+        className="font-numeric w-24 rounded-lg border border-slate-200 px-2 py-1 text-xs tabular-nums dark:border-slate-700 dark:bg-slate-900"
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleSave();
+          if (e.key === "Escape") setOpen(false);
+        }}
+      />
+      <button
+        onClick={handleSave}
+        disabled={save.isPending}
+        className="rounded-lg bg-emerald-50 p-1 text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50"
+      >
+        <Check className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={() => setOpen(false)}
+        className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }

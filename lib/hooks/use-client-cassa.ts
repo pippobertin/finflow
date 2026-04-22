@@ -28,6 +28,7 @@ export interface CassaData {
   milestones: CassaMilestones;
   chartData: CassaChartPoint[];
   nextItems: CassaNextItem[];
+  threshold: number;
 }
 
 async function fetchCassa(): Promise<CassaData> {
