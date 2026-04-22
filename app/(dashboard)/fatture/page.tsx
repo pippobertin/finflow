@@ -88,7 +88,7 @@ export default function FatturePage() {
               }}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 directionFilter === opt.value
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                  ? "bg-[var(--brand,#0b4d8a)] text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400"
               }`}
             >
@@ -110,7 +110,7 @@ export default function FatturePage() {
               }}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 statusFilter === opt.value
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                  ? "bg-[var(--brand,#0b4d8a)] text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400"
               }`}
             >
