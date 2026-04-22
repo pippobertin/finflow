@@ -69,7 +69,7 @@ const EMPTY_FORM: LoanFormData = {
 const FREQUENCY_LABELS: Record<string, string> = {
   MONTHLY: "Mensile",
   QUARTERLY: "Trimestrale",
-  SEMI_ANNUAL: "Semestrale",
+  SEMIANNUAL: "Semestrale",
   ANNUAL: "Annuale",
 };
 
@@ -420,7 +420,7 @@ export default function PrestitiPage({ params }: { params: Promise<{ id: string 
                   <SelectContent>
                     <SelectItem value="MONTHLY">Mensile</SelectItem>
                     <SelectItem value="QUARTERLY">Trimestrale</SelectItem>
-                    <SelectItem value="SEMI_ANNUAL">Semestrale</SelectItem>
+                    <SelectItem value="SEMIANNUAL">Semestrale</SelectItem>
                     <SelectItem value="ANNUAL">Annuale</SelectItem>
                   </SelectContent>
                 </Select>
