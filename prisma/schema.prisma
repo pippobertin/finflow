@@ -142,9 +142,10 @@ model AccountingFirm {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  organizations Organization[]
-  users         User[]
-  clientGroups  ClientGroup[]
+  organizations   Organization[]
+  users           User[]
+  clientGroups    ClientGroup[]
+  pdfBankProfiles PdfBankProfile[]
 
   @@map("accounting_firm")
   @@schema("finflow")
@@ -295,6 +296,43 @@ model LoanSchedule {
   @@schema("finflow")
 }
 
+// ─── Fase 6 ────────────────────────────────────────────────
+
+model PdfBankProfile {
+  id               String   @id @default(cuid())
+  accountingFirmId String?  @map("accounting_firm_id")
+  bankName         String   @map("bank_name")
+  layoutPatterns   Json     @map("layout_patterns")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  accountingFirm AccountingFirm? @relation(fields: [accountingFirmId], references: [id])
+
+  @@unique([accountingFirmId, bankName])
+  @@map("pdf_bank_profile")
+  @@schema("finflow")
+}
+
+model MovementPattern {
+  id               String   @id @default(cuid())
+  organizationId   String   @map("organization_id")
+  descriptionRegex String   @map("description_regex")
+  cdgCategory      String   @map("cdg_category")
+  vatRate          Decimal? @map("vat_rate") @db.Decimal(5, 2)
+  priority         Int      @default(100)
+  isActive         Boolean  @default(true) @map("is_active")
+  matchCount       Int      @default(0) @map("match_count")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, isActive])
+  @@map("movement_pattern")
+  @@schema("finflow")
+}
+
 // ─── Models ───────���─────────────────────────────────────────
 
 model Organization {
@@ -341,6 +379,8 @@ model Organization {
   monthlyBudgets       MonthlyBudget[]
   f24Schedules         F24Schedule[]
   loanSchedules        LoanSchedule[]
+  // V2 Fase 6
+  movementPatterns     MovementPattern[]
 
   @@map("fin_organization")
   @@schema("public")
