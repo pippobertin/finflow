@@ -11,6 +11,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
 } from "recharts";
 
 function formatChartDate(dateStr: string) {
@@ -48,7 +49,14 @@ export default function CassaPage() {
     );
   }
 
-  const { currentBalance, milestones, chartData, nextItems } = data;
+  const THRESHOLD = 5000;
+  const { currentBalance, milestones, chartData: rawChartData, nextItems } = data;
+
+  // Compute danger zone for chart: when balance < threshold, show red area
+  const chartData = rawChartData.map((d: { date: string; balance: number }) => ({
+    ...d,
+    dangerBalance: d.balance < THRESHOLD ? d.balance : null,
+  }));
 
   const kpis: Array<{
     label: string;
@@ -182,6 +190,10 @@ export default function CassaPage() {
                     <stop offset="5%" stopColor="var(--brand, #0b4d8a)" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="var(--brand, #0b4d8a)" stopOpacity={0} />
                   </linearGradient>
+                  <linearGradient id="dangerGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
+                  </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis
@@ -208,6 +220,28 @@ export default function CassaPage() {
                   stroke="var(--brand, #0b4d8a)"
                   strokeWidth={2}
                   fill="url(#balanceGrad)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="dangerBalance"
+                  stroke="#ef4444"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 2"
+                  fill="url(#dangerGrad)"
+                  connectNulls={false}
+                />
+                <ReferenceLine
+                  y={THRESHOLD}
+                  stroke="#f59e0b"
+                  strokeDasharray="6 3"
+                  strokeWidth={1.5}
+                  label={{
+                    value: "Soglia di attenzione",
+                    position: "insideTopRight",
+                    fill: "#d97706",
+                    fontSize: 10,
+                    fontWeight: 600,
+                  }}
                 />
               </AreaChart>
             </ResponsiveContainer>
