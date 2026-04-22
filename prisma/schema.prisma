@@ -600,6 +600,12 @@ model VatSnapshot {
   paidDate        DateTime? @map("paid_date") @db.Date
   createdAt       DateTime @default(now()) @map("created_at")
 
+  // Fase 5 enhancements
+  sourceType      String   @default("invoice") @map("source_type")
+  label           String?
+  surchargeAmount Decimal  @default(0) @map("surcharge_amount") @db.Decimal(15, 2)
+  creditCarriedOut Decimal @default(0) @map("credit_carried_out") @db.Decimal(15, 2)
+
   organization Organization @relation(fields: [organizationId], references: [id])
 
   @@map("fin_vat_snapshot")

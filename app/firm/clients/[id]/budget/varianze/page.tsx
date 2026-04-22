@@ -100,7 +100,8 @@ export default function VarianzePage({ params }: { params: Promise<{ id: string 
     return () => controller.abort();
   }, [loadVariance]);
 
-  const handleYearChange = useCallback((v: string) => {
+  const handleYearChange = useCallback((v: string | null) => {
+    if (!v) return;
     setYear(Number(v));
     setLoading(true);
     setError(null);
