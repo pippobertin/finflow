@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useCallback, useRef } from "react";
+import { Fragment, use, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -269,6 +269,16 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
         return;
       }
 
+      if (!data.rows || data.rows.length === 0) {
+        toast.info(
+          "Il file è stato letto correttamente ma non contiene valori budget. La colonna Budget è vuota.",
+        );
+        if (data.warnings?.length) {
+          toast.info(`${data.warnings.length} avvisi nel parsing`);
+        }
+        return;
+      }
+
       // Confirm the import
       const confirmRes = await fetch(`/api/firm/clients/${id}/budget/confirm`, {
         method: "POST",
@@ -425,12 +435,9 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
             </thead>
             <tbody>
               {CE_SECTIONS.map((section) => (
-                <>
+                <Fragment key={section.title}>
                   {/* Section header */}
-                  <tr
-                    key={`h-${section.title}`}
-                    className="border-t border-slate-200 bg-slate-100/50 dark:border-slate-700 dark:bg-slate-800/30"
-                  >
+                  <tr className="border-t border-slate-200 bg-slate-100/50 dark:border-slate-700 dark:bg-slate-800/30">
                     <td
                       colSpan={14}
                       className="px-3 py-1.5 text-[10px] font-bold tracking-wider text-slate-500 uppercase"
@@ -479,7 +486,7 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
                               ? "pretax"
                               : "netIncome",
                     )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

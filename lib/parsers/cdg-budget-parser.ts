@@ -341,6 +341,8 @@ function parseCdgModelFormat(
 
   const rows: ParsedBudgetRow[] = [];
   const matchedCategories = new Set<string>();
+  let matchedCodesCount = 0;
+  let zeroValueCount = 0;
 
   for (let i = 0; i < raw.length; i++) {
     const row = raw[i];
@@ -366,8 +368,12 @@ function parseCdgModelFormat(
       continue;
     }
 
+    matchedCodesCount++;
     const rawAmount = parseAmount(row[budgetCol]);
-    if (rawAmount === null || rawAmount === 0) continue; // Skip zero/empty budget rows
+    if (rawAmount === null || rawAmount === 0) {
+      zeroValueCount++;
+      continue; // Skip zero/empty budget rows
+    }
 
     // Handle sign-sensitive codes (financial, extraordinary)
     let finalCategory = category;
@@ -392,10 +398,22 @@ function parseCdgModelFormat(
   }
 
   if (rows.length === 0) {
-    errors.push({
-      message:
-        "Nessuna riga budget valida trovata. Verificare che il foglio contenga codici CDG in colonna A e valori budget.",
-    });
+    if (matchedCodesCount > 0 && zeroValueCount === matchedCodesCount) {
+      // File is valid but budget column is all zeros (template not filled)
+      warnings.push({
+        message: `La colonna Budget (indice ${budgetCol}, col ${String.fromCharCode(65 + budgetCol)}) contiene solo valori a zero per ${matchedCodesCount} codici CDG riconosciuti. Il budget è vuoto.`,
+      });
+    } else if (matchedCodesCount === 0) {
+      errors.push({
+        message:
+          "Nessun codice CDG riconosciuto in colonna A. Verificare che il foglio contenga codici numerici (100, 200, ...) nella prima colonna.",
+      });
+    } else {
+      errors.push({
+        message:
+          "Nessuna riga budget valida trovata. Verificare che il foglio contenga valori budget.",
+      });
+    }
   }
 
   return {
