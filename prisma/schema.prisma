@@ -172,6 +172,7 @@ model TrialBalanceSnapshot {
   uploadedAt     DateTime @default(now()) @map("uploaded_at")
   sourceFilename String   @map("source_filename")
   isLocked       Boolean  @default(false) @map("is_locked")
+  isTrusted      Boolean  @default(false) @map("is_trusted")
   notes          String?
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
