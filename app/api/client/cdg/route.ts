@@ -24,16 +24,19 @@ export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
 
   if (sp.get("list") === "true") {
-    const snapshots = await listSnapshots(organizationId);
+    const snapshots = await listSnapshots(organizationId, { trustedOnly: true });
     return Response.json({ snapshots });
   }
 
+  // ADR-008: client workspace only sees trusted (validated) snapshots
   const snapshotId = sp.get("snapshotId") ?? undefined;
-  const result = await getIncomeStatement(organizationId, snapshotId);
+  const result = await getIncomeStatement(organizationId, snapshotId, { trustedOnly: true });
 
   if (!result) {
     return Response.json(
-      { error: "Nessun bilancio di verifica trovato per la tua azienda." },
+      {
+        error: "Il commercialista sta preparando i dati della tua azienda. Torna a breve.",
+      },
       { status: 404 },
     );
   }

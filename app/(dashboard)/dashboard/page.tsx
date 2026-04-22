@@ -39,10 +39,29 @@ export default function ClientDashboardPage() {
     return (
       <div className="p-8">
         <h1 className="text-2xl font-bold">Come sta andando la tua azienda</h1>
-        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-800 dark:bg-amber-950/20">
-          <p className="text-sm text-amber-800 dark:text-amber-300">
-            {error instanceof Error ? error.message : "Nessun bilancio disponibile."} Contatta il
-            tuo commercialista per il caricamento dei dati.
+        <div className="mt-8 flex flex-col items-center rounded-xl border border-slate-200 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/30">
+            <svg
+              className="h-7 w-7 text-blue-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              />
+            </svg>
+          </div>
+          <p className="mt-4 text-base font-semibold">
+            Il commercialista sta preparando i dati della tua azienda
+          </p>
+          <p className="mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400">
+            Non appena il bilancio di verifica sarà caricato e validato, qui vedrai la sintesi
+            completa dei numeri della tua azienda con indicatori, grafici e spiegazioni in
+            linguaggio semplice. Torna a breve.
           </p>
         </div>
       </div>

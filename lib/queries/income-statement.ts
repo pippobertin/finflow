@@ -29,18 +29,31 @@ export interface IncomeStatementQueryResult {
  *
  * @param organizationId - Organization ID
  * @param snapshotId - Optional specific snapshot ID (defaults to most recent locked)
+ * @param options.trustedOnly - If true, only return snapshots marked as trusted (ADR-008).
+ *   Used by client workspace to hide unvalidated data.
  */
 export async function getIncomeStatement(
   organizationId: string,
   snapshotId?: string,
+  options?: { trustedOnly?: boolean },
 ): Promise<IncomeStatementQueryResult | null> {
+  const trustedOnly = options?.trustedOnly ?? false;
+
   const snapshot = snapshotId
     ? await prisma.trialBalanceSnapshot.findFirst({
-        where: { id: snapshotId, organizationId },
+        where: {
+          id: snapshotId,
+          organizationId,
+          ...(trustedOnly && { isTrusted: true }),
+        },
         include: { lines: true },
       })
     : await prisma.trialBalanceSnapshot.findFirst({
-        where: { organizationId, isLocked: true },
+        where: {
+          organizationId,
+          isLocked: true,
+          ...(trustedOnly && { isTrusted: true }),
+        },
         orderBy: { periodEnd: "desc" },
         include: { lines: true },
       });
@@ -73,10 +86,14 @@ export async function getIncomeStatement(
 
 /**
  * List available snapshots for an organization.
+ * @param options.trustedOnly - If true, only return trusted snapshots (ADR-008)
  */
-export async function listSnapshots(organizationId: string) {
+export async function listSnapshots(organizationId: string, options?: { trustedOnly?: boolean }) {
   return prisma.trialBalanceSnapshot.findMany({
-    where: { organizationId },
+    where: {
+      organizationId,
+      ...(options?.trustedOnly && { isTrusted: true }),
+    },
     orderBy: { periodEnd: "desc" },
     select: {
       id: true,
@@ -84,6 +101,7 @@ export async function listSnapshots(organizationId: string) {
       periodEnd: true,
       sourceFilename: true,
       isLocked: true,
+      isTrusted: true,
       uploadedAt: true,
       notes: true,
       _count: { select: { lines: true } },
