@@ -64,10 +64,8 @@ export default function MovimentiPage() {
           <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
             Operativo
           </p>
-          <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Movimenti bancari</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Estratto conto con categorizzazione automatica
-          </p>
+          <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Il tuo conto corrente</h1>
+          <p className="mt-1 text-sm text-slate-500">Cosa è entrato e uscito dal conto</p>
         </div>
         <Link
           href="/import"

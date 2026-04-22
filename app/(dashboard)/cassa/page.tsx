@@ -82,9 +82,9 @@ export default function CassaPage() {
       {/* Header */}
       <div>
         <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase">Operativo</p>
-        <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Posizione di cassa</h1>
+        <h1 className="mt-1 text-2xl font-bold lg:text-3xl">I tuoi soldi in banca</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Saldo attuale e proiezione a 30, 60, 90 giorni
+          Saldo attuale e come evolverà nei prossimi 90 giorni
         </p>
       </div>
 

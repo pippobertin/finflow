@@ -57,8 +57,8 @@ export default function FatturePage() {
           <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
             Operativo
           </p>
-          <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Fatture</h1>
-          <p className="mt-1 text-sm text-slate-500">Gestione fatture attive e passive</p>
+          <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Le tue fatture</h1>
+          <p className="mt-1 text-sm text-slate-500">Tutto quello che hai emesso e ricevuto</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}

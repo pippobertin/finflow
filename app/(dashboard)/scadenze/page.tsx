@@ -89,10 +89,8 @@ export default function ScadenzePage() {
       {/* Header */}
       <div>
         <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase">Operativo</p>
-        <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Scadenze</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Calendario unificato dei pagamenti nei prossimi {days} giorni
-        </p>
+        <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Cosa paghi, cosa incassi</h1>
+        <p className="mt-1 text-sm text-slate-500">Il calendario dei prossimi {days} giorni</p>
       </div>
 
       {/* Summary KPIs */}
