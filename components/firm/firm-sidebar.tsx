@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Palette, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Palette, FileText, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/firm/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/firm/clients", label: "Clienti", icon: Users },
   { href: "/firm/branding", label: "Branding", icon: Palette },
+  { href: "/firm/templates", label: "Templates", icon: FileText },
 ];
 
 export function FirmSidebar() {
