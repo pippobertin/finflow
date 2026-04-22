@@ -241,6 +241,7 @@ model Organization {
   accountingFirmId String?         @map("accounting_firm_id")
   clientGroupId    String?         @map("client_group_id")
   cdgGranularity   CdgGranularity? @default(MONTHLY) @map("cdg_granularity")
+  cashThresholdEur Decimal?        @map("cash_threshold_eur") @db.Decimal(12, 2)
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 
