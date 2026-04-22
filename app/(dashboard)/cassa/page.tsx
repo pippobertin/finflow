@@ -51,7 +51,15 @@ export default function CassaPage() {
   if (error || !data) {
     return (
       <div className="p-6 lg:p-8">
-        <h1 className="text-2xl font-bold">Posizione di cassa</h1>
+        <div>
+          <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
+            Operativo
+          </p>
+          <h1 className="mt-1 text-2xl font-bold lg:text-3xl">I tuoi soldi in banca</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Saldo attuale e come evolverà nei prossimi 90 giorni
+          </p>
+        </div>
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
           <p className="text-sm text-slate-500">
             Nessun dato disponibile. Carica un estratto conto dalla sezione Movimenti.

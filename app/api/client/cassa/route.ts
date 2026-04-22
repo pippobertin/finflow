@@ -16,14 +16,19 @@ export async function GET() {
   if (error) return error;
 
   try {
-    const [timeline, org] = await Promise.all([
-      buildFullTimeline(organizationId),
-      prisma.organization.findUnique({
+    const timeline = await buildFullTimeline(organizationId);
+
+    // Threshold query isolated — if it fails, default to 5000 instead of crashing the API
+    let threshold = 5000;
+    try {
+      const org = await prisma.organization.findUnique({
         where: { id: organizationId },
         select: { cashThresholdEur: true },
-      }),
-    ]);
-    const threshold = org?.cashThresholdEur != null ? Number(org.cashThresholdEur) : 5000;
+      });
+      if (org?.cashThresholdEur != null) threshold = Number(org.cashThresholdEur);
+    } catch {
+      // cashThresholdEur column may not exist yet — use default
+    }
 
     const today = timeline.asOfDate;
     const projection = timeline.projection;
