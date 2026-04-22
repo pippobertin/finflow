@@ -369,6 +369,8 @@ function parseCdgModelFormat(
     }
 
     matchedCodesCount++;
+    matchedCategories.add(category); // Track matched category even if value is zero
+
     const rawAmount = parseAmount(row[budgetCol]);
     if (rawAmount === null || rawAmount === 0) {
       zeroValueCount++;
