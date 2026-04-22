@@ -27,6 +27,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params;
   const body = (await request.json()) as UpdateOrganizationInput;
 
+  // Merge settings with existing to avoid overwriting other keys
+  if (body.settings) {
+    const org = await getFirmOrganization(id, accountingFirmId);
+    if (!org) {
+      return Response.json({ error: "Organizzazione non trovata" }, { status: 404 });
+    }
+    const existing = (org.settings as Record<string, unknown>) ?? {};
+    body.settings = { ...existing, ...body.settings };
+  }
+
   const result = await updateFirmOrganization(id, accountingFirmId, body);
 
   if (result.count === 0) {

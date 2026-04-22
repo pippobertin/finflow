@@ -179,6 +179,7 @@ export interface UpdateOrganizationInput {
   zipCode?: string | null;
   cdgGranularity?: CdgGranularity;
   cashThresholdEur?: number | null;
+  settings?: Record<string, unknown>;
 }
 
 export async function updateFirmOrganization(
