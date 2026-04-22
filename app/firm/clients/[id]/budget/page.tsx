@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Upload, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Upload, Save, Trash2, BarChart3 } from "lucide-react";
 import { formatEUR } from "@/lib/helpers/format";
 import { toast } from "sonner";
 
@@ -357,6 +357,13 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href={`/firm/clients/${id}/budget/varianze?year=${year}`}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
+            Varianze
+          </Link>
           <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
             <SelectTrigger className="w-28">
               <SelectValue />

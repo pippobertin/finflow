@@ -37,6 +37,7 @@ const navSections = [
       { href: "/punto-pareggio", label: "Punto di pareggio", icon: Target },
       { href: "/situazione-patrimoniale", label: "Situazione patrimoniale", icon: Building2 },
       { href: "/salute-finanziaria", label: "Salute finanziaria", icon: HeartPulse },
+      { href: "/previsione-anno", label: "Previsione anno", icon: Target },
     ],
   },
   {
