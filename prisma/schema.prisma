@@ -223,7 +223,26 @@ model ChartOfAccountsMapping {
   @@schema("finflow")
 }
 
-// ─── Models ─────────────────────────────────────────────────
+model MonthlyBudget {
+  id             String      @id @default(cuid())
+  organizationId String      @map("organization_id")
+  year           Int
+  month          Int         // 1-12
+  cdgCategory    CdgCategory @map("cdg_category")
+  amount         Decimal     @default(0) @db.Decimal(12, 2)
+  notes          String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, year, month, cdgCategory])
+  @@index([organizationId, year])
+  @@map("monthly_budget")
+  @@schema("finflow")
+}
+
+// ─── Models ───────���─────────────────────────────────────────
 
 model Organization {
   id               String          @id @default(cuid())
@@ -265,6 +284,8 @@ model Organization {
   // V2 Fase 2
   trialBalanceSnapshots TrialBalanceSnapshot[]
   chartOfAccountsMappings ChartOfAccountsMapping[]
+  // V2 Fase 5
+  monthlyBudgets       MonthlyBudget[]
 
   @@map("fin_organization")
   @@schema("public")
