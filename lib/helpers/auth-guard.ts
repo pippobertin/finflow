@@ -75,6 +75,51 @@ type FirmAuthResult =
  * Verifies userType === CONTROLLER and accountingFirmId is present.
  * Returns accountingFirmId for use in scoped queries.
  */
+// ─── Client auth (V2 workspace) ─────────────────────────────
+// Ref: ADR-003 dual-workspace routing, ADR-004 scoped query
+
+interface ClientSession extends Session {
+  user: Session["user"] & {
+    id: string;
+    organizationId: string;
+    userType: "CLIENT_OWNER" | "CLIENT_ADMIN_BANK_ONLY";
+    accountingFirmId?: string;
+  };
+}
+
+type ClientAuthResult =
+  | { error: Response; session: null; organizationId: null }
+  | { error: null; session: ClientSession; organizationId: string };
+
+/**
+ * Auth guard for client workspace routes.
+ * Accepts CLIENT_OWNER and CLIENT_ADMIN_BANK_ONLY.
+ * Returns organizationId for scoped queries.
+ */
+export async function getClientSession(): Promise<ClientAuthResult> {
+  const session = (await auth()) as Session | null;
+  if (!session?.user?.organizationId) {
+    return {
+      error: Response.json({ error: "Non autorizzato" }, { status: 401 }),
+      session: null,
+      organizationId: null,
+    };
+  }
+  const ut = session.user.userType;
+  if (ut !== "CLIENT_OWNER" && ut !== "CLIENT_ADMIN_BANK_ONLY") {
+    return {
+      error: Response.json({ error: "Accesso riservato ai clienti" }, { status: 403 }),
+      session: null,
+      organizationId: null,
+    };
+  }
+  return {
+    error: null,
+    session: session as ClientSession,
+    organizationId: session.user.organizationId,
+  };
+}
+
 export async function getFirmSession(): Promise<FirmAuthResult> {
   const session = (await auth()) as Session | null;
   if (!session?.user?.organizationId) {

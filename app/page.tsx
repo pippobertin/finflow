@@ -13,6 +13,14 @@ export default async function Home() {
     redirect("/firm/dashboard");
   }
 
-  // CLIENT_OWNER, CLIENT_ADMIN_BANK_ONLY, or legacy users (null userType)
+  // CLIENT_OWNER / CLIENT_ADMIN_BANK_ONLY → client workspace
+  if (
+    session.user.userType === "CLIENT_OWNER" ||
+    session.user.userType === "CLIENT_ADMIN_BANK_ONLY"
+  ) {
+    redirect("/dashboard");
+  }
+
+  // Legacy users (null userType) → V1 overview
   redirect("/overview");
 }
