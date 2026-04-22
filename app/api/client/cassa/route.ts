@@ -1,5 +1,6 @@
 import { getClientSession } from "@/lib/helpers/auth-guard";
 import { buildFullTimeline } from "@/lib/queries/cashflow-projection";
+import { prisma } from "@/lib/prisma";
 
 /**
  * GET /api/client/cassa
@@ -15,7 +16,14 @@ export async function GET() {
   if (error) return error;
 
   try {
-    const timeline = await buildFullTimeline(organizationId);
+    const [timeline, org] = await Promise.all([
+      buildFullTimeline(organizationId),
+      prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { cashThresholdEur: true },
+      }),
+    ]);
+    const threshold = org?.cashThresholdEur != null ? Number(org.cashThresholdEur) : 5000;
 
     const today = timeline.asOfDate;
     const projection = timeline.projection;
@@ -71,6 +79,7 @@ export async function GET() {
       milestones,
       chartData,
       nextItems,
+      threshold,
     });
   } catch (err) {
     console.error("[client/cassa] Error:", err);
