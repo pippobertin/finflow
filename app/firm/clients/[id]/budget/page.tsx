@@ -341,14 +341,14 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
           return (
             <td
               key={mi}
-              className={`font-numeric px-2 py-1.5 text-right text-xs tabular-nums ${val < 0 ? "text-red-600" : "text-emerald-700"}`}
+              className={`font-numeric px-2 py-1.5 text-right text-xs tabular-nums ${val < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}
             >
               {formatEUR(val)}
             </td>
           );
         })}
         <td
-          className={`font-numeric px-2 py-1.5 text-right text-xs font-bold tabular-nums ${annualTotal < 0 ? "text-red-600" : "text-emerald-700"}`}
+          className={`font-numeric px-2 py-1.5 text-right text-xs font-bold tabular-nums ${annualTotal < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}
         >
           {formatEUR(annualTotal)}
         </td>

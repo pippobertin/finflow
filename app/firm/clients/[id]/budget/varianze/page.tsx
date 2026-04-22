@@ -179,7 +179,7 @@ export default function VarianzePage({ params }: { params: Promise<{ id: string 
                     <tr
                       key={key}
                       className={cn(
-                        "border-b last:border-0",
+                        "border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/30",
                         isSubtotal && "bg-slate-50 font-semibold dark:bg-slate-900/50",
                       )}
                     >
@@ -193,8 +193,8 @@ export default function VarianzePage({ params }: { params: Promise<{ id: string 
                       <td
                         className={cn(
                           "font-numeric px-4 py-2 text-right",
-                          line.favorable === true && "text-emerald-600",
-                          line.favorable === false && "text-red-600",
+                          line.favorable === true && "text-emerald-600 dark:text-emerald-400",
+                          line.favorable === false && "text-red-600 dark:text-red-400",
                         )}
                       >
                         {line.varianceAbs >= 0 ? "+" : ""}
@@ -203,8 +203,8 @@ export default function VarianzePage({ params }: { params: Promise<{ id: string 
                       <td
                         className={cn(
                           "font-numeric px-4 py-2 text-right",
-                          line.favorable === true && "text-emerald-600",
-                          line.favorable === false && "text-red-600",
+                          line.favorable === true && "text-emerald-600 dark:text-emerald-400",
+                          line.favorable === false && "text-red-600 dark:text-red-400",
                         )}
                       >
                         {line.variancePct != null ? (
@@ -233,10 +233,10 @@ function KPICard({ label, line }: { label: string; line: VarianceLine }) {
     line.favorable === true ? TrendingUp : line.favorable === false ? TrendingDown : Minus;
   const color =
     line.favorable === true
-      ? "text-emerald-600"
+      ? "text-emerald-600 dark:text-emerald-400"
       : line.favorable === false
-        ? "text-red-600"
-        : "text-slate-500";
+        ? "text-red-600 dark:text-red-400"
+        : "text-slate-500 dark:text-slate-400";
 
   return (
     <div className="rounded-lg border bg-white p-4 dark:bg-slate-950">

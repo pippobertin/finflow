@@ -133,14 +133,14 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
   const getStatusBadge = (s: VatSnapshotRow) => {
     if (s.isPaid) {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
           <CheckCircle className="h-3 w-3" /> Pagata
         </span>
       );
     }
     if (s.amountDue === 0) {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
           <Circle className="h-3 w-3" /> A credito
         </span>
       );
@@ -151,7 +151,9 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
       <span
         className={cn(
           "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-          isOverdue ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700",
+          isOverdue
+            ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400"
+            : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
         )}
       >
         <Clock className="h-3 w-3" /> {isOverdue ? "Scaduta" : "Da pagare"}
@@ -241,9 +243,9 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
                     className={cn(
                       "font-numeric px-4 py-2 text-right",
                       s.vatBalance > 0
-                        ? "text-red-600"
+                        ? "text-red-600 dark:text-red-400"
                         : s.vatBalance < 0
-                          ? "text-emerald-600"
+                          ? "text-emerald-600 dark:text-emerald-400"
                           : "",
                     )}
                   >
@@ -255,7 +257,9 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
                   <td
                     className={cn(
                       "font-numeric px-4 py-2 text-right font-semibold",
-                      s.amountDue > 0 ? "text-red-600" : "text-emerald-600",
+                      s.amountDue > 0
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-emerald-600 dark:text-emerald-400",
                     )}
                   >
                     {s.amountDue > 0 ? formatEUR(s.amountDue) : "Credito"}

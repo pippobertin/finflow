@@ -151,7 +151,7 @@ export default function PrevisioneAnnoPage() {
                     <tr
                       key={key}
                       className={cn(
-                        "border-b last:border-0",
+                        "border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/30",
                         isSubtotal && "bg-slate-50 font-semibold dark:bg-slate-900/50",
                       )}
                     >
