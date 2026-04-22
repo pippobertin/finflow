@@ -412,7 +412,7 @@ export default function PrestitiPage({ params }: { params: Promise<{ id: string 
                 <Label htmlFor="loan-freq">Frequenza</Label>
                 <Select
                   value={form.frequency}
-                  onValueChange={(v) => setForm((f) => ({ ...f, frequency: v }))}
+                  onValueChange={(v) => v && setForm((f) => ({ ...f, frequency: v }))}
                 >
                   <SelectTrigger id="loan-freq">
                     <SelectValue />

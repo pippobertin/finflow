@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { getFirmSession } from "@/lib/helpers/auth-guard";
 import {
   getFirmOrganization,
@@ -34,7 +35,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return Response.json({ error: "Organizzazione non trovata" }, { status: 404 });
     }
     const existing = (org.settings as Record<string, unknown>) ?? {};
-    body.settings = { ...existing, ...body.settings };
+    const incoming = body.settings as Record<string, unknown>;
+    body.settings = { ...existing, ...incoming } as Prisma.InputJsonValue;
   }
 
   const result = await updateFirmOrganization(id, accountingFirmId, body);

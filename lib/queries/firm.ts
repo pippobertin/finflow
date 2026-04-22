@@ -5,7 +5,7 @@
  * Ref: docs/adr/004-scoped-query-pattern.md
  */
 import { prisma } from "@/lib/prisma";
-import type { CdgGranularity, CdgCategory } from "@prisma/client";
+import type { CdgGranularity, CdgCategory, Prisma } from "@prisma/client";
 import type { ParsedTrialBalanceRow } from "@/lib/parsers/cdg-trial-balance-parser";
 
 // ─── Read ────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ export interface UpdateOrganizationInput {
   zipCode?: string | null;
   cdgGranularity?: CdgGranularity;
   cashThresholdEur?: number | null;
-  settings?: Record<string, unknown>;
+  settings?: Prisma.InputJsonValue;
 }
 
 export async function updateFirmOrganization(

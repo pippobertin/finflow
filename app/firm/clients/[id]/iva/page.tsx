@@ -14,6 +14,7 @@ import { ArrowLeft, RefreshCw, CheckCircle, Circle, Clock } from "lucide-react";
 import { formatEUR } from "@/lib/helpers/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { MarkAsPaidDialog } from "@/components/firm/mark-as-paid-dialog";
 
 interface VatSnapshotRow {
   id: string;
@@ -42,6 +43,8 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paidId, setPaidId] = useState<string | null>(null);
+  const [markingPaid, setMarkingPaid] = useState(false);
 
   const loadData = useCallback(
     async (signal: AbortSignal) => {
@@ -99,16 +102,40 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
     }
   }, [id, year]);
 
-  const handleTogglePaid = useCallback(
-    async (snapshotId: string, currentlyPaid: boolean) => {
-      const isPaid = !currentlyPaid;
-      const paidDate = isPaid ? new Date().toISOString().slice(0, 10) : null;
+  const handleMarkPaid = useCallback(
+    async (paidDate: string) => {
+      if (!paidId) return;
+      setMarkingPaid(true);
+      try {
+        const res = await fetch(`/api/firm/clients/${id}/iva/${paidId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPaid: true, paidDate }),
+        });
+        if (!res.ok) {
+          toast.error("Errore nell'aggiornamento");
+          return;
+        }
+        const updated = await res.json();
+        setSnapshots((prev) => prev.map((s) => (s.id === paidId ? { ...s, ...updated } : s)));
+        toast.success("Segnata come pagata");
+        setPaidId(null);
+      } catch {
+        toast.error("Errore di rete");
+      } finally {
+        setMarkingPaid(false);
+      }
+    },
+    [id, paidId],
+  );
 
+  const handleReopen = useCallback(
+    async (snapshotId: string) => {
       try {
         const res = await fetch(`/api/firm/clients/${id}/iva/${snapshotId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isPaid, paidDate }),
+          body: JSON.stringify({ isPaid: false, paidDate: null }),
         });
         if (!res.ok) {
           toast.error("Errore nell'aggiornamento");
@@ -116,7 +143,7 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
         }
         const updated = await res.json();
         setSnapshots((prev) => prev.map((s) => (s.id === snapshotId ? { ...s, ...updated } : s)));
-        toast.success(isPaid ? "Segnata come pagata" : "Segnata come non pagata");
+        toast.success("Segnata come non pagata");
       } catch {
         toast.error("Errore di rete");
       }
@@ -273,7 +300,7 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleTogglePaid(s.id, s.isPaid)}
+                        onClick={() => (s.isPaid ? handleReopen(s.id) : setPaidId(s.id))}
                         className="text-xs"
                       >
                         {s.isPaid ? "Riapri" : "Segna pagata"}
@@ -286,6 +313,15 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
           </table>
         </div>
       )}
+
+      <MarkAsPaidDialog
+        open={!!paidId}
+        onOpenChange={(open) => {
+          if (!open) setPaidId(null);
+        }}
+        onConfirm={handleMarkPaid}
+        loading={markingPaid}
+      />
     </div>
   );
 }

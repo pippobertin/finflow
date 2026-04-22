@@ -23,6 +23,7 @@ import { ArrowLeft, Plus, Pencil, Trash2, CheckCircle, Clock, Circle } from "luc
 import { formatEUR } from "@/lib/helpers/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { MarkAsPaidDialog } from "@/components/firm/mark-as-paid-dialog";
 
 interface F24Row {
   id: string;
@@ -68,6 +69,10 @@ export default function F24Page({ params }: { params: Promise<{ id: string }> })
   // Delete dialog
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Paid dialog
+  const [paidId, setPaidId] = useState<string | null>(null);
+  const [markingPaid, setMarkingPaid] = useState(false);
 
   const loadData = useCallback(
     async (signal: AbortSignal) => {
@@ -168,17 +173,42 @@ export default function F24Page({ params }: { params: Promise<{ id: string }> })
     }
   };
 
-  // Toggle paid
-  const handleTogglePaid = useCallback(
-    async (scheduleId: string, currentlyPaid: boolean) => {
-      const isPaid = !currentlyPaid;
-      const paidDate = isPaid ? new Date().toISOString().slice(0, 10) : null;
+  // Mark as paid (via dialog with date picker)
+  const handleMarkPaid = useCallback(
+    async (paidDate: string) => {
+      if (!paidId) return;
+      setMarkingPaid(true);
+      try {
+        const res = await fetch(`/api/firm/clients/${id}/f24/${paidId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPaid: true, paidDate }),
+        });
+        if (!res.ok) {
+          toast.error("Errore nell'aggiornamento");
+          return;
+        }
+        const updated = await res.json();
+        setSchedules((prev) => prev.map((s) => (s.id === paidId ? { ...s, ...updated } : s)));
+        toast.success("Segnata come pagata");
+        setPaidId(null);
+      } catch {
+        toast.error("Errore di rete");
+      } finally {
+        setMarkingPaid(false);
+      }
+    },
+    [id, paidId],
+  );
 
+  // Reopen (mark as not paid)
+  const handleReopen = useCallback(
+    async (scheduleId: string) => {
       try {
         const res = await fetch(`/api/firm/clients/${id}/f24/${scheduleId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isPaid, paidDate }),
+          body: JSON.stringify({ isPaid: false, paidDate: null }),
         });
         if (!res.ok) {
           toast.error("Errore nell'aggiornamento");
@@ -186,7 +216,7 @@ export default function F24Page({ params }: { params: Promise<{ id: string }> })
         }
         const updated = await res.json();
         setSchedules((prev) => prev.map((s) => (s.id === scheduleId ? { ...s, ...updated } : s)));
-        toast.success(isPaid ? "Segnata come pagata" : "Segnata come non pagata");
+        toast.success("Segnata come non pagata");
       } catch {
         toast.error("Errore di rete");
       }
@@ -335,7 +365,7 @@ export default function F24Page({ params }: { params: Promise<{ id: string }> })
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleTogglePaid(s.id, s.isPaid)}
+                        onClick={() => (s.isPaid ? handleReopen(s.id) : setPaidId(s.id))}
                         className="text-xs"
                       >
                         {s.isPaid ? "Riapri" : "Segna pagata"}
@@ -457,6 +487,16 @@ export default function F24Page({ params }: { params: Promise<{ id: string }> })
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mark as Paid Dialog */}
+      <MarkAsPaidDialog
+        open={!!paidId}
+        onOpenChange={(open) => {
+          if (!open) setPaidId(null);
+        }}
+        onConfirm={handleMarkPaid}
+        loading={markingPaid}
+      />
     </div>
   );
 }
