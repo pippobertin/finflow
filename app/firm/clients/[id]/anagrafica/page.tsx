@@ -22,6 +22,7 @@ import {
   Receipt,
   Landmark,
   Banknote,
+  ArrowUpDown,
 } from "lucide-react";
 
 interface BankAccount {
@@ -187,6 +188,13 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
           >
             <Banknote className="mr-2 h-4 w-4" />
             Prestiti
+          </Link>
+          <Link
+            href={`/firm/clients/${id}/movimenti`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <ArrowUpDown className="mr-2 h-4 w-4" />
+            Movimenti
           </Link>
         </div>
       </div>

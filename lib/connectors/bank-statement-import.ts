@@ -9,6 +9,8 @@ interface BankStatementImportOptions {
   organizationId: string;
   csvContent?: string;
   pdfBuffer?: Buffer;
+  /** Pre-parsed rows from profile-based parser (skips CSV/PDF parsing) */
+  parsedRows?: Record<string, string>[];
   mapping: BankStatementMapping;
   dateFormat?: string;
   decimalSeparator?: "," | ".";
@@ -72,6 +74,7 @@ export async function importBankStatements(
     organizationId,
     csvContent,
     pdfBuffer,
+    parsedRows: preRows,
     mapping,
     dateFormat = "dd/MM/yyyy",
     decimalSeparator = ",",
@@ -83,7 +86,10 @@ export async function importBankStatements(
   const importErrors: ImportError[] = [];
   let detectedEcMetadata: BankStatementImportResult["ecMetadata"] = undefined;
 
-  if (pdfBuffer) {
+  if (preRows) {
+    // Pre-parsed rows from profile-based parser
+    rows = preRows;
+  } else if (pdfBuffer) {
     const pdfResult = await parseBankStatementPdf(pdfBuffer);
     rows = pdfResult.rows;
 
