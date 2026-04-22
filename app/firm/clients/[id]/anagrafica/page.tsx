@@ -20,6 +20,7 @@ import {
   BarChart3,
   Calculator,
   Receipt,
+  Landmark,
 } from "lucide-react";
 
 interface BankAccount {
@@ -169,6 +170,10 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
           <Link href={`/firm/clients/${id}/iva`} className={buttonVariants({ variant: "outline" })}>
             <Receipt className="mr-2 h-4 w-4" />
             IVA
+          </Link>
+          <Link href={`/firm/clients/${id}/f24`} className={buttonVariants({ variant: "outline" })}>
+            <Landmark className="mr-2 h-4 w-4" />
+            F24
           </Link>
         </div>
       </div>
