@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Select,
   SelectContent,
@@ -51,6 +52,17 @@ export default function PrevisioneAnnoPage() {
   const [year, setYear] = useState(currentYear);
   const { data, isLoading, error } = useClientPreconsuntivo(year);
 
+  const { data: yearsData } = useQuery({
+    queryKey: ["client-preconsuntivo-years"],
+    queryFn: async () => {
+      const res = await fetch("/api/client/preconsuntivo/years");
+      if (!res.ok) return { years: [currentYear + 1, currentYear, currentYear - 1] };
+      return res.json() as Promise<{ years: number[] }>;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+  const availableYears = yearsData?.years ?? [currentYear + 1, currentYear, currentYear - 1];
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
       {/* Hero */}
@@ -66,7 +78,7 @@ export default function PrevisioneAnnoPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {[currentYear + 1, currentYear, currentYear - 1].map((y) => (
+            {availableYears.map((y) => (
               <SelectItem key={y} value={String(y)}>
                 {y}
               </SelectItem>
