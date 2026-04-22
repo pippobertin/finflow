@@ -11,6 +11,10 @@ import {
   Building2,
   HeartPulse,
   BookOpen,
+  Landmark,
+  CalendarClock,
+  FileText,
+  ArrowDownUp,
   LogOut,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -33,6 +37,15 @@ const navSections = [
       { href: "/punto-pareggio", label: "Punto di pareggio", icon: Target },
       { href: "/situazione-patrimoniale", label: "Situazione patrimoniale", icon: Building2 },
       { href: "/salute-finanziaria", label: "Salute finanziaria", icon: HeartPulse },
+    ],
+  },
+  {
+    title: "Operativo",
+    items: [
+      { href: "/cassa", label: "Cassa", icon: Landmark },
+      { href: "/scadenze", label: "Scadenze", icon: CalendarClock },
+      { href: "/fatture", label: "Fatture", icon: FileText },
+      { href: "/movimenti", label: "Movimenti", icon: ArrowDownUp },
     ],
   },
   {
