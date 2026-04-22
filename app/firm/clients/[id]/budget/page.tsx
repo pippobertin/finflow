@@ -270,11 +270,17 @@ export default function BudgetPage({ params }: { params: Promise<{ id: string }>
       }
 
       if (!data.rows || data.rows.length === 0) {
-        toast.info(
-          "Il file è stato letto correttamente ma non contiene valori budget. La colonna Budget è vuota.",
-        );
-        if (data.warnings?.length) {
-          toast.info(`${data.warnings.length} avvisi nel parsing`);
+        const catCount = data.matchedCategories?.length ?? 0;
+        if (catCount > 0) {
+          toast.info(
+            `Il file è stato letto correttamente. Trovate ${catCount} categorie CDG ma tutti i valori budget sono a zero (template vuoto?). Puoi inserire i valori manualmente nella griglia.`,
+            { duration: 8000 },
+          );
+        } else {
+          toast.info(
+            "Nessuna categoria CDG riconosciuta nel file. Verifica che il formato sia corretto.",
+            { duration: 8000 },
+          );
         }
         return;
       }
