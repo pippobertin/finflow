@@ -264,36 +264,45 @@ interface CdgModelFormat {
 }
 
 function detectFormat(raw: unknown[][]): MonthlyFormat | CdgModelFormat {
-  // Scan first 5 rows for month names in column headers
+  // Priority 1: Check if column A has numeric CDG codes (100, 200, etc.)
+  // This identifies the CDG Model format even if month headers exist elsewhere
+  let codeCount = 0;
+  for (let r = 3; r < Math.min(15, raw.length); r++) {
+    const row = raw[r];
+    if (!row) continue;
+    const code = Number(row[0]);
+    if (Number.isInteger(code) && code >= 100 && code <= 999) {
+      codeCount++;
+    }
+  }
+  if (codeCount >= 3) {
+    return { type: "cdg_model" };
+  }
+
+  // Priority 2: Scan first 5 rows for month names in early columns (< 15)
+  // to detect the standard 12-column monthly format
   for (let r = 0; r < Math.min(5, raw.length); r++) {
     const row = raw[r];
     if (!row) continue;
 
-    const monthColumns: number[] = [];
-    for (let c = 0; c < row.length; c++) {
+    const monthColumns: number[] = new Array(12).fill(-1);
+    for (let c = 0; c < Math.min(row.length, 15); c++) {
       const cell = String(row[c] ?? "")
         .toLowerCase()
         .trim();
-      const monthIdx = MONTH_NAMES_IT.findIndex((m) => cell.startsWith(m));
+      if (!cell) continue;
+      let monthIdx = MONTH_NAMES_IT.findIndex((m) => cell.startsWith(m));
       if (monthIdx === -1) {
-        const fullIdx = MONTH_NAMES_FULL_IT.findIndex((m) => cell.startsWith(m));
-        if (fullIdx !== -1 && !monthColumns.includes(fullIdx)) {
-          monthColumns[fullIdx] = c;
-        }
-      } else if (!monthColumns.includes(monthIdx)) {
+        monthIdx = MONTH_NAMES_FULL_IT.findIndex((m) => cell.startsWith(m));
+      }
+      if (monthIdx !== -1 && monthColumns[monthIdx] === -1) {
         monthColumns[monthIdx] = c;
       }
     }
 
-    // Need at least 6 months found to consider it monthly format
-    const found = monthColumns.filter((v) => v !== undefined).length;
+    const found = monthColumns.filter((v) => v !== -1).length;
     if (found >= 6) {
-      // Fill gaps: if we found Jan,Feb,Mar but not others, they're sequential
-      const filled: number[] = [];
-      for (let m = 0; m < 12; m++) {
-        filled[m] = monthColumns[m] ?? -1;
-      }
-      return { type: "monthly", monthColumns: filled };
+      return { type: "monthly", monthColumns };
     }
   }
 
