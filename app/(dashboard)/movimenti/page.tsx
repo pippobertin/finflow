@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useClientMovimenti } from "@/lib/hooks/use-client-movimenti";
 import { formatEUR, formatDateShort } from "@/lib/helpers/format";
-import { ArrowDownUp, ChevronLeft, ChevronRight, Upload, Search } from "lucide-react";
+import { ArrowDownUp, ChevronLeft, ChevronRight, Upload, Search, Landmark } from "lucide-react";
 import Link from "next/link";
 
 const CDG_LABELS: Record<string, string> = {
@@ -75,6 +75,29 @@ export default function MovimentiPage() {
           Importa estratto conto
         </Link>
       </div>
+
+      {/* Hero KPI: Saldo conto */}
+      {data && data.data.length > 0 && (
+        <div
+          className="rounded-xl p-4 text-white"
+          style={{ backgroundColor: "var(--brand, #0b4d8a)" }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
+              <Landmark className="h-4 w-4 text-white" />
+            </div>
+            <p className="text-xs font-semibold tracking-wide text-white/70 uppercase">
+              Saldo conto
+            </p>
+          </div>
+          <p className="font-numeric mt-2 text-2xl font-bold tabular-nums">
+            {formatEUR(Number(data.data[0].balance))}
+          </p>
+          <p className="mt-0.5 text-xs text-white/60">
+            Ultimo aggiornamento: {formatDateShort(data.data[0].date)}
+          </p>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">

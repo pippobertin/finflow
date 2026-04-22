@@ -7,7 +7,7 @@ import {
   useMarkFatturaPaid,
 } from "@/lib/hooks/use-client-fatture";
 import { formatEUR, formatDateShort } from "@/lib/helpers/format";
-import { FileText, Plus, Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { FileText, Plus, Check, ChevronLeft, ChevronRight, X, ArrowDownLeft } from "lucide-react";
 
 interface InvoiceRow {
   id: string;
@@ -27,6 +27,7 @@ interface FattureResult {
   data: InvoiceRow[];
   total: number;
   totalGrossAmount: number;
+  pendingReceivable: { total: number; count: number };
   page: number;
   pageSize: number;
   totalPages: number;
@@ -71,6 +72,29 @@ export default function FatturePage() {
 
       {/* Create form */}
       {showForm && <CreateInvoiceForm onClose={() => setShowForm(false)} />}
+
+      {/* Hero KPI */}
+      {data && (
+        <div
+          className="rounded-xl p-4 text-white"
+          style={{ backgroundColor: "var(--brand, #0b4d8a)" }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
+              <ArrowDownLeft className="h-4 w-4 text-white" />
+            </div>
+            <p className="text-xs font-semibold tracking-wide text-white/70 uppercase">
+              Fatture da incassare
+            </p>
+          </div>
+          <p className="font-numeric mt-2 text-2xl font-bold tabular-nums">
+            {formatEUR(data.pendingReceivable.total)}
+          </p>
+          <p className="mt-0.5 text-xs text-white/60">
+            {data.pendingReceivable.count} fatture attive in attesa
+          </p>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">

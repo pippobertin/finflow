@@ -113,16 +113,19 @@ export default function ScadenzePage() {
             −{formatEUR(summary.totalOut)}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-            <CalendarClock className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase">Flusso netto</span>
+        <div
+          className="rounded-xl p-4 text-white"
+          style={{ backgroundColor: "var(--brand, #0b4d8a)" }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
+              <CalendarClock className="h-3.5 w-3.5 text-white" />
+            </div>
+            <span className="text-xs font-semibold tracking-wide text-white/70 uppercase">
+              Flusso netto
+            </span>
           </div>
-          <p
-            className={`font-numeric mt-1 text-xl font-bold tabular-nums ${
-              summary.netFlow >= 0 ? "text-emerald-600" : "text-red-500"
-            }`}
-          >
+          <p className="font-numeric mt-1 text-xl font-bold text-white tabular-nums">
             {summary.netFlow >= 0 ? "+" : ""}
             {formatEUR(summary.netFlow)}
           </p>

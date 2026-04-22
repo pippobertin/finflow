@@ -50,7 +50,13 @@ export default function CassaPage() {
 
   const { currentBalance, milestones, chartData, nextItems } = data;
 
-  const kpis = [
+  const kpis: Array<{
+    label: string;
+    value: string;
+    icon: typeof Landmark;
+    featured?: boolean;
+    delta?: number | null;
+  }> = [
     {
       label: "Saldo attuale",
       value: formatEUR(currentBalance),
@@ -93,42 +99,69 @@ export default function CassaPage() {
         {kpis.map((kpi) => (
           <div
             key={kpi.label}
-            className={`rounded-xl border p-4 ${
+            className={`rounded-xl p-4 ${
               kpi.featured
-                ? "border-[var(--brand,#0b4d8a)]/20 bg-gradient-to-br from-[var(--brand,#0b4d8a)]/5 to-transparent"
-                : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                ? "text-white"
+                : "border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
             }`}
+            style={kpi.featured ? { backgroundColor: "var(--brand, #0b4d8a)" } : undefined}
           >
             <div className="flex items-center gap-2">
               <div
                 className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                   kpi.featured
-                    ? "bg-[var(--brand,#0b4d8a)]/10 text-[var(--brand,#0b4d8a)]"
+                    ? "bg-white/20 text-white"
                     : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                 }`}
               >
                 <kpi.icon className="h-4 w-4" />
               </div>
-              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+              <p
+                className={`text-xs font-semibold tracking-wide uppercase ${
+                  kpi.featured ? "text-white/70" : "text-slate-500 dark:text-slate-400"
+                }`}
+              >
                 {kpi.label}
               </p>
             </div>
-            <p className="font-numeric mt-2 text-xl font-bold tabular-nums">{kpi.value}</p>
+            <p
+              className={`font-numeric mt-2 text-xl font-bold tabular-nums ${
+                kpi.featured ? "text-white" : ""
+              }`}
+            >
+              {kpi.value}
+            </p>
             {kpi.delta != null && (
               <div className="mt-1 flex items-center gap-1">
-                {kpi.delta >= 0 ? (
-                  <TrendingUp className="h-3 w-3 text-emerald-600" />
+                {kpi.featured ? (
+                  <>
+                    {kpi.delta >= 0 ? (
+                      <TrendingUp className="h-3 w-3 text-white/70" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 text-white/70" />
+                    )}
+                    <span className="text-xs font-medium text-white/70">
+                      {kpi.delta >= 0 ? "+" : ""}
+                      {formatEUR(kpi.delta)}
+                    </span>
+                  </>
                 ) : (
-                  <TrendingDown className="h-3 w-3 text-red-500" />
+                  <>
+                    {kpi.delta >= 0 ? (
+                      <TrendingUp className="h-3 w-3 text-emerald-600" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 text-red-500" />
+                    )}
+                    <span
+                      className={`text-xs font-medium ${
+                        kpi.delta >= 0 ? "text-emerald-600" : "text-red-500"
+                      }`}
+                    >
+                      {kpi.delta >= 0 ? "+" : ""}
+                      {formatEUR(kpi.delta)}
+                    </span>
+                  </>
                 )}
-                <span
-                  className={`text-xs font-medium ${
-                    kpi.delta >= 0 ? "text-emerald-600" : "text-red-500"
-                  }`}
-                >
-                  {kpi.delta >= 0 ? "+" : ""}
-                  {formatEUR(kpi.delta)}
-                </span>
               </div>
             )}
           </div>

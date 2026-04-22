@@ -42,7 +42,7 @@ export async function listInvoices(params: InvoiceListParams) {
     }),
   };
 
-  const [data, total, agg] = await Promise.all([
+  const [data, total, agg, pendingReceivableAgg] = await Promise.all([
     prisma.invoice.findMany({
       where,
       orderBy: { date: "desc" },
@@ -54,12 +54,21 @@ export async function listInvoices(params: InvoiceListParams) {
       where,
       _sum: { grossAmount: true },
     }),
+    prisma.invoice.aggregate({
+      where: { organizationId, direction: "ACTIVE", status: "PENDING" },
+      _sum: { grossAmount: true },
+      _count: true,
+    }),
   ]);
 
   return {
     data,
     total,
     totalGrossAmount: Number(agg._sum.grossAmount ?? 0),
+    pendingReceivable: {
+      total: Number(pendingReceivableAgg._sum.grossAmount ?? 0),
+      count: pendingReceivableAgg._count,
+    },
     page,
     pageSize,
     totalPages: Math.ceil(total / pageSize),
