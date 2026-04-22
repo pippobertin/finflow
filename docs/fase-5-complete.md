@@ -126,6 +126,38 @@ Data: 2026-04-22
 | `lib/queries/vat-snapshots.ts`          | `recalculateVatSnapshotsV2()` (nuovo)               |
 | `lib/hooks/use-client-preconsuntivo.ts` | React Query hook                                    |
 
+## Fase 5.E — Cleanup
+
+Data: 2026-04-22
+
+Cinque interventi di polish per chiudere i gap funzionali rimasti prima di Fase 6.
+
+| Commit | Hash      | Descrizione                                                                                                        |
+| ------ | --------- | ------------------------------------------------------------------------------------------------------------------ |
+| E1     | `db28b6e` | UI editor F24: pagina CRUD completa (tabella, dialog crea/modifica, eliminazione, toggle pagata) + link anagrafica |
+| E2     | `d4b4c8c` | UI editor Prestiti: pagina CRUD completa (tutti i campi: rata, capitale, interessi, frequenza) + link anagrafica   |
+| E3     | `a8609d8` | Campo "Credito IVA iniziale" in anagrafica: legge/scrive `settings.vatCarryForward`, merge settings nel PATCH API  |
+| E4     | `ed59740` | Messaggio parser budget vuoto migliorato: mostra conteggio categorie trovate, suggerisce inserimento manuale       |
+| E5     | `c9aeb45` | Visual polish: hover su righe tabella, dark mode su colori/badge (IVA, varianze, budget subtotali)                 |
+
+### Nuove pagine UI
+
+| Pagina                        | Tipo       | Descrizione                         |
+| ----------------------------- | ---------- | ----------------------------------- |
+| `/firm/clients/[id]/f24`      | Controller | CRUD scadenze F24 con status badges |
+| `/firm/clients/[id]/prestiti` | Controller | CRUD prestiti/finanziamenti         |
+
+### Modifiche anagrafica
+
+- 6 link di navigazione: CDG, Bilanci, Budget, IVA, F24, Prestiti
+- Nuovo campo numerico "Credito IVA iniziale (€)" con persistenza in `Organization.settings.vatCarryForward`
+- API route PATCH aggiornata per merge settings (non sovrascrive chiavi esistenti)
+
+### TODO per Fase 6+
+
+- **Riorganizzazione link anagrafica**: se il numero di link crescerà oltre 6, valutare un menu compatto (dropdown o tabs) oppure una sidebar cliente dedicata al posto della riga di bottoni orizzontale
+- **F24 anno selector dinamico**: attualmente hardcoded a 4 anni, potrebbe leggere dal DB come per preconsuntivo
+
 ## Test
 
 - 15 unit test per budget variance engine (vitest) — tutti verdi
