@@ -2,6 +2,7 @@
 
 import { useClientCassa } from "@/lib/hooks/use-client-cassa";
 import { formatEUR } from "@/lib/helpers/format";
+import { CHART_TOOLTIP_PROPS, formatTooltipEUR } from "@/components/client/chart-tooltip-styles";
 import { Landmark, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import {
   AreaChart,
@@ -208,9 +209,10 @@ export default function CassaPage() {
                   width={50}
                 />
                 <Tooltip
-                  formatter={(value) => [formatEUR(Number(value)), "Saldo"]}
+                  {...CHART_TOOLTIP_PROPS}
+                  formatter={(value) => [formatTooltipEUR(value as number), "Saldo"]}
                   labelFormatter={(label) => {
-                    const d = new Date(label);
+                    const d = new Date(label as string);
                     return d.toLocaleDateString("it-IT");
                   }}
                 />

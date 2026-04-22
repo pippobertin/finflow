@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { CHART_TOOLTIP_PROPS } from "@/components/client/chart-tooltip-styles";
 import type { IncomeStatementResult } from "@/lib/analysis/income-statement";
 
 const fmtEUR = (v: number): string =>
@@ -77,17 +78,11 @@ export function WaterfallChart({ ce, className }: WaterfallChartProps) {
             width={90}
           />
           <Tooltip
+            {...CHART_TOOLTIP_PROPS}
             formatter={(_value, _name, props) => {
               const entry = (props as { payload?: WaterfallEntry })?.payload;
               if (!entry) return ["", ""];
               return [fmtEUR(entry.base + entry.value), entry.name];
-            }}
-            contentStyle={{
-              backgroundColor: "#0f172a",
-              border: "none",
-              borderRadius: "8px",
-              color: "#fff",
-              fontSize: "13px",
             }}
           />
           <ReferenceLine y={0} stroke="#94a3b8" />

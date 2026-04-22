@@ -4,6 +4,7 @@ import { useClientCdg } from "@/lib/hooks/use-client-cdg";
 import { NarrativeBox } from "@/components/client/narrative-box";
 import { SemaphoreBadge } from "@/components/client/semaphore-badge";
 import { formatEUR } from "@/lib/helpers/format";
+import { CHART_TOOLTIP_PROPS, formatTooltipEUR } from "@/components/client/chart-tooltip-styles";
 import {
   BarChart,
   Bar,
@@ -117,14 +118,8 @@ export default function PuntoPareggioPage() {
                 width={90}
               />
               <Tooltip
-                formatter={(value) => [formatEUR(Number(value)), ""]}
-                contentStyle={{
-                  backgroundColor: "#0f172a",
-                  border: "none",
-                  borderRadius: "8px",
-                  color: "#fff",
-                  fontSize: "13px",
-                }}
+                {...CHART_TOOLTIP_PROPS}
+                formatter={(value) => [formatTooltipEUR(value as number), ""]}
               />
               <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                 <Cell fill="#0b4d8a" />

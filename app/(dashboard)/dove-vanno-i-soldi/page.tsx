@@ -3,6 +3,7 @@
 import { useClientCdg } from "@/lib/hooks/use-client-cdg";
 import { NarrativeBox } from "@/components/client/narrative-box";
 import { formatEUR } from "@/lib/helpers/format";
+import { CHART_TOOLTIP_PROPS, formatTooltipEUR } from "@/components/client/chart-tooltip-styles";
 import {
   PieChart,
   Pie,
@@ -100,14 +101,8 @@ export default function DoveVannoISoldiPage() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value) => formatEUR(Number(value))}
-                  contentStyle={{
-                    backgroundColor: "#0f172a",
-                    border: "none",
-                    borderRadius: "8px",
-                    color: "#fff",
-                    fontSize: "13px",
-                  }}
+                  {...CHART_TOOLTIP_PROPS}
+                  formatter={(value) => formatTooltipEUR(value as number)}
                 />
                 <Legend
                   layout="vertical"
@@ -146,14 +141,8 @@ export default function DoveVannoISoldiPage() {
                   width={160}
                 />
                 <Tooltip
-                  formatter={(value) => [formatEUR(Number(value)), ""]}
-                  contentStyle={{
-                    backgroundColor: "#0f172a",
-                    border: "none",
-                    borderRadius: "8px",
-                    color: "#fff",
-                    fontSize: "13px",
-                  }}
+                  {...CHART_TOOLTIP_PROPS}
+                  formatter={(value) => [formatTooltipEUR(value as number), ""]}
                 />
                 <Bar dataKey="value" fill="#0b4d8a" radius={[0, 4, 4, 0]} />
               </BarChart>
