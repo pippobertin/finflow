@@ -83,7 +83,7 @@ function isItalianHoliday(date: Date): boolean {
  */
 export function nextBusinessDay(date: Date): Date {
   let d = new Date(date);
-   
+
   while (true) {
     const dow = getDay(d);
     if (dow === 0) {
@@ -292,6 +292,73 @@ export function calculateVatForYear(
   }
 
   return results;
+}
+
+// ─── V2 Adapter ─────────────────────────────────────────────────
+
+/** Revenue-type categories that contribute to VAT debit (IVA su vendite) */
+const REVENUE_CATEGORIES = new Set(["REVENUE"]);
+
+/** Cost-type categories that contribute to VAT credit (IVA su acquisti) */
+const COST_CATEGORIES = new Set([
+  "VAR_COST_MATERIALS",
+  "VAR_COST_SERVICES",
+  "VAR_COST_DIRECT_LABOR",
+  "FIXED_COST_DEPRECIATION",
+  "FIXED_COST_ADMIN_COMPENSATION",
+  "FIXED_COST_RENT",
+  "FIXED_COST_UTILITIES",
+  "FIXED_COST_INSURANCE",
+  "FIXED_COST_CONSULTING",
+  "FIXED_COST_MARKETING",
+  "FIXED_COST_GENERAL",
+]);
+
+/**
+ * V2 adapter: normalizes bank statements + invoices into the unified invoice
+ * format expected by calculateVatForYear.
+ *
+ * Bank statements with revenue-type cdgCategory → direction ACTIVE (VAT debit)
+ * Bank statements with cost-type cdgCategory → direction PASSIVE (VAT credit)
+ * Invoices pass through as-is.
+ */
+export function normalizeV2VatSources(
+  bankStatements: Array<{ date: Date; vatAmount: number; cdgCategory: string | null }>,
+  invoices: Array<{ direction: string; vatAmount: number; date: Date }>,
+): Array<{ direction: string; vatAmount: number; date: Date }> {
+  const normalized: Array<{ direction: string; vatAmount: number; date: Date }> = [];
+
+  // Bank statements → derive direction from category
+  for (const bs of bankStatements) {
+    if (!bs.vatAmount || bs.vatAmount === 0) continue;
+    const cat = bs.cdgCategory ?? "";
+    let direction: string;
+    if (REVENUE_CATEGORIES.has(cat)) {
+      direction = "ACTIVE";
+    } else if (COST_CATEGORIES.has(cat)) {
+      direction = "PASSIVE";
+    } else {
+      // Unknown category — skip or use sign: positive amount = revenue (ACTIVE)
+      direction = bs.vatAmount > 0 ? "ACTIVE" : "PASSIVE";
+    }
+    normalized.push({
+      direction,
+      vatAmount: Math.abs(bs.vatAmount),
+      date: bs.date,
+    });
+  }
+
+  // Invoices pass through
+  for (const inv of invoices) {
+    if (!inv.vatAmount || inv.vatAmount === 0) continue;
+    normalized.push({
+      direction: inv.direction,
+      vatAmount: Math.abs(inv.vatAmount),
+      date: inv.date,
+    });
+  }
+
+  return normalized;
 }
 
 /**

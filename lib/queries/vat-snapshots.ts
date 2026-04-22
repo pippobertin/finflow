@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { generateVatPeriods, calculateVatForYear, type VatPeriodicity } from "@/lib/vat/vat-engine";
+import {
+  generateVatPeriods,
+  calculateVatForYear,
+  normalizeV2VatSources,
+  type VatPeriodicity,
+} from "@/lib/vat/vat-engine";
 
 /**
  * Get VAT snapshots for a given org + year.
@@ -99,6 +104,10 @@ export async function recalculateVatSnapshots(organizationId: string, year: numb
           amountDue: calc.amountDue,
           dueDate: calc.period.dueDate,
           isPaid: false,
+          sourceType: "invoice",
+          label: calc.period.label,
+          surchargeAmount: calc.surchargeAmount,
+          creditCarriedOut: calc.creditCarriedOut,
         },
       });
       snapshots.push(serializeSnapshot(snapshot));
@@ -159,5 +168,123 @@ function serializeSnapshot(s: any) {
     dueDate: s.dueDate instanceof Date ? s.dueDate.toISOString() : s.dueDate,
     isPaid: s.isPaid,
     paidDate: s.paidDate instanceof Date ? s.paidDate.toISOString() : s.paidDate,
+    sourceType: s.sourceType ?? "invoice",
+    label: s.label ?? null,
+    surchargeAmount: Number(s.surchargeAmount ?? 0),
+    creditCarriedOut: Number(s.creditCarriedOut ?? 0),
   };
+}
+
+/**
+ * V2 recalculate: uses both invoices AND bank statements with vatAmount.
+ * Produces "v2" source type snapshots.
+ */
+export async function recalculateVatSnapshotsV2(organizationId: string, year: number) {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { settings: true, cdgGranularity: true },
+  });
+  const settings = (org?.settings as Record<string, unknown>) ?? {};
+  const periodicity: VatPeriodicity = org?.cdgGranularity === "QUARTERLY" ? "quarterly" : "monthly";
+
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31);
+
+  // Fetch invoices
+  const invoices = await prisma.invoice.findMany({
+    where: { organizationId, date: { gte: yearStart, lte: yearEnd } },
+    select: { direction: true, vatAmount: true, date: true },
+  });
+
+  // Fetch bank statements with vatAmount
+  const bankStatements = await prisma.bankStatement.findMany({
+    where: {
+      organizationId,
+      date: { gte: yearStart, lte: yearEnd },
+      vatAmount: { not: null },
+    },
+    select: { date: true, vatAmount: true, cdgCategory: true },
+  });
+
+  // Normalize to unified format
+  const normalizedSources = normalizeV2VatSources(
+    bankStatements.map((bs) => ({
+      date: bs.date,
+      vatAmount: Number(bs.vatAmount),
+      cdgCategory: bs.cdgCategory,
+    })),
+    invoices.map((inv) => ({
+      direction: inv.direction,
+      vatAmount: Number(inv.vatAmount),
+      date: inv.date,
+    })),
+  );
+
+  const vatCarryForward =
+    typeof settings.vatCarryForward === "number" ? settings.vatCarryForward : 0;
+  const periods = generateVatPeriods(year, periodicity);
+  const calculations = calculateVatForYear(periods, normalizedSources, vatCarryForward);
+
+  // Delete old snapshots
+  try {
+    await prisma.vatSnapshot.deleteMany({
+      where: {
+        organizationId,
+        periodStart: { gte: yearStart },
+        periodEnd: { lte: yearEnd },
+      },
+    });
+  } catch {
+    // Table may not exist
+  }
+
+  // Persist new snapshots
+  const snapshots = [];
+  try {
+    for (const calc of calculations) {
+      const snapshot = await prisma.vatSnapshot.create({
+        data: {
+          organizationId,
+          periodStart: calc.period.periodStart,
+          periodEnd: calc.period.periodEnd,
+          periodType: calc.period.periodType,
+          vatDebit: calc.vatDebit,
+          vatCredit: calc.vatCredit,
+          vatBalance: calc.vatBalance,
+          carryForward: calc.carryForward,
+          amountDue: calc.amountDue,
+          dueDate: calc.period.dueDate,
+          isPaid: false,
+          sourceType: "v2",
+          label: calc.period.label,
+          surchargeAmount: calc.surchargeAmount,
+          creditCarriedOut: calc.creditCarriedOut,
+        },
+      });
+      snapshots.push(serializeSnapshot(snapshot));
+    }
+  } catch {
+    // Table doesn't exist — return calculations
+    return calculations.map((calc) => ({
+      id: `calc-${calc.period.label}`,
+      organizationId,
+      periodStart: calc.period.periodStart.toISOString(),
+      periodEnd: calc.period.periodEnd.toISOString(),
+      periodType: calc.period.periodType,
+      vatDebit: calc.vatDebit,
+      vatCredit: calc.vatCredit,
+      vatBalance: calc.vatBalance,
+      carryForward: calc.carryForward,
+      amountDue: calc.amountDue,
+      surchargeAmount: calc.surchargeAmount,
+      creditCarriedOut: calc.creditCarriedOut,
+      dueDate: calc.period.dueDate.toISOString(),
+      isPaid: false,
+      paidDate: null,
+      label: calc.period.label,
+      sourceType: "v2",
+    }));
+  }
+
+  return snapshots;
 }
