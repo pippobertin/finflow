@@ -12,7 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Building2, FileSpreadsheet, BarChart3, Calculator } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Building2,
+  FileSpreadsheet,
+  BarChart3,
+  Calculator,
+  Receipt,
+} from "lucide-react";
 
 interface BankAccount {
   id: string;
@@ -157,6 +165,10 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
           >
             <Calculator className="mr-2 h-4 w-4" />
             Budget
+          </Link>
+          <Link href={`/firm/clients/${id}/iva`} className={buttonVariants({ variant: "outline" })}>
+            <Receipt className="mr-2 h-4 w-4" />
+            IVA
           </Link>
         </div>
       </div>
