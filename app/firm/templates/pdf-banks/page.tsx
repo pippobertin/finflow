@@ -446,6 +446,11 @@ export default function PdfBanksPage() {
             <DialogTitle>Test pattern PDF</DialogTitle>
           </DialogHeader>
           <div className="max-h-[70vh] space-y-4 overflow-y-auto py-2">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-400">
+              Il sistema usa un parser automatico robusto per tutti i PDF di estratto conto. La
+              configurazione dei profili per-banca è una feature sperimentale disattivata di
+              default.
+            </div>
             <div>
               <Label htmlFor="test-file">File PDF di esempio</Label>
               <Input

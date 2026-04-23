@@ -1,4 +1,15 @@
 /**
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║  STANDBY — This module is NOT actively used in the main flow.  ║
+ * ║                                                                ║
+ * ║  The production upload pipeline uses the V1 parser             ║
+ * ║  (pdf-parser.ts) which is more robust (noise filtering,        ║
+ * ║  MAX_AMOUNT guard, table extraction fallback).                 ║
+ * ║                                                                ║
+ * ║  This V2 state machine remains for future use when we          ║
+ * ║  implement column-detection (Opzione C / Fase 7+).             ║
+ * ╚══════════════════════════════════════════════════════════════════╝
+ *
  * Profile-based PDF bank statement parser — V2 state machine.
  *
  * Uses configurable BankLayoutPatterns (stored in PdfBankProfile) to extract

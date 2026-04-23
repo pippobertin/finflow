@@ -3,15 +3,14 @@ import { getFirmSession } from "@/lib/helpers/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { importBankStatements } from "@/lib/connectors/bank-statement-import";
 import { bankStatementImportSchema } from "@/lib/validations/bank-statement-import";
-import { parsePdfWithProfile } from "@/lib/parsers/pdf-bank-statement-parser";
-import { getPdfBankProfileByName } from "@/lib/queries/pdf-bank-profiles";
-import { bankLayoutPatternsSchema } from "@/lib/validations/pdf-bank-profile";
 
 /**
  * POST /api/firm/clients/[id]/movimenti/upload
  *
  * Upload bank statement file (CSV or PDF) for a client organization.
- * When uploading PDF with bankName, uses profile-based parser.
+ * PDF parsing always uses the robust V1 parser (pdf-parser.ts) via
+ * importBankStatements. The bankName param is accepted for future use
+ * but currently ignored — V1 handles all Italian banks automatically.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
@@ -31,7 +30,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const configStr = formData.get("config") as string | null;
-  const bankName = formData.get("bankName") as string | null;
+  // bankName accepted for future use but currently ignored (V1 auto-detects)
+  // const bankName = formData.get("bankName") as string | null;
 
   if (!file) {
     return Response.json({ error: "File mancante" }, { status: 400 });
@@ -58,67 +58,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const isPdf = file.name.toLowerCase().endsWith(".pdf");
 
-    // If PDF + bankName → use profile-based parser
-    if (isPdf && bankName) {
-      const profile = await getPdfBankProfileByName(accountingFirmId, bankName);
-      if (!profile) {
-        return Response.json(
-          {
-            error: `Profilo banca "${bankName}" non configurato. Configuralo da Templates > PDF Banche.`,
-          },
-          { status: 400 },
-        );
-      }
-
-      const patterns = bankLayoutPatternsSchema.safeParse(profile.layoutPatterns);
-      if (!patterns.success) {
-        return Response.json({ error: "Pattern del profilo non validi" }, { status: 500 });
-      }
-
-      const pdfBuffer = Buffer.from(await file.arrayBuffer());
-      const pdfResult = await parsePdfWithProfile(pdfBuffer, patterns.data);
-
-      if (pdfResult.rows.length === 0) {
-        return Response.json({
-          imported: 0,
-          duplicates: 0,
-          totalParsed: 0,
-          errors: [],
-          bankStatementIds: [],
-          warnings: pdfResult.warnings,
-        });
-      }
-
-      // Convert parsed rows to Record<string,string> format for import connector
-      const mappedRows = pdfResult.rows.map((r) => ({
-        Data: r.date,
-        Descrizione: r.description,
-        Importo: String(r.amount),
-        ...(r.balance != null ? { Saldo: String(r.balance) } : {}),
-      }));
-
-      const result = await importBankStatements({
-        organizationId,
-        parsedRows: mappedRows,
-        mapping: {
-          date: "Data",
-          description: "Descrizione",
-          amount: "Importo",
-          ...(pdfResult.rows.some((r) => r.balance != null) ? { balance: "Saldo" } : {}),
-        },
-        dateFormat: patterns.data.dateFormat,
-        decimalSeparator: ".", // parsePdfWithProfile returns numeric strings
-        sourceFile: file.name,
-      });
-
-      return Response.json({
-        ...result,
-        warnings: pdfResult.warnings,
-      });
-    }
-
-    // Standard flow: PDF (generic parser) or CSV
     if (isPdf) {
+      // All PDFs use the robust V1 parser via importBankStatements
       const pdfBuffer = Buffer.from(await file.arrayBuffer());
       const result = await importBankStatements({
         organizationId,
