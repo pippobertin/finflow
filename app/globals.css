@@ -2,20 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Nasconde il Next.js DevTools widget in sviluppo (shadow DOM host) */
-nextjs-portal,
-[data-nextjs-dev-tools-button],
-[data-next-dev-indicator] {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  width: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
-  position: absolute !important;
-  opacity: 0 !important;
-}
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

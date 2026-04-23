@@ -25,7 +25,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <ThemeApplicator />
         <TooltipProvider>{children}</TooltipProvider>
-        <ReactQueryDevtools initialIsOpen={false} />
+        <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
       </QueryClientProvider>
     </SessionProvider>
   );
