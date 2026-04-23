@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Palette, FileText, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Palette, FileText, HelpCircle, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,28 @@ export function FirmSidebar() {
           })}
         </div>
       </nav>
+
+      {/* Risorse */}
+      <div className="border-t border-[var(--sidebar-border)] px-3 py-2">
+        <p className="px-3 pb-1 text-[10px] font-bold tracking-wider text-[#94a3b8] uppercase">
+          Risorse
+        </p>
+        <Link
+          href="/firm/aiuto"
+          className={cn(
+            "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+            pathname.startsWith("/firm/aiuto")
+              ? "bg-[var(--sidebar-accent)] font-semibold text-[var(--sidebar-primary)]"
+              : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]",
+          )}
+        >
+          {pathname.startsWith("/firm/aiuto") && (
+            <span className="absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--sidebar-primary)]" />
+          )}
+          <HelpCircle className="h-4 w-4" />
+          <span className="flex-1">Aiuto</span>
+        </Link>
+      </div>
 
       {/* Logout */}
       <div className="border-t border-[var(--sidebar-border)] p-3">

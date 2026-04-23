@@ -11,6 +11,7 @@ import {
   Building2,
   HeartPulse,
   BookOpen,
+  HelpCircle,
   Landmark,
   CalendarClock,
   FileText,
@@ -51,7 +52,10 @@ const navSections = [
   },
   {
     title: "Risorse",
-    items: [{ href: "/glossario", label: "Glossario", icon: BookOpen }],
+    items: [
+      { href: "/glossario", label: "Glossario", icon: BookOpen },
+      { href: "/aiuto", label: "Aiuto", icon: HelpCircle },
+    ],
   },
 ];
 
