@@ -126,6 +126,49 @@ function classifyDirection(desc: string): "uscite" | "entrate" | "unknown" {
   return "unknown";
 }
 
+// Priority keyword lists — checked BEFORE classifyDirection.
+// Income keywords first: if "BONIFICO A VOSTRO FAVORE" is present,
+// it wins even if "PAGAMENTO" also appears in a sub-reference.
+const INCOME_PRIORITY_KW = [
+  "BONIFICO A VOSTRO FAVORE",
+  "A VOSTRO FAVORE",
+  "SALDO INIZIALE A VS. CREDITO",
+  "STORNO A VOSTRO FAVORE",
+  "VOSTRA DISPOSIZIONE STORNO",
+  "ACCREDITO",
+];
+
+const EXPENSE_PRIORITY_KW = [
+  "ADDEBITO SEPA",
+  "ADDEBITO BOLLETTA",
+  "DISPOSIZIONE DI BONIFICO",
+  "PAGAMENTO",
+  "COMMISSIONI",
+  "IMPOSTA",
+  "PRELIEVO",
+  "IMPRENDO ONE",
+  "COSTO FISSO",
+];
+
+/**
+ * Deterministic sign override with priority keywords.
+ * Income keywords are checked first (higher priority).
+ * Falls back to classifyDirection heuristic when no keyword matches.
+ */
+function determineSign(description: string): "uscite" | "entrate" | "unknown" {
+  const upper = description.toUpperCase();
+
+  for (const kw of INCOME_PRIORITY_KW) {
+    if (upper.includes(kw)) return "entrate";
+  }
+  for (const kw of EXPENSE_PRIORITY_KW) {
+    if (upper.includes(kw)) return "uscite";
+  }
+
+  // No priority keyword matched — use existing heuristic
+  return classifyDirection(description);
+}
+
 // ─── Amount extraction ─────────────────────────────────────
 
 interface CandidateAmount {
@@ -247,8 +290,8 @@ function parseFromTables(tables: Array<Array<string>>[]): RawParseResult | null 
 
     if (!bestAmount) continue;
 
-    // Classify direction by description
-    const direction = classifyDirection(descVal);
+    // Classify direction by description (priority keywords → heuristic fallback)
+    const direction = determineSign(descVal);
 
     const row: Record<string, string> = {};
     row["Data"] = dateVal;
@@ -356,7 +399,7 @@ function parseFromText(text: string): RawParseResult {
     const amount = selectTransactionAmount(block.allAmounts);
     if (!amount) continue;
 
-    const direction = classifyDirection(description);
+    const direction = determineSign(description);
     const row: Record<string, string> = {};
     row["Data"] = block.dates[0] || "";
     if (hasTwoDates) row["Valuta"] = block.dates[1] || block.dates[0] || "";
