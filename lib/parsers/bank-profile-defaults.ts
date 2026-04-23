@@ -11,6 +11,7 @@ import type { BankLayoutPatterns } from "@/lib/validations/pdf-bank-profile";
 
 /** Sign hints for banks with already-signed amounts (no keyword needed) */
 const SIGNED_AMOUNT_HINTS: BankLayoutPatterns["signHints"] = {
+  overrideIncoming: [],
   incoming: [],
   outgoing: [],
   defaultSign: "positive", // amounts already carry their sign
@@ -36,6 +37,14 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
       "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
 
     signHints: {
+      overrideIncoming: [
+        "STORNO A VOSTRO FAVORE",
+        "VOSTRA DISPOSIZIONE STORNO",
+        "STORNO",
+        "A VOSTRO FAVORE",
+        "BONIFICO SEPA DA",
+        "SALDO INIZIALE",
+      ],
       incoming: [
         "BONIFICO A VOSTRO FAVORE",
         "ACCREDITO",

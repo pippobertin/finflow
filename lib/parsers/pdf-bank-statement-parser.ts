@@ -72,6 +72,7 @@ function normalizeDate(raw: string, format: string): string {
 // ─── Sign determination ─────────────────────────────────────
 
 interface SignHints {
+  overrideIncoming?: string[];
   incoming: string[];
   outgoing: string[];
   defaultSign: "positive" | "negative";
@@ -81,17 +82,32 @@ interface SignHints {
  * Determine the sign of an amount based on description keywords.
  * Returns +1 for incoming (positive) or -1 for outgoing (negative).
  *
- * Outgoing is checked FIRST to avoid false positives: e.g. "ADDEBITO SEPA DD
- * ... Incasso 131982/01" contains both "ADDEBITO" (outgoing) and "Incasso"
- * (incoming as a substring). Outgoing-first ensures the correct sign.
+ * Three-tier priority:
+ * 1. overrideIncoming (STORNO, A VOSTRO FAVORE, etc.) — always wins
+ * 2. outgoing (ADDEBITO, PAGAMENTO, etc.) — normal debits
+ * 3. incoming (ACCREDITO, INCASSO, etc.) — normal credits
+ * 4. defaultSign fallback
+ *
+ * This handles "ADDEBITO SEPA … Incasso 131982/01" (outgoing wins over
+ * regular incoming) AND "BONIFICO SEPA VOSTRA DISPOSIZIONE STORNO"
+ * (override incoming wins over outgoing).
  */
 function determineSign(description: string, hints: SignHints): 1 | -1 {
   const lower = description.toLowerCase();
 
-  // Check outgoing first (higher priority — avoids false positives)
+  // 1. Override incoming — reversal keywords always mean positive
+  if (hints.overrideIncoming) {
+    for (const kw of hints.overrideIncoming) {
+      if (lower.includes(kw.toLowerCase())) return 1;
+    }
+  }
+
+  // 2. Outgoing — normal debits
   for (const kw of hints.outgoing) {
     if (lower.includes(kw.toLowerCase())) return -1;
   }
+
+  // 3. Regular incoming — normal credits
   for (const kw of hints.incoming) {
     if (lower.includes(kw.toLowerCase())) return 1;
   }
@@ -210,14 +226,16 @@ export async function parsePdfWithProfile(
   /** Regex for fallback: find the last comma-decimal number in a line */
   const fallbackAmountRe = patterns.amountDecimal === "," ? /([\d.]+,\d{2})/g : /([\d,]+\.\d{2})/g;
 
+  /** Strip fee metadata (COMM: X,XX, SPESE: X,XX, COMM SERV: X,XX) from text */
+  const feeMetadataRe = /(?:COMM(?:\s+SERV)?|SPESE)\s*:\s*[\d.]+,\d{2}/gi;
+
   /** Flush a completed pending row into results. Returns null (to clear pending). */
   function flushRow(p: PendingRow): null {
-    // Fallback amount extraction from last accumulated line
+    // Fallback amount extraction when no amount was found during COLLECTING
     if (p.amount == null) {
-      const lastLine = p._lastRawLine ?? p.description;
-      if (lastLine) {
-        // 1. Try strict amount-only match on last line
-        const strictMatch = amountRegex!.exec(lastLine);
+      // 1. Try strict amount-only match on last accumulated line
+      if (p._lastRawLine) {
+        const strictMatch = amountRegex!.exec(p._lastRawLine);
         if (strictMatch?.groups?.amount) {
           const rawAmount = parseAmount(strictMatch.groups.amount, patterns.amountDecimal);
           if (rawAmount !== null) {
@@ -231,19 +249,20 @@ export async function parsePdfWithProfile(
             }
           }
         }
+      }
 
-        // 2. Try finding last comma-decimal number in the line
-        if (p.amount == null) {
-          const matches = [...lastLine.matchAll(fallbackAmountRe)];
-          if (matches.length > 0) {
-            const lastMatch = matches[matches.length - 1];
-            const rawAmount = parseAmount(lastMatch[1], patterns.amountDecimal);
-            if (rawAmount !== null) {
-              p.amount =
-                rawAmount < 0
-                  ? rawAmount
-                  : Math.abs(rawAmount) * determineSign(p.description, signHints);
-            }
+      // 2. Scan full description for last comma-decimal number, excluding fee metadata
+      if (p.amount == null && p.description) {
+        const cleaned = p.description.replace(feeMetadataRe, "");
+        const matches = [...cleaned.matchAll(fallbackAmountRe)];
+        if (matches.length > 0) {
+          const lastMatch = matches[matches.length - 1];
+          const rawAmount = parseAmount(lastMatch[1], patterns.amountDecimal);
+          if (rawAmount !== null) {
+            p.amount =
+              rawAmount < 0
+                ? rawAmount
+                : Math.abs(rawAmount) * determineSign(p.description, signHints);
           }
         }
       }

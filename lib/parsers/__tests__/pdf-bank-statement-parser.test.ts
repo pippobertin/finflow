@@ -174,9 +174,42 @@ describe("parsePdfWithProfile — V2 state machine", () => {
     expect(result.rows[2].amount).toBe(-100.0); // no match → defaultSign "negative"
   });
 
-  // ── Outgoing-first priority (ADDEBITO + Incasso) ───────
+  // ── Override incoming: STORNO beats outgoing ───────────
 
-  it("prioritizes outgoing over incoming when both keywords present", async () => {
+  it("STORNO overrides outgoing keywords (reversal = incoming)", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "15.05.25  15.05.25",
+      "BONIFICO SEPA VOSTRA DISPOSIZIONE STORNO",
+      "VERSO: FORNITORE SRL TRN 123456",
+      "522,00",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    // "DISPOSIZIONE" → outgoing match, BUT "STORNO" → overrideIncoming wins
+    expect(result.rows[0].amount).toBe(522.0);
+  });
+
+  it("A VOSTRO FAVORE overrides DISPOSIZIONE DI BONIFICO", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "20.06.25  20.06.25  BONIFICO A VOSTRO FAVORE          2.000,00",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    // "A VOSTRO FAVORE" in overrideIncoming wins over any outgoing
+    expect(result.rows[0].amount).toBe(2000.0);
+  });
+
+  // ── Outgoing-first priority (ADDEBITO + Incasso, no override) ───
+
+  it("outgoing still wins over regular incoming (no override keyword)", async () => {
     mockText = [
       "LISTA MOVIMENTI",
       "01.10.25  01.10.25",
@@ -189,7 +222,8 @@ describe("parsePdfWithProfile — V2 state machine", () => {
     const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
 
     expect(result.rows).toHaveLength(1);
-    expect(result.rows[0].amount).toBe(-230.81); // ADDEBITO outgoing wins over Incasso incoming
+    // No overrideIncoming match → ADDEBITO outgoing wins over Incasso regular incoming
+    expect(result.rows[0].amount).toBe(-230.81);
   });
 
   // ── Amount anchoring (COMM: 0,00 not captured) ────────
@@ -383,7 +417,7 @@ describe("parsePdfWithProfile — V2 state machine", () => {
     expect(result.rows[0].description).toContain("PAGAMENTO E-Commerce");
   });
 
-  it("picks last comma-decimal number when multiple present (COMM: 0,00 ... amount)", async () => {
+  it("strips fee metadata (COMM/SPESE) and finds real amount in description", async () => {
     mockText = [
       "LISTA MOVIMENTI",
       "10.02.25  10.02.25",
@@ -395,7 +429,24 @@ describe("parsePdfWithProfile — V2 state machine", () => {
     const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
 
     expect(result.rows).toHaveLength(1);
-    expect(result.rows[0].amount).toBe(1500.0); // BONIFICO A VOSTRO FAVORE → positive, last number
+    expect(result.rows[0].amount).toBe(1500.0); // COMM/SPESE stripped, IMPORTO kept
+  });
+
+  it("avoids 0,00 when fee metadata is the only content on last line", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "12.03.25  12.03.25",
+      "DISPOSIZIONE DI BONIFICO VERSO: ABC SRL 1.500,00",
+      "COMM: 0,00 SPESE: 0,00 COMM SERV: 0,00",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    // Fee line stripped → finds 1.500,00 from description, not 0,00
+    expect(result.rows[0].amount).toBe(-1500.0); // DISPOSIZIONE DI BONIFICO → negative
+    expect(result.rows[0].amount).not.toBe(0);
   });
 
   it("still uses strict amount-only line when available (no fallback needed)", async () => {

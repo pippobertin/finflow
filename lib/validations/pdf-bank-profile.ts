@@ -12,6 +12,8 @@ import { z } from "zod";
  */
 
 const signHintsSchema = z.object({
+  /** High-priority reversal keywords (STORNO, A VOSTRO FAVORE, etc.) — checked BEFORE outgoing */
+  overrideIncoming: z.array(z.string()).default([]),
   /** Keywords in description that indicate an incoming (positive) amount */
   incoming: z.array(z.string()),
   /** Keywords in description that indicate an outgoing (negative) amount */

@@ -16,6 +16,7 @@ SET layout_patterns = '{
   "amountLinePattern": "^\\s*(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
   "singleLinePattern": "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
   "signHints": {
+    "overrideIncoming": ["STORNO A VOSTRO FAVORE","VOSTRA DISPOSIZIONE STORNO","STORNO","A VOSTRO FAVORE","BONIFICO SEPA DA","SALDO INIZIALE"],
     "incoming": ["BONIFICO A VOSTRO FAVORE","ACCREDITO","VERSAMENTO","STIPENDIO","STORNO ADDEBITO","RIMBORSO","INCASSO","GIROCONTO A VOSTRO FAVORE"],
     "outgoing": ["PAGAMENTO","ADDEBITO","PRELIEVO","BONIFICO DA VOI DISPOSTO","DISPOSIZIONE DI BONIFICO","COMMISSIONE","CANONE","UTENZE","IMPOSTE","RITENUTA","GIROCONTO DA VOI DISPOSTO","F24","MAV","RAV","RID","SDD"],
     "defaultSign": "negative"
