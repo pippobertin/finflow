@@ -80,15 +80,20 @@ interface SignHints {
 /**
  * Determine the sign of an amount based on description keywords.
  * Returns +1 for incoming (positive) or -1 for outgoing (negative).
+ *
+ * Outgoing is checked FIRST to avoid false positives: e.g. "ADDEBITO SEPA DD
+ * ... Incasso 131982/01" contains both "ADDEBITO" (outgoing) and "Incasso"
+ * (incoming as a substring). Outgoing-first ensures the correct sign.
  */
 function determineSign(description: string, hints: SignHints): 1 | -1 {
   const lower = description.toLowerCase();
 
-  for (const kw of hints.incoming) {
-    if (lower.includes(kw.toLowerCase())) return 1;
-  }
+  // Check outgoing first (higher priority — avoids false positives)
   for (const kw of hints.outgoing) {
     if (lower.includes(kw.toLowerCase())) return -1;
+  }
+  for (const kw of hints.incoming) {
+    if (lower.includes(kw.toLowerCase())) return 1;
   }
 
   return hints.defaultSign === "positive" ? 1 : -1;

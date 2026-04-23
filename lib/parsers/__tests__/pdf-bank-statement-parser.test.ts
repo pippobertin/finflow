@@ -174,6 +174,44 @@ describe("parsePdfWithProfile — V2 state machine", () => {
     expect(result.rows[2].amount).toBe(-100.0); // no match → defaultSign "negative"
   });
 
+  // ── Outgoing-first priority (ADDEBITO + Incasso) ───────
+
+  it("prioritizes outgoing over incoming when both keywords present", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "01.10.25  01.10.25",
+      "ADDEBITO SEPA DD PER FATTURA A VOSTRO CARICO",
+      "Incasso 131982/01 DLL Renting Solutions S.R.L.",
+      "230,81",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].amount).toBe(-230.81); // ADDEBITO outgoing wins over Incasso incoming
+  });
+
+  // ── Amount anchoring (COMM: 0,00 not captured) ────────
+
+  it("does not capture inline amounts from description lines (COMM: 0,00)", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "01.10.25  01.10.25",
+      "BONIFICO A VOSTRO FAVORE",
+      "BONIFICO SEPA DA: TRE GELSI S.N.C. PER: CUP: B68J25000240007 COMM: 0,00 SPESE: 0,00 COMM SERV: 0,00",
+      "3.196,40",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].amount).toBe(3196.4); // correct amount, not 0,00
+    expect(result.rows[0].description).toContain("BONIFICO A VOSTRO FAVORE");
+    expect(result.rows[0].description).toContain("COMM: 0,00"); // continuation preserved
+  });
+
   // ── Already-signed amounts ──────────────────────────────
 
   it("respects already-signed (negative) amounts without applying signHints", async () => {

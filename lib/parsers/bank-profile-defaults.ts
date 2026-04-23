@@ -28,8 +28,8 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
     startTransactionPattern:
       "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})(?:\\s+(?<description>.+?))?\\s*$",
 
-    // Amount line: amount at end of line (optional sign), optional balance
-    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+    // Amount line: ONLY an amount (+ optional balance) on the line — anchored with ^
+    amountLinePattern: "^\\s*(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
 
     // Some transactions fit on one line (dates + description + amount)
     singleLinePattern:
@@ -51,8 +51,8 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
         "ADDEBITO",
         "PRELIEVO",
         "BONIFICO DA VOI DISPOSTO",
+        "DISPOSIZIONE DI BONIFICO",
         "COMMISSIONE",
-        "SPESE",
         "CANONE",
         "UTENZE",
         "IMPOSTE",
@@ -89,7 +89,7 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
     startTransactionPattern:
       "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s*$",
 
-    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+    amountLinePattern: "^\\s*(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
 
     singleLinePattern:
       "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
@@ -117,7 +117,7 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
     startTransactionPattern:
       "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s*$",
 
-    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+    amountLinePattern: "^\\s*(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
 
     singleLinePattern:
       "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
@@ -137,7 +137,7 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
 
     startTransactionPattern: "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<description>.+?)\\s*$",
 
-    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+    amountLinePattern: "^\\s*(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
 
     singleLinePattern:
       "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
@@ -164,7 +164,7 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
     startTransactionPattern:
       "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s*$",
 
-    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})\\s*$",
+    amountLinePattern: "^\\s*(?<amount>-?[\\d.]+,\\d{2})\\s*$",
 
     singleLinePattern:
       "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})\\s*$",
@@ -192,7 +192,7 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
 
     startTransactionPattern: "^(?<date>\\d{2}/\\d{2}/\\d{2,4})\\s+(?<description>.+?)\\s*$",
 
-    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+    amountLinePattern: "^\\s*(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
 
     singleLinePattern:
       "^(?<date>\\d{2}/\\d{2}/\\d{2,4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
