@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { FirmSidebar } from "@/components/firm/firm-sidebar";
+import { prisma } from "@/lib/prisma";
+import { FirmLayoutShell } from "@/components/firm/firm-layout-shell";
 
 export default async function FirmLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -14,10 +15,13 @@ export default async function FirmLayout({ children }: { children: React.ReactNo
     redirect("/overview");
   }
 
-  return (
-    <div className="flex h-screen overflow-hidden">
-      <FirmSidebar />
-      <main className="flex flex-1 flex-col overflow-auto">{children}</main>
-    </div>
-  );
+  // Check onboarding status
+  const firm = session.user.accountingFirmId
+    ? await prisma.accountingFirm.findUnique({
+        where: { id: session.user.accountingFirmId },
+        select: { isOnboarded: true },
+      })
+    : null;
+
+  return <FirmLayoutShell isOnboarded={firm?.isOnboarded ?? true}>{children}</FirmLayoutShell>;
 }
