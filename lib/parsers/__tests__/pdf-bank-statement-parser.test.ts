@@ -54,6 +54,25 @@ describe("parsePdfWithProfile — V2 state machine", () => {
     expect(result.rows[0].balance).toBe(10500.0);
   });
 
+  it("parses Unicredit dates-only start line (description on next lines)", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "02.01.25  02.01.25",
+      "BONIFICO A VOSTRO FAVORE",
+      "BONIFICO SEPA DA: CLIENTE PER: SALDO FATTURA",
+      "1.234,56",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].date).toBe("02.01.2025");
+    expect(result.rows[0].description).toContain("BONIFICO A VOSTRO FAVORE");
+    expect(result.rows[0].description).toContain("SALDO FATTURA");
+    expect(result.rows[0].amount).toBe(1234.56); // incoming → positive
+  });
+
   it("parses Unicredit multi-line with continuation (3+ lines)", async () => {
     mockText = [
       "LISTA MOVIMENTI",

@@ -26,7 +26,7 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
 
     // Line 1: two dates (dd.MM.yy) + description start
     startTransactionPattern:
-      "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<description>.+?)\\s*$",
+      "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})(?:\\s+(?<description>.+?))?\\s*$",
 
     // Amount line: amount at end of line (optional sign), optional balance
     amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",

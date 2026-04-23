@@ -12,7 +12,7 @@ UPDATE finflow.pdf_bank_profile
 SET layout_patterns = '{
   "sectionStartMarker": "ELENCO\\s+MOVIMENTI|Data\\s+Valuta\\s+Descrizione|LISTA\\s+MOVIMENTI",
   "sectionEndMarker": "SALDO\\s+FINALE|TOTALE\\s+MOVIMENTI",
-  "startTransactionPattern": "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<description>.+?)\\s*$",
+  "startTransactionPattern": "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})(?:\\s+(?<description>.+?))?\\s*$",
   "amountLinePattern": "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
   "singleLinePattern": "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
   "signHints": {
