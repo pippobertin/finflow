@@ -120,6 +120,8 @@ interface PendingRow {
   description: string;
   amount?: number;
   balance?: number;
+  /** Last raw continuation line — used for fallback amount extraction */
+  _lastRawLine?: string;
 }
 
 // ─── Core parser ────────────────────────────────────────────
@@ -205,8 +207,48 @@ export async function parsePdfWithProfile(
   let matchedLines = 0;
   let skippedLines = 0;
 
+  /** Regex for fallback: find the last comma-decimal number in a line */
+  const fallbackAmountRe = patterns.amountDecimal === "," ? /([\d.]+,\d{2})/g : /([\d,]+\.\d{2})/g;
+
   /** Flush a completed pending row into results. Returns null (to clear pending). */
   function flushRow(p: PendingRow): null {
+    // Fallback amount extraction from last accumulated line
+    if (p.amount == null) {
+      const lastLine = p._lastRawLine ?? p.description;
+      if (lastLine) {
+        // 1. Try strict amount-only match on last line
+        const strictMatch = amountRegex!.exec(lastLine);
+        if (strictMatch?.groups?.amount) {
+          const rawAmount = parseAmount(strictMatch.groups.amount, patterns.amountDecimal);
+          if (rawAmount !== null) {
+            p.amount =
+              rawAmount < 0
+                ? rawAmount
+                : Math.abs(rawAmount) * determineSign(p.description, signHints);
+            if (strictMatch.groups.balance) {
+              p.balance =
+                parseAmount(strictMatch.groups.balance, patterns.amountDecimal) ?? undefined;
+            }
+          }
+        }
+
+        // 2. Try finding last comma-decimal number in the line
+        if (p.amount == null) {
+          const matches = [...lastLine.matchAll(fallbackAmountRe)];
+          if (matches.length > 0) {
+            const lastMatch = matches[matches.length - 1];
+            const rawAmount = parseAmount(lastMatch[1], patterns.amountDecimal);
+            if (rawAmount !== null) {
+              p.amount =
+                rawAmount < 0
+                  ? rawAmount
+                  : Math.abs(rawAmount) * determineSign(p.description, signHints);
+            }
+          }
+        }
+      }
+    }
+
     if (p.amount != null) {
       rows.push({
         date: p.date,
@@ -371,6 +413,7 @@ export async function parsePdfWithProfile(
           // Continuation line — append to description
           if (line.trim().length > 0) {
             pending.description += " " + line.trim();
+            pending._lastRawLine = line.trim();
           }
         }
         break;

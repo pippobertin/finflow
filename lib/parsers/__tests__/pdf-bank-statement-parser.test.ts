@@ -363,4 +363,67 @@ describe("parsePdfWithProfile — V2 state machine", () => {
     expect(result.rows[0].amount).toBe(500.0); // VERSAMENTO → positive
     expect(result.rows[1].amount).toBe(-100.0); // PRELIEVO → negative
   });
+
+  // ── Inline amount extraction (fallback) ────────────────
+
+  it("extracts inline amount from last continuation line (EUR 19,76 embedded)", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "05.01.25  01.10.25",
+      "PAGAMENTO E-Commerce del 01/10/2025",
+      "CARTA *9384 DI EUR 19,76 Google GSUITE_blmproje Milan",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].amount).toBe(-19.76); // PAGAMENTO → negative
+    expect(result.rows[0].description).toContain("CARTA *9384");
+    expect(result.rows[0].description).toContain("PAGAMENTO E-Commerce");
+  });
+
+  it("picks last comma-decimal number when multiple present (COMM: 0,00 ... amount)", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "10.02.25  10.02.25",
+      "BONIFICO A VOSTRO FAVORE",
+      "DA: CLIENTE SRL COMM: 0,00 SPESE: 0,00 IMPORTO: 1.500,00",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].amount).toBe(1500.0); // BONIFICO A VOSTRO FAVORE → positive, last number
+  });
+
+  it("still uses strict amount-only line when available (no fallback needed)", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "20.03.25  20.03.25",
+      "ADDEBITO CANONE MENSILE",
+      "50,00",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].amount).toBe(-50.0); // ADDEBITO → negative, normal strict match
+  });
+
+  it("extracts inline amount at section end (flush triggers fallback)", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "15.04.25  15.04.25",
+      "PRELIEVO ATM del 15/04/2025 EUR 200,00 Roma Centro",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].amount).toBe(-200.0); // PRELIEVO → negative
+  });
 });

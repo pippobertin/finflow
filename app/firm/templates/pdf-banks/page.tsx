@@ -445,7 +445,7 @@ export default function PdfBanksPage() {
           <DialogHeader>
             <DialogTitle>Test pattern PDF</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="max-h-[70vh] space-y-4 overflow-y-auto py-2">
             <div>
               <Label htmlFor="test-file">File PDF di esempio</Label>
               <Input
