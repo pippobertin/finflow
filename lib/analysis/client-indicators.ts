@@ -130,7 +130,7 @@ export function computeHealthIndicators(
           : ratios.mdcMargin >= 15
             ? "Il margine copre i costi fissi, ma con poco spazio."
             : "Il margine è troppo basso per assorbire i costi fissi.",
-      reference: "Ottimo: ≥ 30% · Attenzione: 15-30% · Critico: < 15%",
+      reference: "Ottimo: >= 30% | Attenzione: 15-30% | Critico: < 15%",
     });
   }
 
@@ -148,7 +148,7 @@ export function computeHealthIndicators(
           : ratios.ebitdaMargin >= 5
             ? "Il margine operativo è sufficiente, ma migliorabile."
             : "La redditività operativa è molto bassa.",
-      reference: "Ottimo: ≥ 15% · Attenzione: 5-15% · Critico: < 5%",
+      reference: "Ottimo: >= 15% | Attenzione: 5-15% | Critico: < 5%",
     });
   }
 
@@ -166,7 +166,7 @@ export function computeHealthIndicators(
           : ratios.netMargin >= 0
             ? "Il guadagno è positivo ma molto contenuto."
             : "L'azienda è in perdita.",
-      reference: "Ottimo: ≥ 5% · Attenzione: 0-5% · Critico: < 0%",
+      reference: "Ottimo: >= 5% | Attenzione: 0-5% | Critico: < 0%",
     });
   }
 
@@ -184,7 +184,7 @@ export function computeHealthIndicators(
           : ratios.variableCostRatio <= 80
             ? "I costi variabili assorbono una quota elevata dei ricavi."
             : "La quasi totalità dei ricavi è assorbita dai costi variabili.",
-      reference: "Ottimo: ≤ 60% · Attenzione: 60-80% · Critico: > 80%",
+      reference: "Ottimo: <= 60% | Attenzione: 60-80% | Critico: > 80%",
     });
   }
 
@@ -202,7 +202,7 @@ export function computeHealthIndicators(
           : ratios.fixedCostRatio <= 50
             ? "I costi fissi pesano sulla redditività."
             : "I costi fissi sono troppo elevati rispetto ai ricavi.",
-      reference: "Ottimo: ≤ 30% · Attenzione: 30-50% · Critico: > 50%",
+      reference: "Ottimo: <= 30% | Attenzione: 30-50% | Critico: > 50%",
     });
   }
 
@@ -220,7 +220,7 @@ export function computeHealthIndicators(
           : bep.safetyMargin >= 10
             ? `I ricavi sono sopra il pareggio (${fmtEUR(bep.bep)}), ma con poco margine.`
             : `L'azienda è molto vicina al punto di pareggio (${fmtEUR(bep.bep)}).`,
-      reference: "Ottimo: ≥ 20% · Attenzione: 10-20% · Critico: < 10%",
+      reference: "Ottimo: >= 20% | Attenzione: 10-20% | Critico: < 10%",
     });
   }
 

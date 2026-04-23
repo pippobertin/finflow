@@ -47,15 +47,19 @@ export interface ReportConfig {
 
 // ─── Formatters ─────────────────────────────────────────────────
 
-const fmtEUR = (v: number): string =>
-  new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency: "EUR",
+// PDF-safe formatter: Helvetica doesn't support Unicode currency symbols.
+// Use "EUR" suffix and explicit grouping for consistent thousands separators.
+const fmtEUR = (v: number): string => {
+  const abs = Math.abs(v);
+  const formatted = new Intl.NumberFormat("it-IT", {
+    useGrouping: true,
     maximumFractionDigits: 0,
-  }).format(v);
+  }).format(abs);
+  return (v < 0 ? "-" : "") + formatted + " EUR";
+};
 
 const fmtPct = (v: number | null): string =>
-  v != null ? v.toFixed(1).replace(".", ",") + "%" : "—";
+  v != null ? v.toFixed(1).replace(".", ",") + "%" : "-";
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -240,8 +244,8 @@ function renderHealth(b: PdfBuilder, config: ReportConfig) {
     b.y += 12;
   }
 
-  // Column widths: Indicatore 45%, Valore 15%, Stato 15%, Riferimento 25%
-  const colW = [CONTENT_W * 0.45, CONTENT_W * 0.15, CONTENT_W * 0.15, CONTENT_W * 0.25];
+  // Column widths: Indicatore 38%, Valore 14%, Stato 14%, Riferimento 34%
+  const colW = [CONTENT_W * 0.38, CONTENT_W * 0.14, CONTENT_W * 0.14, CONTENT_W * 0.34];
 
   // Header row
   b.checkPageBreak(8);
@@ -382,9 +386,15 @@ function renderIVA(b: PdfBuilder, config: ReportConfig) {
   if (!iva) return;
   b.sectionTitle("IVA del Periodo");
 
-  if (iva.snapshots.length === 0) {
+  const allZero =
+    iva.snapshots.length === 0 ||
+    iva.snapshots.every((s) => s.vatDebit === 0 && s.vatCredit === 0 && s.amountDue === 0);
+
+  if (allZero) {
     b.pdf.setFontSize(9);
-    b.pdf.text("Nessun dato IVA disponibile.", MARGIN_L, b.y);
+    b.pdf.setTextColor(107, 114, 128);
+    b.pdf.text("Nessun dato IVA disponibile per il periodo selezionato.", MARGIN_L, b.y);
+    b.pdf.setTextColor(0, 0, 0);
     b.y += 8;
     return;
   }
