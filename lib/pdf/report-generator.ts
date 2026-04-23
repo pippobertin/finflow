@@ -16,6 +16,7 @@ export interface ReportConfig {
   brandColor: string;
   year: number;
   sections: string[];
+  snapshotWarning?: string;
   data: {
     ce?: {
       incomeStatement: IncomeStatementResult;
@@ -226,19 +227,95 @@ function renderHealth(b: PdfBuilder, config: ReportConfig) {
   const health = config.data.health;
   if (!health) return;
   b.sectionTitle("Indicatori di Salute");
-  const w = [65, 35, 30, 50];
 
-  b.tableRow(["Indicatore", "Valore", "Stato", "Riferimento"], w, {
-    bold: true,
-    bg: [240, 240, 240],
-  });
-
-  const statusLabel = (s: string) => (s === "ok" ? "OK" : s === "warn" ? "Attenzione" : "Critico");
-
-  for (const ind of health.indicators) {
-    b.tableRow([ind.label, ind.formatted, statusLabel(ind.status), ind.reference], w);
+  // Snapshot warning banner
+  if (config.snapshotWarning) {
+    b.checkPageBreak(12);
+    b.pdf.setFillColor(255, 243, 205);
+    b.pdf.rect(MARGIN_L, b.y - 4, CONTENT_W, 10, "F");
+    b.pdf.setFontSize(8);
+    b.pdf.setTextColor(133, 100, 4);
+    b.pdf.text(config.snapshotWarning, MARGIN_L + 3, b.y + 1);
+    b.pdf.setTextColor(0, 0, 0);
+    b.y += 12;
   }
 
+  // Column widths: Indicatore 45%, Valore 15%, Stato 15%, Riferimento 25%
+  const colW = [CONTENT_W * 0.45, CONTENT_W * 0.15, CONTENT_W * 0.15, CONTENT_W * 0.25];
+
+  // Header row
+  b.checkPageBreak(8);
+  const headerH = 7;
+  const [br, bg, bb] = b.brandColor;
+  b.pdf.setFillColor(Math.min(br + 180, 245), Math.min(bg + 180, 245), Math.min(bb + 180, 245));
+  b.pdf.rect(MARGIN_L, b.y - 4.5, CONTENT_W, headerH, "F");
+  b.pdf.setFontSize(8);
+  b.pdf.setFont("helvetica", "bold");
+  b.pdf.setTextColor(...b.brandColor);
+  let hx = MARGIN_L;
+  for (const [i, label] of ["Indicatore", "Valore", "Stato", "Riferimento"].entries()) {
+    const align = i === 1 ? "right" : "left";
+    const textX = i === 1 ? hx + colW[i] - 2 : hx + 2;
+    b.pdf.text(label, textX, b.y, { align });
+    hx += colW[i];
+  }
+  b.pdf.setTextColor(0, 0, 0);
+  b.y += headerH;
+
+  const statusLabel = (s: string) =>
+    s === "ok" ? "Ottimo" : s === "warn" ? "Attenzione" : "Critico";
+  const statusColor = (s: string): [number, number, number] =>
+    s === "ok" ? [5, 150, 105] : s === "warn" ? [217, 119, 6] : [220, 38, 38];
+
+  // Data rows
+  for (let ri = 0; ri < health.indicators.length; ri++) {
+    const ind = health.indicators[ri];
+
+    // Wrap reference text to fit the column
+    b.pdf.setFontSize(7);
+    const refLines = b.pdf.splitTextToSize(ind.reference, colW[3] - 4) as string[];
+    const lineH = 4;
+    const rowH = Math.max(7, refLines.length * lineH + 3);
+
+    b.checkPageBreak(rowH + 1);
+
+    // Alternating row background
+    if (ri % 2 === 0) {
+      b.pdf.setFillColor(249, 250, 251);
+      b.pdf.rect(MARGIN_L, b.y - 4.5, CONTENT_W, rowH, "F");
+    }
+
+    // Col 0: Indicatore
+    b.pdf.setFontSize(8);
+    b.pdf.setFont("helvetica", "normal");
+    b.pdf.text(ind.label, MARGIN_L + 2, b.y);
+
+    // Col 1: Valore (right-aligned)
+    b.pdf.setFont("helvetica", "bold");
+    b.pdf.text(ind.formatted, MARGIN_L + colW[0] + colW[1] - 2, b.y, { align: "right" });
+
+    // Col 2: Stato (colored label)
+    const [sr, sg, sb] = statusColor(ind.status);
+    b.pdf.setFont("helvetica", "bold");
+    b.pdf.setFontSize(7);
+    b.pdf.setTextColor(sr, sg, sb);
+    b.pdf.text(statusLabel(ind.status), MARGIN_L + colW[0] + colW[1] + 2, b.y);
+    b.pdf.setTextColor(0, 0, 0);
+
+    // Col 3: Riferimento (multi-line)
+    b.pdf.setFont("helvetica", "normal");
+    b.pdf.setFontSize(7);
+    b.pdf.setTextColor(107, 114, 128);
+    const refX = MARGIN_L + colW[0] + colW[1] + colW[2] + 2;
+    for (let li = 0; li < refLines.length; li++) {
+      b.pdf.text(refLines[li], refX, b.y + li * lineH);
+    }
+    b.pdf.setTextColor(0, 0, 0);
+
+    b.y += rowH;
+  }
+
+  // BEP section
   if (health.bep) {
     b.y += 4;
     b.pdf.setFontSize(10);

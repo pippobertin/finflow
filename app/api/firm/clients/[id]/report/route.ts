@@ -56,9 +56,53 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // Fetch data for each requested section
   const data: ReportConfig["data"] = {};
+  let snapshotWarning: string | undefined;
 
   if (sections.includes("ce") || sections.includes("health")) {
-    const ceResult = await getIncomeStatement(id);
+    // Find the best snapshot for the requested year:
+    // 1. Prefer trusted snapshot covering the year
+    // 2. Fallback to untrusted (with warning)
+    const yearStart = new Date(Date.UTC(year, 0, 1));
+    const yearEnd = new Date(Date.UTC(year, 11, 31));
+
+    let snapshot = await prisma.trialBalanceSnapshot.findFirst({
+      where: {
+        organizationId: id,
+        isLocked: true,
+        isTrusted: true,
+        periodStart: { lte: yearEnd },
+        periodEnd: { gte: yearStart },
+      },
+      orderBy: { periodEnd: "desc" },
+      select: { id: true },
+    });
+
+    if (!snapshot) {
+      // Fallback: untrusted snapshot for the year
+      snapshot = await prisma.trialBalanceSnapshot.findFirst({
+        where: {
+          organizationId: id,
+          isLocked: true,
+          periodStart: { lte: yearEnd },
+          periodEnd: { gte: yearStart },
+        },
+        orderBy: { periodEnd: "desc" },
+        select: { id: true },
+      });
+      if (snapshot) {
+        snapshotWarning =
+          "Dati basati su snapshot non validato — i numeri potrebbero non essere accurati";
+      }
+    }
+
+    if (!snapshot) {
+      return Response.json(
+        { error: `Nessun bilancio disponibile per l'anno ${year}` },
+        { status: 404 },
+      );
+    }
+
+    const ceResult = await getIncomeStatement(id, snapshot.id);
     if (ceResult) {
       const { incomeStatement, ratios, periodStart, periodEnd } = ceResult;
       if (sections.includes("ce")) {
@@ -119,6 +163,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     year,
     sections,
     data,
+    snapshotWarning,
   });
 
   const filename = `Report_${org.name.replace(/\s+/g, "_")}_${year}.pdf`;
