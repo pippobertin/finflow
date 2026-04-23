@@ -19,7 +19,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Upload, Search } from "lucide-react";
+import { Pagination } from "@/components/dashboard/pagination";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatEUR } from "@/lib/helpers/format";
@@ -291,29 +292,13 @@ export default function FirmMovimentiPage({ params }: { params: Promise<{ id: st
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-muted-foreground text-xs">
-                Pagina {page} di {totalPages} ({total} risultati)
-              </p>
-              <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              itemLabel="movimenti"
+              onPageChange={setPage}
+            />
           )}
         </>
       )}
