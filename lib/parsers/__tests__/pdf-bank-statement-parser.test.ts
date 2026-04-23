@@ -477,4 +477,37 @@ describe("parsePdfWithProfile — V2 state machine", () => {
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].amount).toBe(-200.0); // PRELIEVO → negative
   });
+
+  // ── MAX_AMOUNT safety guard ────────────────────────────
+
+  it("discards transactions with absurd amounts (> 10M) and warns", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "05.01.25  01.10.25  PAGAMENTO E-Commerce             21.453.835.025,48",
+      "10.01.25  10.01.25  VERSAMENTO CONTANTI               500,00",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    // First transaction discarded (21 billion), second kept
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].amount).toBe(500.0);
+    expect(result.warnings.some((w) => w.includes("amount anomalo"))).toBe(true);
+  });
+
+  it("discards absurd amounts from fallback extraction too", async () => {
+    mockText = [
+      "LISTA MOVIMENTI",
+      "05.01.25  01.10.25",
+      "PAGAMENTO E-Commerce del 01/10/2025",
+      "CARTA *9384 DI EUR 21.453.835.025,48 Google Milan",
+      "SALDO FINALE",
+    ].join("\n");
+
+    const result = await parsePdfWithProfile(Buffer.from("fake"), unicreditProfile);
+
+    expect(result.rows).toHaveLength(0);
+    expect(result.warnings.some((w) => w.includes("amount anomalo"))).toBe(true);
+  });
 });

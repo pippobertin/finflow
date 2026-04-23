@@ -31,6 +31,11 @@ export interface PdfBankParseResult {
   skippedLines: number;
 }
 
+// ─── Safety constants ────────────────────────────────────────
+
+/** Max plausible transaction amount for a PMI (10 million EUR) */
+const MAX_AMOUNT = 10_000_000;
+
 // ─── Amount parsing ─────────────────────────────────────────
 
 function parseAmount(raw: string, decimal: "," | "."): number | null {
@@ -269,6 +274,13 @@ export async function parsePdfWithProfile(
     }
 
     if (p.amount != null) {
+      // Safety guard: discard absurd amounts (parser concatenation errors)
+      if (Math.abs(p.amount) > MAX_AMOUNT) {
+        warnings.push(
+          `Transazione scartata, amount anomalo: ${p.amount} EUR su descrizione "${p.description.trim().slice(0, 80)}"`,
+        );
+        return null;
+      }
       rows.push({
         date: p.date,
         ...(p.valuta ? { valuta: p.valuta } : {}),
@@ -298,6 +310,14 @@ export async function parsePdfWithProfile(
     // If the raw amount already has a sign (negative), respect it.
     // Otherwise apply signHints.
     const amount = rawAmount < 0 ? rawAmount : Math.abs(rawAmount) * determineSign(desc, signHints);
+
+    // Safety guard: discard absurd amounts
+    if (Math.abs(amount) > MAX_AMOUNT) {
+      warnings.push(
+        `Transazione scartata, amount anomalo: ${amount} EUR su descrizione "${desc.slice(0, 80)}"`,
+      );
+      return;
+    }
 
     rows.push({
       date: normalizeDate(g.date, patterns.dateFormat),
