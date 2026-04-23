@@ -135,12 +135,11 @@ export default function FirmMovimentiPage({ params }: { params: Promise<{ id: st
       const formData = new FormData();
       formData.append("file", uploadFile);
 
-      // Minimal config — for profile-based PDF, the bank profile handles everything
-      const config =
-        isPdf && uploadBank
-          ? { mapping: { date: "Data", description: "Descrizione", amount: "Importo" } }
-          : { mapping: { date: "Data", description: "Descrizione", amount: "Importo" } };
-      formData.append("config", JSON.stringify(config));
+      // PDF V1 parser returns Uscite/Entrate columns; CSV uses single Importo column
+      const mapping = isPdf
+        ? { date: "Data", description: "Descrizione", uscite: "Uscite", entrate: "Entrate" }
+        : { date: "Data", description: "Descrizione", amount: "Importo" };
+      formData.append("config", JSON.stringify({ mapping }));
 
       if (isPdf && uploadBank) {
         formData.append("bankName", uploadBank);
@@ -163,7 +162,9 @@ export default function FirmMovimentiPage({ params }: { params: Promise<{ id: st
       } else if (result.duplicates > 0) {
         toast.info(`Tutti i ${result.duplicates} movimenti erano già presenti`);
       } else {
-        toast.info("Nessun movimento importato");
+        toast.warning(
+          "Nessuna riga riconosciuta dal parser. Verifica che il file sia un estratto conto valido.",
+        );
       }
 
       if (result.warnings?.length > 0) {

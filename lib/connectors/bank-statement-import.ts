@@ -75,12 +75,12 @@ export async function importBankStatements(
     csvContent,
     pdfBuffer,
     parsedRows: preRows,
-    mapping,
     dateFormat = "dd/MM/yyyy",
     decimalSeparator = ",",
     skipRows = 0,
     sourceFile,
   } = options;
+  let { mapping } = options;
 
   let rows: Record<string, string>[];
   const importErrors: ImportError[] = [];
@@ -92,6 +92,17 @@ export async function importBankStatements(
   } else if (pdfBuffer) {
     const pdfResult = await parseBankStatementPdf(pdfBuffer);
     rows = pdfResult.rows;
+
+    // V1 parser always returns columns: Data, Valuta, Descrizione, Uscite, Entrate.
+    // Override whatever mapping the caller sent — the parser output is authoritative.
+    if (rows.length > 0 && "Uscite" in rows[0] && "Entrate" in rows[0]) {
+      mapping = {
+        date: "Data",
+        description: "Descrizione",
+        uscite: "Uscite",
+        entrate: "Entrate",
+      };
+    }
 
     // Capture EC metadata if detected (RIEPILOGO with saldo finale)
     if (pdfResult.ecMetadata.closingBalance !== null) {
