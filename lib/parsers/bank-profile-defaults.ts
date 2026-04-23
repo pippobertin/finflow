@@ -21,7 +21,7 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
   // Multi-line transactions, 2-digit years (dd.MM.yy), unsigned amounts.
   // Sign determined from description keywords.
   Unicredit: {
-    sectionStartMarker: "LISTA\\s+MOVIMENTI|Data\\s+Operazione\\s+Data\\s+Valuta",
+    sectionStartMarker: "ELENCO\\s+MOVIMENTI|Data\\s+Valuta\\s+Descrizione|LISTA\\s+MOVIMENTI",
     sectionEndMarker: "SALDO\\s+FINALE|TOTALE\\s+MOVIMENTI",
 
     // Line 1: two dates (dd.MM.yy) + description start
