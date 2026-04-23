@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getClientSession } from "@/lib/helpers/auth-guard";
+import { getClientOwnerSession } from "@/lib/helpers/auth-guard";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
  * - threshold === null: reset to default (5000)
  */
 export async function PATCH(request: NextRequest) {
-  const { error, organizationId } = await getClientSession();
+  const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;
 
   try {

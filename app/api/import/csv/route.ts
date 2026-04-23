@@ -3,8 +3,11 @@ import { importCsv } from "@/lib/connectors/csv-import";
 import { csvImportSchema } from "@/lib/validations/import";
 
 export async function POST(request: Request) {
-  const { error, organizationId } = await getAuthSession();
+  const { error, session, organizationId } = await getAuthSession();
   if (error) return error;
+  if (session.user.userType === "CLIENT_ADMIN_BANK_ONLY") {
+    return Response.json({ error: "Accesso riservato al titolare" }, { status: 403 });
+  }
 
   const formData = await request.formData();
   const file = formData.get("file") as File | null;

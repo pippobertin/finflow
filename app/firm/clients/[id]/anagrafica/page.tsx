@@ -24,6 +24,7 @@ import {
   Banknote,
   ArrowUpDown,
   Sparkles,
+  Users,
 } from "lucide-react";
 
 interface BankAccount {
@@ -203,6 +204,13 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
           >
             <Sparkles className="mr-2 h-4 w-4" />
             Pattern
+          </Link>
+          <Link
+            href={`/firm/clients/${id}/utenti`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Utenti
           </Link>
         </div>
       </div>

@@ -55,12 +55,16 @@ const navSections = [
   },
 ];
 
+/** Paths accessible to CLIENT_ADMIN_BANK_ONLY users */
+const BANK_ONLY_ALLOWED = new Set(["/movimenti", "/fatture"]);
+
 interface ClientSidebarProps {
   firmName?: string;
   firmLogoUrl?: string;
+  userType?: string;
 }
 
-export function ClientSidebar({ firmName, firmLogoUrl }: ClientSidebarProps) {
+export function ClientSidebar({ firmName, firmLogoUrl, userType }: ClientSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -100,38 +104,45 @@ export function ClientSidebar({ firmName, firmLogoUrl }: ClientSidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
-        {navSections.map((section) => (
-          <div key={section.title}>
-            <p className="px-3 pb-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-slate-500">
-              {section.title}
-            </p>
-            <div className="space-y-0.5">
-              {section.items.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/dashboard" && pathname.startsWith(item.href));
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
-                      isActive
-                        ? "bg-white font-semibold text-[var(--brand,#0b4d8a)] shadow-sm dark:bg-slate-800 dark:text-blue-400"
-                        : "text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
-                    )}
-                  >
-                    {isActive && (
-                      <span className="absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--brand,#0b4d8a)]" />
-                    )}
-                    <item.icon className="h-4 w-4" />
-                    <span className="flex-1">{item.label}</span>
-                  </Link>
-                );
-              })}
+        {navSections.map((section) => {
+          const isBankOnly = userType === "CLIENT_ADMIN_BANK_ONLY";
+          const visibleItems = isBankOnly
+            ? section.items.filter((item) => BANK_ONLY_ALLOWED.has(item.href))
+            : section.items;
+          if (visibleItems.length === 0) return null;
+          return (
+            <div key={section.title}>
+              <p className="px-3 pb-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-slate-500">
+                {section.title}
+              </p>
+              <div className="space-y-0.5">
+                {visibleItems.map((item) => {
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+                        isActive
+                          ? "bg-white font-semibold text-[var(--brand,#0b4d8a)] shadow-sm dark:bg-slate-800 dark:text-blue-400"
+                          : "text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
+                      )}
+                    >
+                      {isActive && (
+                        <span className="absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--brand,#0b4d8a)]" />
+                      )}
+                      <item.icon className="h-4 w-4" />
+                      <span className="flex-1">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Logout */}

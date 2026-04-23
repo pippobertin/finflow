@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { ClientSidebar } from "@/components/client/client-sidebar";
+import { BankOnlyGuard } from "@/components/client/bank-only-guard";
 import { prisma } from "@/lib/prisma";
 
 interface BrandingJson {
@@ -63,7 +64,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
       )}
       {isClientUser ? (
         <>
-          <ClientSidebar firmName={firmName} firmLogoUrl={firmLogoUrl} />
+          <ClientSidebar
+            firmName={firmName}
+            firmLogoUrl={firmLogoUrl}
+            userType={userType ?? undefined}
+          />
+          <BankOnlyGuard userType={userType ?? undefined} />
           <div className="flex flex-1 flex-col overflow-auto">
             <main className="flex-1">{children}</main>
             {/* Powered by attribution */}

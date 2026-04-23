@@ -8,6 +8,7 @@ interface AuthSession extends Session {
     id: string;
     organizationId: string;
     role: string;
+    userType?: string;
   };
 }
 
@@ -116,6 +117,48 @@ export async function getClientSession(): Promise<ClientAuthResult> {
   return {
     error: null,
     session: session as ClientSession,
+    organizationId: session.user.organizationId,
+  };
+}
+
+// ─── Client Owner auth (V2 — restricted to CLIENT_OWNER only) ────
+
+interface ClientOwnerSession extends Session {
+  user: Session["user"] & {
+    id: string;
+    organizationId: string;
+    userType: "CLIENT_OWNER";
+    accountingFirmId?: string;
+  };
+}
+
+type ClientOwnerAuthResult =
+  | { error: Response; session: null; organizationId: null }
+  | { error: null; session: ClientOwnerSession; organizationId: string };
+
+/**
+ * Auth guard for routes restricted to CLIENT_OWNER only.
+ * Returns 403 for CLIENT_ADMIN_BANK_ONLY users.
+ */
+export async function getClientOwnerSession(): Promise<ClientOwnerAuthResult> {
+  const session = (await auth()) as Session | null;
+  if (!session?.user?.organizationId) {
+    return {
+      error: Response.json({ error: "Non autorizzato" }, { status: 401 }),
+      session: null,
+      organizationId: null,
+    };
+  }
+  if (session.user.userType !== "CLIENT_OWNER") {
+    return {
+      error: Response.json({ error: "Accesso riservato al titolare" }, { status: 403 }),
+      session: null,
+      organizationId: null,
+    };
+  }
+  return {
+    error: null,
+    session: session as ClientOwnerSession,
     organizationId: session.user.organizationId,
   };
 }

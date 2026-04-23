@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getClientSession } from "@/lib/helpers/auth-guard";
+import { getClientOwnerSession } from "@/lib/helpers/auth-guard";
 import { getPreconsuntivo } from "@/lib/queries/budget-variance";
 
 /**
@@ -8,7 +8,7 @@ import { getPreconsuntivo } from "@/lib/queries/budget-variance";
  * Uses trustedOnly=true so only validated data is shown.
  */
 export async function GET(request: NextRequest) {
-  const { error, organizationId } = await getClientSession();
+  const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;
 
   const yearParam = request.nextUrl.searchParams.get("year");

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getClientSession } from "@/lib/helpers/auth-guard";
+import { getClientOwnerSession } from "@/lib/helpers/auth-guard";
 import { getIncomeStatement, listSnapshots } from "@/lib/queries/income-statement";
 import {
   computeBreakEven,
@@ -18,7 +18,7 @@ import {
  *   snapshotId=xxx — use specific snapshot (defaults to most recent locked)
  */
 export async function GET(request: NextRequest) {
-  const { error, organizationId } = await getClientSession();
+  const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;
 
   const sp = request.nextUrl.searchParams;

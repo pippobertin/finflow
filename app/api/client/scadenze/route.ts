@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getClientSession } from "@/lib/helpers/auth-guard";
+import { getClientOwnerSession } from "@/lib/helpers/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { addDays, addMonths, startOfDay, setDate, lastDayOfMonth } from "date-fns";
 
@@ -75,7 +75,7 @@ function advanceByFrequency(date: Date, frequency: string): Date {
  *   days=N — look-ahead window in days (default 90, max 365)
  */
 export async function GET(request: NextRequest) {
-  const { error, organizationId } = await getClientSession();
+  const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;
 
   const sp = request.nextUrl.searchParams;

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getClientSession } from "@/lib/helpers/auth-guard";
+import { getClientOwnerSession } from "@/lib/helpers/auth-guard";
 import { getVatSnapshots } from "@/lib/queries/vat-snapshots";
 
 /**
@@ -7,7 +7,7 @@ import { getVatSnapshots } from "@/lib/queries/vat-snapshots";
  * Returns VAT snapshots for the logged-in client's organization (readonly).
  */
 export async function GET(request: NextRequest) {
-  const { error, organizationId } = await getClientSession();
+  const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;
 
   const yearParam = request.nextUrl.searchParams.get("year");

@@ -3,8 +3,11 @@ import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { getOverviewData } from "@/lib/queries/overview";
 
 export async function GET(request: NextRequest) {
-  const { error, organizationId } = await getAuthSession();
+  const { error, session, organizationId } = await getAuthSession();
   if (error) return error;
+  if (session.user.userType === "CLIENT_ADMIN_BANK_ONLY") {
+    return Response.json({ error: "Accesso riservato al titolare" }, { status: 403 });
+  }
 
   const sp = request.nextUrl.searchParams;
 

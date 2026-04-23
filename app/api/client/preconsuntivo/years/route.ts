@@ -1,4 +1,4 @@
-import { getClientSession } from "@/lib/helpers/auth-guard";
+import { getClientOwnerSession } from "@/lib/helpers/auth-guard";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
  * plus the current year as fallback.
  */
 export async function GET() {
-  const { error, organizationId } = await getClientSession();
+  const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;
 
   const currentYear = new Date().getFullYear();

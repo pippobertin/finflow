@@ -398,6 +398,7 @@ model User {
   // V2 multi-tenant columns
   userType         UserType?    @map("user_type")
   accountingFirmId String?      @map("accounting_firm_id")
+  isActive         Boolean      @default(true) @map("is_active")
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
 

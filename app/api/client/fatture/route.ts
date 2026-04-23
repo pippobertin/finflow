@@ -41,8 +41,11 @@ export async function GET(request: NextRequest) {
  * - direction (ACTIVE | PASSIVE)
  */
 export async function POST(request: NextRequest) {
-  const { error, organizationId } = await getClientSession();
+  const { error, session, organizationId } = await getClientSession();
   if (error) return error;
+  if (session.user.userType === "CLIENT_ADMIN_BANK_ONLY") {
+    return Response.json({ error: "Accesso riservato al titolare" }, { status: 403 });
+  }
 
   try {
     const body = await request.json();
@@ -100,8 +103,11 @@ export async function POST(request: NextRequest) {
  * Body: { invoiceId, paidAt? }
  */
 export async function PATCH(request: NextRequest) {
-  const { error, organizationId } = await getClientSession();
+  const { error, session, organizationId } = await getClientSession();
   if (error) return error;
+  if (session.user.userType === "CLIENT_ADMIN_BANK_ONLY") {
+    return Response.json({ error: "Accesso riservato al titolare" }, { status: 403 });
+  }
 
   try {
     const { invoiceId, paidAt } = await request.json();
