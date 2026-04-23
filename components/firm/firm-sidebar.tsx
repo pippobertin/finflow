@@ -11,7 +11,7 @@ const navItems = [
   { href: "/firm/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/firm/clients", label: "Clienti", icon: Users },
   { href: "/firm/branding", label: "Branding", icon: Palette },
-  { href: "/firm/templates", label: "Templates", icon: FileText },
+  { href: "/firm/templates/pdf-banks", label: "Templates", icon: FileText },
 ];
 
 export function FirmSidebar() {
