@@ -1,8 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,7 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Sparkles, CheckCircle2, X, Play, Trash2, Pencil } from "lucide-react";
+import { Sparkles, CheckCircle2, X, Play, Trash2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatEUR } from "@/lib/helpers/format";
@@ -309,29 +308,15 @@ export default function PatternPage({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/firm/clients/${id}/movimenti`}
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Pattern Categorizzazione</h1>
-            <p className="text-muted-foreground text-sm">
-              Regole automatiche per categorizzare i movimenti
-            </p>
-          </div>
-        </div>
-        {tab === "rules" && (
+      {/* Actions */}
+      {tab === "rules" && (
+        <div className="flex items-center justify-end">
           <Button onClick={handleApplyAll} disabled={applying || rules.length === 0}>
             <Play className="mr-1.5 h-4 w-4" />
             {applying ? "Applicazione..." : "Applica tutto"}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg border p-1">

@@ -1,8 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, Search } from "lucide-react";
+import { Upload, Search } from "lucide-react";
 import { Pagination } from "@/components/dashboard/pagination";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -194,20 +193,9 @@ export default function FirmMovimentiPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
+      {/* Actions */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/firm/clients/${id}/anagrafica`}
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Movimenti Bancari</h1>
-            <p className="text-muted-foreground text-sm">{total} movimenti totali</p>
-          </div>
-        </div>
+        <p className="text-muted-foreground text-sm">{total} movimenti totali</p>
         <Button onClick={() => setUploadOpen(true)}>
           <Upload className="mr-1.5 h-4 w-4" />
           Carica estratto conto

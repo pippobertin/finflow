@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, use } from "react";
-import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -10,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, FileBarChart, Download, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i);
@@ -82,24 +81,6 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="max-w-lg space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <Link
-          href={`/firm/clients/${id}/anagrafica`}
-          className={buttonVariants({ variant: "ghost", size: "icon" })}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <FileBarChart className="h-6 w-6 text-indigo-600" />
-            Report Finanziario
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Genera un report PDF con branding dello studio
-          </p>
-        </div>
-      </div>
-
       {/* Year selector */}
       <div className="space-y-2">
         <label className="text-sm font-medium">Anno</label>

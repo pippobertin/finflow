@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, Check } from "lucide-react";
+import { Save, Check } from "lucide-react";
 
 const CDG_CATEGORIES = [
   { value: "REVENUE", label: "Ricavi" },
@@ -161,22 +160,12 @@ export default function FirmMappingPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
-        <div>
-          <Link
-            href={`/firm/clients/${id}/bilanci`}
-            className="text-muted-foreground mb-1 inline-flex items-center gap-1 text-sm hover:underline"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            Bilanci di verifica
-          </Link>
-          <h1 className="text-2xl font-bold">Mapping Piano dei Conti</h1>
-          <p className="text-muted-foreground text-sm">
-            Associa ogni conto contabile a una categoria CdG
-            {unmappedCount > 0 && (
-              <span className="ml-2 text-amber-600">({unmappedCount} conti da mappare)</span>
-            )}
-          </p>
-        </div>
+        <p className="text-muted-foreground text-sm">
+          Associa ogni conto contabile a una categoria CdG
+          {unmappedCount > 0 && (
+            <span className="ml-2 text-amber-600">({unmappedCount} conti da mappare)</span>
+          )}
+        </p>
         <Button onClick={handleSave} disabled={saving || dirtyCount === 0}>
           {saving ? (
             "Salvataggio..."

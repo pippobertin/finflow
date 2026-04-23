@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Upload, FileSpreadsheet, Check, AlertTriangle } from "lucide-react";
+import { Upload, FileSpreadsheet, Check, AlertTriangle } from "lucide-react";
 
 interface ParsedResult {
   snapshot: { id: string; _count: { lines: number } };
@@ -69,20 +69,6 @@ export default function UploadBilancioPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
-      <div>
-        <Link
-          href={`/firm/clients/${id}/bilanci`}
-          className="text-muted-foreground mb-1 inline-flex items-center gap-1 text-sm hover:underline"
-        >
-          <ArrowLeft className="h-3 w-3" />
-          Bilanci di verifica
-        </Link>
-        <h1 className="text-2xl font-bold">Carica Bilancio di Verifica</h1>
-        <p className="text-muted-foreground text-sm">
-          Carica un file Excel con il bilancio di verifica del periodo
-        </p>
-      </div>
-
       {result ? (
         <div className="space-y-4">
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">

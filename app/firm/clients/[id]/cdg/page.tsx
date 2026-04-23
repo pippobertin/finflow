@@ -1,9 +1,6 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -99,7 +96,6 @@ export default function FirmCdgPage({ params }: { params: Promise<{ id: string }
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 p-6">
-        <h1 className="text-2xl font-semibold">Controllo di Gestione</h1>
         <div className="animate-pulse space-y-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-10 rounded-lg bg-slate-200 dark:bg-slate-800" />
@@ -112,15 +108,6 @@ export default function FirmCdgPage({ params }: { params: Promise<{ id: string }
   if (error) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 p-6">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/firm/clients/${id}/anagrafica`}
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <h1 className="text-2xl font-semibold">Controllo di Gestione</h1>
-        </div>
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
           {error}
         </div>
@@ -135,20 +122,9 @@ export default function FirmCdgPage({ params }: { params: Promise<{ id: string }
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/firm/clients/${id}/anagrafica`}
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-semibold">CE Riclassificato</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {periodStart} → {periodEnd} · {sourceFilename}
-            </p>
-          </div>
-        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {periodStart} → {periodEnd} · {sourceFilename}
+        </p>
         {snapshots.length > 1 && (
           <Select
             value={selectedSnapshotId ?? data.snapshotId}

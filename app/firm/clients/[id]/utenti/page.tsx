@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, use, useCallback } from "react";
-import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -13,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft,
   Plus,
   UserPlus,
   Copy,
@@ -139,19 +137,7 @@ export default function UtentiPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="max-w-3xl space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/firm/clients/${id}/anagrafica`}
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Utenti</h1>
-            <p className="text-muted-foreground text-sm">Gestione accessi cliente</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-end">
         <Button
           onClick={() => {
             setShowForm(!showForm);

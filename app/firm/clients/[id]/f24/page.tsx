@@ -1,8 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Pencil, Trash2, CheckCircle, Clock, Circle } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle, Clock, Circle } from "lucide-react";
 import { formatEUR } from "@/lib/helpers/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -275,44 +274,30 @@ export default function F24Page({ params }: { params: Promise<{ id: string }> })
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/firm/clients/${id}/anagrafica`}
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Scadenze F24</h1>
-            <p className="text-muted-foreground text-sm">Gestione tributi e contributi</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="default" size="sm" onClick={openCreate}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Nuovo F24
-          </Button>
-          <Select
-            value={String(year)}
-            onValueChange={(v) => {
-              setYear(Number(v));
-              setLoading(true);
-            }}
-          >
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[currentYear + 1, currentYear, currentYear - 1, currentYear - 2].map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="default" size="sm" onClick={openCreate}>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          Nuovo F24
+        </Button>
+        <Select
+          value={String(year)}
+          onValueChange={(v) => {
+            setYear(Number(v));
+            setLoading(true);
+          }}
+        >
+          <SelectTrigger className="w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {[currentYear + 1, currentYear, currentYear - 1, currentYear - 2].map((y) => (
+              <SelectItem key={y} value={String(y)}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {loading && <p className="text-muted-foreground">Caricamento...</p>}

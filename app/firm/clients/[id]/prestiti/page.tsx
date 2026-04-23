@@ -1,8 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { formatEUR } from "@/lib/helpers/format";
 import { toast } from "sonner";
 
@@ -230,20 +229,8 @@ export default function PrestitiPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/firm/clients/${id}/anagrafica`}
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Gestione Prestiti</h1>
-            <p className="text-muted-foreground text-sm">Finanziamenti e mutui</p>
-          </div>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end">
         <Button variant="default" size="sm" onClick={openCreate}>
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           Nuovo prestito

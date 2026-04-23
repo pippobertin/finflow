@@ -1,9 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -109,20 +107,8 @@ export default function VarianzePage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/firm/clients/${id}/budget`}
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Varianze Budget</h1>
-            <p className="text-muted-foreground text-sm">Budget vs Consuntivo</p>
-          </div>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end">
         <Select value={String(year)} onValueChange={handleYearChange}>
           <SelectTrigger className="w-28">
             <SelectValue />

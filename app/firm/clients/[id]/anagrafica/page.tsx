@@ -12,21 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  ArrowLeft,
-  Save,
-  Building2,
-  FileSpreadsheet,
-  BarChart3,
-  Calculator,
-  Receipt,
-  Landmark,
-  Banknote,
-  ArrowUpDown,
-  Sparkles,
-  Users,
-  FileBarChart,
-} from "lucide-react";
+import { Save, Building2 } from "lucide-react";
 
 interface BankAccount {
   id: string;
@@ -148,81 +134,6 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="max-w-2xl space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/firm/clients" className={buttonVariants({ variant: "ghost", size: "icon" })}>
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">{org.name}</h1>
-            <p className="text-muted-foreground text-sm">Anagrafica</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Link href={`/firm/clients/${id}/cdg`} className={buttonVariants({ variant: "outline" })}>
-            <BarChart3 className="mr-2 h-4 w-4" />
-            Controllo di Gestione
-          </Link>
-          <Link
-            href={`/firm/clients/${id}/bilanci`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Bilanci di verifica
-          </Link>
-          <Link
-            href={`/firm/clients/${id}/budget`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <Calculator className="mr-2 h-4 w-4" />
-            Budget
-          </Link>
-          <Link href={`/firm/clients/${id}/iva`} className={buttonVariants({ variant: "outline" })}>
-            <Receipt className="mr-2 h-4 w-4" />
-            IVA
-          </Link>
-          <Link href={`/firm/clients/${id}/f24`} className={buttonVariants({ variant: "outline" })}>
-            <Landmark className="mr-2 h-4 w-4" />
-            F24
-          </Link>
-          <Link
-            href={`/firm/clients/${id}/prestiti`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <Banknote className="mr-2 h-4 w-4" />
-            Prestiti
-          </Link>
-          <Link
-            href={`/firm/clients/${id}/movimenti`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <ArrowUpDown className="mr-2 h-4 w-4" />
-            Movimenti
-          </Link>
-          <Link
-            href={`/firm/clients/${id}/movimenti/patterns`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            Pattern
-          </Link>
-          <Link
-            href={`/firm/clients/${id}/utenti`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <Users className="mr-2 h-4 w-4" />
-            Utenti
-          </Link>
-          <Link
-            href={`/firm/clients/${id}/report`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <FileBarChart className="mr-2 h-4 w-4" />
-            Report
-          </Link>
-        </div>
-      </div>
-
       {message && (
         <div
           className={`rounded-lg border px-4 py-3 text-sm ${

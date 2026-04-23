@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { Upload, FileSpreadsheet, Lock, Unlock, Trash2, ArrowLeft } from "lucide-react";
+import { Upload, FileSpreadsheet, Lock, Unlock, Trash2 } from "lucide-react";
 
 interface Snapshot {
   id: string;
@@ -74,33 +74,18 @@ export default function FirmBilanciPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <Link
-            href={`/firm/clients/${id}/anagrafica`}
-            className="text-muted-foreground mb-1 inline-flex items-center gap-1 text-sm hover:underline"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            Anagrafica
-          </Link>
-          <h1 className="text-2xl font-bold">Bilanci di Verifica</h1>
-          <p className="text-muted-foreground text-sm">
-            Carica e gestisci i bilanci di verifica per il controllo di gestione
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/firm/clients/${id}/mapping`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Mapping conti
-          </Link>
-          <Link href={`/firm/clients/${id}/bilanci/upload`} className={buttonVariants()}>
-            <Upload className="mr-2 h-4 w-4" />
-            Carica bilancio
-          </Link>
-        </div>
+      <div className="flex items-center justify-end gap-2">
+        <Link
+          href={`/firm/clients/${id}/mapping`}
+          className={buttonVariants({ variant: "outline" })}
+        >
+          <FileSpreadsheet className="mr-2 h-4 w-4" />
+          Mapping conti
+        </Link>
+        <Link href={`/firm/clients/${id}/bilanci/upload`} className={buttonVariants()}>
+          <Upload className="mr-2 h-4 w-4" />
+          Carica bilancio
+        </Link>
       </div>
 
       <div className="rounded-lg border">

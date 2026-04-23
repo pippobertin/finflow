@@ -1,8 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -10,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, RefreshCw, CheckCircle, Circle, Clock } from "lucide-react";
+import { RefreshCw, CheckCircle, Circle, Clock } from "lucide-react";
 import { formatEUR } from "@/lib/helpers/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -190,38 +189,24 @@ export default function IvaPage({ params }: { params: Promise<{ id: string }> })
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/firm/clients/${id}/anagrafica`}
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Gestione IVA</h1>
-            <p className="text-muted-foreground text-sm">Liquidazioni periodiche</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRecalculate} disabled={recalculating}>
-            <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", recalculating && "animate-spin")} />
-            {recalculating ? "Ricalcolo..." : "Ricalcola"}
-          </Button>
-          <Select value={String(year)} onValueChange={handleYearChange}>
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[currentYear + 1, currentYear, currentYear - 1, currentYear - 2].map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={handleRecalculate} disabled={recalculating}>
+          <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", recalculating && "animate-spin")} />
+          {recalculating ? "Ricalcolo..." : "Ricalcola"}
+        </Button>
+        <Select value={String(year)} onValueChange={handleYearChange}>
+          <SelectTrigger className="w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {[currentYear + 1, currentYear, currentYear - 1, currentYear - 2].map((y) => (
+              <SelectItem key={y} value={String(y)}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {loading && <p className="text-muted-foreground">Caricamento...</p>}
