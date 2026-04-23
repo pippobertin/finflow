@@ -1,23 +1,103 @@
 /**
  * Default BankLayoutPatterns for the 6 most common Italian banks.
  *
+ * V2: State-machine profiles with startTransactionPattern, amountLinePattern,
+ * singleLinePattern, and signHints (replaces linePattern + signConvention).
+ *
  * These are the same patterns seeded into the DB via migration SQL.
  * Exported here for use in tests and as reference documentation.
- *
- * Pattern design notes:
- * - Italian bank PDFs typically have: Data Operazione, Data Valuta, Descrizione, Importo, Saldo
- * - Amounts use Italian format: 1.234,56 (dot as thousands, comma as decimal)
- * - Dates vary: dd/MM/yyyy (most common), dd.MM.yyyy (Unicredit, MPS)
- * - Multi-line descriptions are common for Intesa and Crédit Agricole
- * - These are pragmatic approximations — the controller can fine-tune per studio
  */
 import type { BankLayoutPatterns } from "@/lib/validations/pdf-bank-profile";
 
+/** Sign hints for banks with already-signed amounts (no keyword needed) */
+const SIGNED_AMOUNT_HINTS: BankLayoutPatterns["signHints"] = {
+  incoming: [],
+  outgoing: [],
+  defaultSign: "positive", // amounts already carry their sign
+};
+
 export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
+  // ─── Unicredit ──────────────────────────────────────────────
+  // Multi-line transactions, 2-digit years (dd.MM.yy), unsigned amounts.
+  // Sign determined from description keywords.
+  Unicredit: {
+    sectionStartMarker: "LISTA\\s+MOVIMENTI|Data\\s+Operazione\\s+Data\\s+Valuta",
+    sectionEndMarker: "SALDO\\s+FINALE|TOTALE\\s+MOVIMENTI",
+
+    // Line 1: two dates (dd.MM.yy) + description start
+    startTransactionPattern:
+      "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<description>.+?)\\s*$",
+
+    // Amount line: amount at end of line (optional sign), optional balance
+    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    // Some transactions fit on one line (dates + description + amount)
+    singleLinePattern:
+      "^(?<date>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{2})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    signHints: {
+      incoming: [
+        "BONIFICO A VOSTRO FAVORE",
+        "ACCREDITO",
+        "VERSAMENTO",
+        "STIPENDIO",
+        "STORNO ADDEBITO",
+        "RIMBORSO",
+        "INCASSO",
+        "GIROCONTO A VOSTRO FAVORE",
+      ],
+      outgoing: [
+        "PAGAMENTO",
+        "ADDEBITO",
+        "PRELIEVO",
+        "BONIFICO DA VOI DISPOSTO",
+        "COMMISSIONE",
+        "SPESE",
+        "CANONE",
+        "UTENZE",
+        "IMPOSTE",
+        "RITENUTA",
+        "GIROCONTO DA VOI DISPOSTO",
+        "F24",
+        "MAV",
+        "RAV",
+        "RID",
+        "SDD",
+      ],
+      defaultSign: "negative",
+    },
+
+    dateFormat: "dd.MM.yy",
+    amountDecimal: ",",
+    skipPatterns: [
+      "^\\s*$",
+      "^Pag\\.?\\s*\\d",
+      "^IBAN",
+      "^Conto\\s+Corrente",
+      "^Intestato",
+      "^Divisa",
+      "^N\\.\\s+Operazioni",
+    ],
+  },
+
+  // ─── Intesa Sanpaolo ────────────────────────────────────────
+  // Two-date blocks, multi-line descriptions, signed amounts.
   "Intesa Sanpaolo": {
-    linePattern:
-      "(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})",
-    continuationPattern: "^\\s{10,}(?<text>.+)$",
+    sectionStartMarker: null,
+    sectionEndMarker: null,
+
+    startTransactionPattern:
+      "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s*$",
+
+    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    singleLinePattern:
+      "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    signHints: SIGNED_AMOUNT_HINTS,
+
+    dateFormat: "dd/MM/yyyy",
+    amountDecimal: ",",
     skipPatterns: [
       "^\\s*$",
       "Data\\s+Valuta",
@@ -27,42 +107,45 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
       "Pagina\\s+\\d",
       "IBAN",
     ],
-    dateFormat: "dd/MM/yyyy",
-    amountDecimal: ",",
-    signConvention: "signed",
   },
 
-  Unicredit: {
-    linePattern:
-      "(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<valuta>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<description>.{20,60})\\s+(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?",
-    continuationPattern: "^\\s{20,}(?<text>.+)$",
-    skipPatterns: [
-      "^\\s*$",
-      "Data\\s+Valuta",
-      "Saldo\\s+iniziale",
-      "Saldo\\s+finale",
-      "TOTALE",
-      "Pag\\.?\\s*\\d",
-    ],
+  // ─── BPER Banca ─────────────────────────────────────────────
+  "BPER Banca": {
+    sectionStartMarker: null,
+    sectionEndMarker: null,
+
+    startTransactionPattern:
+      "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s*$",
+
+    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    singleLinePattern:
+      "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    signHints: SIGNED_AMOUNT_HINTS,
+
+    dateFormat: "dd/MM/yyyy",
+    amountDecimal: ",",
+    skipPatterns: ["^\\s*$", "DATA\\s+OPER", "SALDO\\s+CONTABILE", "TOTALE", "Pagina"],
+  },
+
+  // ─── MPS (Monte dei Paschi di Siena) ────────────────────────
+  // Single date, signed amounts, dot-separated dates.
+  MPS: {
+    sectionStartMarker: null,
+    sectionEndMarker: null,
+
+    startTransactionPattern: "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<description>.+?)\\s*$",
+
+    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    singleLinePattern:
+      "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    signHints: SIGNED_AMOUNT_HINTS,
+
     dateFormat: "dd.MM.yyyy",
     amountDecimal: ",",
-    signConvention: "signed",
-  },
-
-  "BPER Banca": {
-    linePattern:
-      "(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?",
-    continuationPattern: "^\\s{8,}(?<text>.+)$",
-    skipPatterns: ["^\\s*$", "DATA\\s+OPER", "SALDO\\s+CONTABILE", "TOTALE", "Pagina"],
-    dateFormat: "dd/MM/yyyy",
-    amountDecimal: ",",
-    signConvention: "signed",
-  },
-
-  MPS: {
-    linePattern:
-      "(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?",
-    continuationPattern: "^\\s{6,}(?<text>.+)$",
     skipPatterns: [
       "^\\s*$",
       "Data\\s+operazione",
@@ -71,15 +154,25 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
       "TOTALE",
       "Pag\\.",
     ],
-    dateFormat: "dd.MM.yyyy",
-    amountDecimal: ",",
-    signConvention: "signed",
   },
 
+  // ─── Crédit Agricole ────────────────────────────────────────
   "Crédit Agricole": {
-    linePattern:
-      "(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})",
-    continuationPattern: "^\\s{12,}(?<text>.+)$",
+    sectionStartMarker: null,
+    sectionEndMarker: null,
+
+    startTransactionPattern:
+      "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s*$",
+
+    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})\\s*$",
+
+    singleLinePattern:
+      "^(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<valuta>\\d{2}/\\d{2}/\\d{4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})\\s*$",
+
+    signHints: SIGNED_AMOUNT_HINTS,
+
+    dateFormat: "dd/MM/yyyy",
+    amountDecimal: ",",
     skipPatterns: [
       "^\\s*$",
       "Data\\s+Operaz",
@@ -89,19 +182,26 @@ export const BANK_PROFILES: Record<string, BankLayoutPatterns> = {
       "Estratto",
       "Conto\\s+corrente",
     ],
-    dateFormat: "dd/MM/yyyy",
-    amountDecimal: ",",
-    signConvention: "signed",
   },
 
+  // ─── Banca Sella ────────────────────────────────────────────
+  // Single date, compact format, no continuation lines.
   "Banca Sella": {
-    linePattern:
-      "(?<date>\\d{2}/\\d{2}/\\d{2,4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?",
-    continuationPattern: null,
-    skipPatterns: ["^\\s*$", "Data", "Saldo", "TOTALE", "Pag\\."],
+    sectionStartMarker: null,
+    sectionEndMarker: null,
+
+    startTransactionPattern: "^(?<date>\\d{2}/\\d{2}/\\d{2,4})\\s+(?<description>.+?)\\s*$",
+
+    amountLinePattern: "(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    singleLinePattern:
+      "^(?<date>\\d{2}/\\d{2}/\\d{2,4})\\s+(?<description>.+?)\\s{2,}(?<amount>-?[\\d.]+,\\d{2})(?:\\s+(?<balance>-?[\\d.]+,\\d{2}))?\\s*$",
+
+    signHints: SIGNED_AMOUNT_HINTS,
+
     dateFormat: "dd/MM/yyyy",
     amountDecimal: ",",
-    signConvention: "signed",
+    skipPatterns: ["^\\s*$", "Data", "Saldo", "TOTALE", "Pag\\."],
   },
 };
 

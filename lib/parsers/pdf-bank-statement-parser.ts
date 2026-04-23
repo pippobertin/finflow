@@ -1,10 +1,11 @@
 /**
- * Profile-based PDF bank statement parser.
+ * Profile-based PDF bank statement parser — V2 state machine.
  *
  * Uses configurable BankLayoutPatterns (stored in PdfBankProfile) to extract
  * transaction rows from Italian bank PDF statements. Each bank has different
- * layout conventions — this parser applies bank-specific regex patterns
- * rather than the generic heuristic approach in pdf-parser.ts.
+ * layout conventions — this parser applies bank-specific patterns via a
+ * three-state machine (SEEKING_SECTION → IN_SECTION → COLLECTING) to handle
+ * multi-line transactions (e.g. Unicredit).
  *
  * Supports only text-based PDFs (not scanned/OCR).
  */
@@ -51,13 +52,12 @@ function parseAmount(raw: string, decimal: "," | "."): number | null {
 // ─── Date normalization ─────────────────────────────────────
 
 /**
- * Normalize date string to ISO-like format for downstream parsing.
- * We don't fully parse here — we return the raw string and let the
- * import connector handle date parsing with its flexible parseDate().
+ * Normalize date string — expand 2-digit year to 4-digit.
+ * Returns the raw string for downstream parsing by import connector.
  */
 function normalizeDate(raw: string, format: string): string {
   const trimmed = raw.trim();
-  // If 2-digit year (dd/MM/yy), expand to 4-digit
+  // If 2-digit year (dd/MM/yy or dd.MM.yy), expand to 4-digit
   if (format.endsWith("yy") && !format.endsWith("yyyy")) {
     const match = trimmed.match(/^(\d{2})(.)(\d{2})\2(\d{2})$/);
     if (match) {
@@ -67,6 +67,54 @@ function normalizeDate(raw: string, format: string): string {
     }
   }
   return trimmed;
+}
+
+// ─── Sign determination ─────────────────────────────────────
+
+interface SignHints {
+  incoming: string[];
+  outgoing: string[];
+  defaultSign: "positive" | "negative";
+}
+
+/**
+ * Determine the sign of an amount based on description keywords.
+ * Returns +1 for incoming (positive) or -1 for outgoing (negative).
+ */
+function determineSign(description: string, hints: SignHints): 1 | -1 {
+  const lower = description.toLowerCase();
+
+  for (const kw of hints.incoming) {
+    if (lower.includes(kw.toLowerCase())) return 1;
+  }
+  for (const kw of hints.outgoing) {
+    if (lower.includes(kw.toLowerCase())) return -1;
+  }
+
+  return hints.defaultSign === "positive" ? 1 : -1;
+}
+
+// ─── Regex compilation helper ───────────────────────────────
+
+function tryCompileRegex(pattern: string, label: string, warnings: string[]): RegExp | null {
+  try {
+    return new RegExp(pattern);
+  } catch (err) {
+    warnings.push(`${label} non valido: ${err instanceof Error ? err.message : "errore"}`);
+    return null;
+  }
+}
+
+// ─── State machine types ────────────────────────────────────
+
+type State = "SEEKING_SECTION" | "IN_SECTION" | "COLLECTING";
+
+interface PendingRow {
+  date: string;
+  valuta?: string;
+  description: string;
+  amount?: number;
+  balance?: number;
 }
 
 // ─── Core parser ────────────────────────────────────────────
@@ -111,114 +159,229 @@ export async function parsePdfWithProfile(
   const totalLines = lines.length;
 
   // 2. Compile regex patterns
-  let lineRegex: RegExp;
-  try {
-    lineRegex = new RegExp(patterns.linePattern);
-  } catch (err) {
-    return {
-      rows: [],
-      warnings: [`Regex linePattern non valido: ${err instanceof Error ? err.message : "errore"}`],
-      rawTextPreview,
-      totalLines,
-      matchedLines: 0,
-      skippedLines: 0,
-    };
+  const startTxRegex = tryCompileRegex(
+    patterns.startTransactionPattern,
+    "startTransactionPattern",
+    warnings,
+  );
+  if (!startTxRegex) {
+    return { rows: [], warnings, rawTextPreview, totalLines, matchedLines: 0, skippedLines: 0 };
   }
+
+  const amountRegex = tryCompileRegex(patterns.amountLinePattern, "amountLinePattern", warnings);
+  if (!amountRegex) {
+    return { rows: [], warnings, rawTextPreview, totalLines, matchedLines: 0, skippedLines: 0 };
+  }
+
+  const singleLineRegex = patterns.singleLinePattern
+    ? tryCompileRegex(patterns.singleLinePattern, "singleLinePattern", warnings)
+    : null;
+
+  const sectionStartRegex = patterns.sectionStartMarker
+    ? tryCompileRegex(patterns.sectionStartMarker, "sectionStartMarker", warnings)
+    : null;
+
+  const sectionEndRegex = patterns.sectionEndMarker
+    ? tryCompileRegex(patterns.sectionEndMarker, "sectionEndMarker", warnings)
+    : null;
 
   const skipRegexes: RegExp[] = [];
   for (const sp of patterns.skipPatterns) {
-    try {
-      skipRegexes.push(new RegExp(sp));
-    } catch {
-      warnings.push(`Skip pattern non valido, ignorato: ${sp}`);
-    }
+    const re = tryCompileRegex(sp, "skipPattern", warnings);
+    if (re) skipRegexes.push(re);
   }
 
-  let continuationRegex: RegExp | null = null;
-  if (patterns.continuationPattern) {
-    try {
-      continuationRegex = new RegExp(patterns.continuationPattern);
-    } catch {
-      warnings.push("continuationPattern non valido, ignorato");
-    }
-  }
+  const signHints: SignHints = patterns.signHints;
 
-  // 3. Process lines
+  // 3. State machine
   const rows: ParsedBankRow[] = [];
-  let currentRow: ParsedBankRow | null = null;
+  let state: State = sectionStartRegex ? "SEEKING_SECTION" : "IN_SECTION";
+  let pending: PendingRow | null = null;
   let matchedLines = 0;
   let skippedLines = 0;
 
+  /** Flush a completed pending row into results. Returns null (to clear pending). */
+  function flushRow(p: PendingRow): null {
+    if (p.amount != null) {
+      rows.push({
+        date: p.date,
+        ...(p.valuta ? { valuta: p.valuta } : {}),
+        description: p.description.trim(),
+        amount: p.amount,
+        ...(p.balance != null ? { balance: p.balance } : {}),
+      });
+      matchedLines++;
+    } else if (p.description.trim().length > 0) {
+      warnings.push(
+        `Transazione incompleta (senza importo): "${p.description.trim().slice(0, 60)}"`,
+      );
+    }
+    return null;
+  }
+
+  /** Build a complete row from a single-line regex match. */
+  function emitSingleLine(match: RegExpExecArray): void {
+    const g = match.groups!;
+    const rawAmount = parseAmount(g.amount, patterns.amountDecimal);
+    if (rawAmount === null) {
+      warnings.push(`Importo non valido: "${match[0].trim().slice(0, 80)}"`);
+      return;
+    }
+
+    const desc = (g.description ?? "").trim();
+    // If the raw amount already has a sign (negative), respect it.
+    // Otherwise apply signHints.
+    const amount = rawAmount < 0 ? rawAmount : Math.abs(rawAmount) * determineSign(desc, signHints);
+
+    rows.push({
+      date: normalizeDate(g.date, patterns.dateFormat),
+      ...(g.valuta ? { valuta: normalizeDate(g.valuta, patterns.dateFormat) } : {}),
+      description: desc,
+      amount,
+      ...(g.balance
+        ? { balance: parseAmount(g.balance, patterns.amountDecimal) ?? undefined }
+        : {}),
+    });
+    matchedLines++;
+  }
+
+  /** Create a new pending row from a startTransaction regex match. */
+  function makePending(match: RegExpExecArray): PendingRow {
+    const g = match.groups!;
+    return {
+      date: normalizeDate(g.date, patterns.dateFormat),
+      ...(g.valuta ? { valuta: normalizeDate(g.valuta, patterns.dateFormat) } : {}),
+      description: (g.description ?? "").trim(),
+    };
+  }
+
   for (const line of lines) {
-    // Skip blank or matching skip patterns
+    // Skip blank or matching skip patterns (in all states)
     if (skipRegexes.some((re) => re.test(line))) {
       skippedLines++;
       continue;
     }
 
-    // Try main line pattern
-    const match = lineRegex.exec(line);
-    if (match?.groups) {
-      // Flush previous row
-      if (currentRow) {
-        rows.push(currentRow);
-      }
-
-      const dateRaw = match.groups.date;
-      const valutaRaw = match.groups.valuta;
-      const descRaw = match.groups.description?.trim() ?? "";
-      const amountRaw = match.groups.amount;
-      const balanceRaw = match.groups.balance;
-
-      const amount = parseAmount(amountRaw, patterns.amountDecimal);
-      if (amount === null) {
-        warnings.push(`Importo non valido alla riga: "${line.trim().slice(0, 80)}"`);
-        currentRow = null;
-        continue;
-      }
-
-      currentRow = {
-        date: normalizeDate(dateRaw, patterns.dateFormat),
-        ...(valutaRaw ? { valuta: normalizeDate(valutaRaw, patterns.dateFormat) } : {}),
-        description: descRaw,
-        amount,
-        ...(balanceRaw
-          ? { balance: parseAmount(balanceRaw, patterns.amountDecimal) ?? undefined }
-          : {}),
-      };
-      matchedLines++;
-      continue;
-    }
-
-    // Try continuation pattern (append to current row description)
-    if (continuationRegex && currentRow) {
-      const contMatch = continuationRegex.exec(line);
-      if (contMatch?.groups?.text) {
-        currentRow.description += " " + contMatch.groups.text.trim();
-        continue;
-      }
-    }
-
-    // Unmatched non-empty line (don't warn for very short lines — likely whitespace)
-    if (line.trim().length > 3) {
-      // Only count as potentially interesting if it has digits (could be a missed transaction)
-      if (/\d/.test(line)) {
+    switch (state) {
+      case "SEEKING_SECTION": {
+        if (sectionStartRegex && sectionStartRegex.test(line)) {
+          state = "IN_SECTION";
+        }
         skippedLines++;
+        break;
+      }
+
+      case "IN_SECTION": {
+        // Check section end
+        if (sectionEndRegex && sectionEndRegex.test(line)) {
+          if (pending) pending = flushRow(pending);
+          state = sectionStartRegex ? "SEEKING_SECTION" : "IN_SECTION";
+          skippedLines++;
+          break;
+        }
+
+        // Try single-line match first (more specific)
+        if (singleLineRegex) {
+          const slMatch = singleLineRegex.exec(line);
+          if (slMatch?.groups) {
+            if (pending) pending = flushRow(pending);
+            emitSingleLine(slMatch);
+            break;
+          }
+        }
+
+        // Try transaction start
+        {
+          const stMatch = startTxRegex.exec(line);
+          if (stMatch?.groups) {
+            if (pending) pending = flushRow(pending);
+            pending = makePending(stMatch);
+            state = "COLLECTING";
+            break;
+          }
+        }
+
+        // Unmatched line in section — skip
+        if (line.trim().length > 3 && /\d/.test(line)) {
+          skippedLines++;
+        }
+        break;
+      }
+
+      case "COLLECTING": {
+        // Check section end
+        if (sectionEndRegex && sectionEndRegex.test(line)) {
+          if (pending) pending = flushRow(pending);
+          state = sectionStartRegex ? "SEEKING_SECTION" : "IN_SECTION";
+          skippedLines++;
+          break;
+        }
+
+        // Check if a new single-line transaction appears
+        if (singleLineRegex) {
+          const slMatch = singleLineRegex.exec(line);
+          if (slMatch?.groups) {
+            if (pending) pending = flushRow(pending);
+            emitSingleLine(slMatch);
+            state = "IN_SECTION";
+            break;
+          }
+        }
+
+        // Check if a new multi-line transaction starts (previous incomplete)
+        {
+          const stMatch = startTxRegex.exec(line);
+          if (stMatch?.groups) {
+            if (pending) pending = flushRow(pending);
+            pending = makePending(stMatch);
+            // Stay in COLLECTING
+            break;
+          }
+        }
+
+        // Try amount line — completes the current pending transaction
+        if (pending) {
+          const amMatch = amountRegex.exec(line);
+          if (amMatch?.groups) {
+            const rawAmount = parseAmount(amMatch.groups.amount, patterns.amountDecimal);
+            if (rawAmount !== null) {
+              // Apply sign from description keywords
+              const amount =
+                rawAmount < 0
+                  ? rawAmount
+                  : Math.abs(rawAmount) * determineSign(pending.description, signHints);
+              pending.amount = amount;
+
+              if (amMatch.groups.balance) {
+                pending.balance =
+                  parseAmount(amMatch.groups.balance, patterns.amountDecimal) ?? undefined;
+              }
+
+              pending = flushRow(pending);
+              state = "IN_SECTION";
+              break;
+            }
+          }
+
+          // Continuation line — append to description
+          if (line.trim().length > 0) {
+            pending.description += " " + line.trim();
+          }
+        }
+        break;
       }
     }
   }
 
-  // Flush last row
-  if (currentRow) {
-    rows.push(currentRow);
-  }
+  // Flush last pending transaction
+  if (pending) flushRow(pending);
 
   // 4. Quality warnings
   if (rows.length === 0 && totalLines > 10) {
     warnings.push(
       `Nessuna transazione trovata su ${totalLines} righe. Il pattern potrebbe non corrispondere al formato di questa banca.`,
     );
-  } else if (matchedLines < totalLines * 0.05 && totalLines > 20) {
+  } else if (matchedLines < totalLines * 0.05 && totalLines > 20 && matchedLines > 0) {
     warnings.push(
       `Solo ${matchedLines} transazioni trovate su ${totalLines} righe (${Math.round((matchedLines / totalLines) * 100)}%). Verifica il pattern.`,
     );
