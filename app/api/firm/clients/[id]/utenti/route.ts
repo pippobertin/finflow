@@ -3,6 +3,14 @@ import { getFirmSession } from "@/lib/helpers/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import crypto from "crypto";
+import { sendEmail } from "@/lib/email/send-email";
+import { renderInviteEmail } from "@/lib/email/templates";
+
+interface BrandingJson {
+  logoDataUrl?: string;
+  brandColor?: string;
+  displayName?: string;
+}
 
 /**
  * GET /api/firm/clients/[id]/utenti
@@ -53,10 +61,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { id } = await params;
 
-  // Verify ownership
+  // Verify ownership + fetch firm branding for invite email
   const org = await prisma.organization.findFirst({
     where: { id, accountingFirmId },
-    select: { id: true, accountingFirmId: true },
+    select: {
+      id: true,
+      accountingFirmId: true,
+      accountingFirm: { select: { name: true, branding: true } },
+    },
   });
   if (!org) {
     return Response.json({ error: "Organizzazione non trovata" }, { status: 404 });
@@ -104,6 +116,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       createdAt: true,
     },
   });
+
+  // Send invite email (fire-and-forget)
+  const branding = (org.accountingFirm?.branding as BrandingJson) ?? {};
+  const firmName = branding.displayName || org.accountingFirm?.name || "FinFlow";
+  const firmColor = branding.brandColor || "#0b4d8a";
+  const loginUrl = `${process.env.APP_URL || "http://localhost:3000"}/login`;
+
+  sendEmail({
+    to: user.email,
+    subject: `Benvenuto su ${firmName}`,
+    html: renderInviteEmail({
+      branding: { firmName, firmLogo: branding.logoDataUrl, firmColor },
+      userName: user.name ?? undefined,
+      email: user.email,
+      tempPassword,
+      loginUrl,
+    }),
+  }).catch((err) => console.error("[utenti] Invite email failed:", err));
 
   return Response.json({ user, tempPassword }, { status: 201 });
 }
