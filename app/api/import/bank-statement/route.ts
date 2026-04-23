@@ -1,9 +1,9 @@
-import { getAdminSession } from "@/lib/helpers/auth-guard";
+import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { importBankStatements } from "@/lib/connectors/bank-statement-import";
 import { bankStatementImportSchema } from "@/lib/validations/bank-statement-import";
 
 export async function POST(request: Request) {
-  const { error, organizationId } = await getAdminSession();
+  const { error, organizationId } = await getAuthSession();
   if (error) return error;
 
   const formData = await request.formData();

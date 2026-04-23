@@ -1,8 +1,8 @@
-import { getAdminSession } from "@/lib/helpers/auth-guard";
+import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { parseBankStatementPdf } from "@/lib/parsers/pdf-parser";
 
 export async function POST(request: Request) {
-  const { error } = await getAdminSession();
+  const { error } = await getAuthSession();
   if (error) return error;
 
   const formData = await request.formData();

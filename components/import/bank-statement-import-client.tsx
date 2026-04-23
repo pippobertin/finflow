@@ -2,6 +2,13 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BankStatementUploadZone } from "./bank-statement-upload-zone";
 import { BankStatementColumnMapper } from "./bank-statement-column-mapper";
 import { BankStatementPreviewTable } from "./bank-statement-preview-table";
@@ -14,18 +21,28 @@ import type {
 } from "@/lib/validations/bank-statement-import";
 import type { BankStatementImportResult } from "@/lib/connectors/bank-statement-import";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
+import { CheckCircle2, AlertTriangle, RotateCcw, Landmark } from "lucide-react";
 
-type Step = "upload" | "parsing" | "mapping" | "preview" | "importing" | "done";
+type Step = "upload" | "bank-select" | "parsing" | "mapping" | "preview" | "importing" | "done";
+
+interface BankOption {
+  bankName: string;
+  isSystemDefault: boolean;
+}
 
 export function BankStatementImportClient() {
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
-  const [, setFileType] = useState<"csv" | "pdf">("csv");
+  const [fileType, setFileType] = useState<"csv" | "pdf">("csv");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<Partial<BankStatementMapping>>({});
   const [importResult, setImportResult] = useState<BankStatementImportResult | null>(null);
+
+  // Bank selector state
+  const [bankOptions, setBankOptions] = useState<BankOption[]>([]);
+  const [selectedBank, setSelectedBank] = useState<string>("");
+  const [loadingBanks, setLoadingBanks] = useState(false);
 
   const bankStatementImport = useBankStatementImport();
 
@@ -87,17 +104,92 @@ export function BankStatementImportClient() {
     return autoMapping;
   }
 
-  const handleFileSelect = useCallback(async (selectedFile: File) => {
-    setFile(selectedFile);
-    const isPdf = selectedFile.name.toLowerCase().endsWith(".pdf");
-    setFileType(isPdf ? "pdf" : "csv");
+  const fetchBankOptions = useCallback(() => {
+    setLoadingBanks(true);
+    fetch("/api/client/bank-profiles")
+      .then((r) => r.json())
+      .then((data) => {
+        setBankOptions(data.profiles ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingBanks(false));
+  }, []);
 
-    if (isPdf) {
-      // Parse PDF server-side
-      setStep("parsing");
+  const handleFileSelect = useCallback(
+    async (selectedFile: File) => {
+      setFile(selectedFile);
+      const isPdf = selectedFile.name.toLowerCase().endsWith(".pdf");
+      setFileType(isPdf ? "pdf" : "csv");
+
+      if (isPdf) {
+        // Show bank selector step for PDFs — fetch profiles
+        if (bankOptions.length === 0) fetchBankOptions();
+        setStep("bank-select");
+      } else {
+        // Parse CSV client-side (existing flow)
+        const text = await selectedFile.text();
+        const parsed = parseCsv(text);
+        setHeaders(parsed.headers);
+        setRows(parsed.rows);
+        setMapping(autoMapHeaders(parsed.headers));
+        setStep("mapping");
+      }
+    },
+    [bankOptions.length, fetchBankOptions],
+  );
+
+  const handleBankConfirm = useCallback(async () => {
+    if (!file) return;
+
+    setStep("parsing");
+
+    if (selectedBank) {
+      // Profile-based parsing via /api/client/movimenti/upload with bankName
       try {
         const formData = new FormData();
-        formData.append("file", selectedFile);
+        formData.append("file", file);
+        formData.append(
+          "config",
+          JSON.stringify({
+            mapping: { date: "Data", description: "Descrizione", amount: "Importo" },
+          }),
+        );
+        formData.append("bankName", selectedBank);
+
+        const res = await fetch("/api/client/movimenti/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+          toast.error(result.error ?? "Errore nell'upload");
+          setStep("bank-select");
+          return;
+        }
+
+        // Profile-based upload does import directly — show result
+        setImportResult(result);
+        if (result.imported > 0) {
+          toast.success(
+            `${result.imported} movimenti importati (${result.duplicates ?? 0} duplicati)`,
+          );
+        } else if (result.duplicates > 0) {
+          toast.info(`Tutti i ${result.duplicates} movimenti erano già presenti`);
+        } else {
+          toast.info("Nessun movimento importato");
+        }
+        setStep("done");
+      } catch {
+        toast.error("Errore di rete");
+        setStep("bank-select");
+      }
+    } else {
+      // Generic PDF parsing (no bank profile selected)
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
 
         const res = await fetch("/api/import/parse-pdf", {
           method: "POST",
@@ -107,7 +199,7 @@ export function BankStatementImportClient() {
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: "Errore analisi PDF" }));
           toast.error(err.error ?? `Errore ${res.status}`);
-          setStep("upload");
+          setStep("bank-select");
           return;
         }
 
@@ -119,18 +211,10 @@ export function BankStatementImportClient() {
         setStep("mapping");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Errore analisi PDF");
-        setStep("upload");
+        setStep("bank-select");
       }
-    } else {
-      // Parse CSV client-side (existing flow)
-      const text = await selectedFile.text();
-      const parsed = parseCsv(text);
-      setHeaders(parsed.headers);
-      setRows(parsed.rows);
-      setMapping(autoMapHeaders(parsed.headers));
-      setStep("mapping");
     }
-  }, []);
+  }, [file, selectedBank]);
 
   function handleConfirmMapping() {
     setStep("preview");
@@ -171,19 +255,23 @@ export function BankStatementImportClient() {
     setRows([]);
     setMapping({});
     setImportResult(null);
+    setSelectedBank("");
   }
 
   const stepLabels: Record<Step, string> = {
     upload: "1. Carica File",
-    parsing: "1. Analisi PDF",
-    mapping: "2. Mappa Colonne",
-    preview: "3. Anteprima",
-    importing: "4. Importazione",
-    done: "5. Completato",
+    "bank-select": "2. Seleziona Banca",
+    parsing: "2. Analisi PDF",
+    mapping: fileType === "pdf" ? "3. Mappa Colonne" : "2. Mappa Colonne",
+    preview: fileType === "pdf" ? "4. Anteprima" : "3. Anteprima",
+    importing: fileType === "pdf" ? "5. Importazione" : "4. Importazione",
+    done: fileType === "pdf" ? "6. Completato" : "5. Completato",
   };
 
-  // For the step indicator, merge parsing into upload visually
-  const displaySteps = Object.entries(stepLabels).filter(([key]) => key !== "parsing");
+  // Steps shown in indicator (hide parsing, bank-select shows only for PDF)
+  const displaySteps = Object.entries(stepLabels).filter(
+    ([key]) => key !== "parsing" && (fileType === "pdf" || key !== "bank-select"),
+  );
 
   return (
     <div className="space-y-6">
@@ -192,7 +280,7 @@ export function BankStatementImportClient() {
           <div
             key={key}
             className={`rounded-full px-3 py-1 text-xs font-medium ${
-              step === key || (step === "parsing" && key === "upload")
+              step === key || (step === "parsing" && (key === "bank-select" || key === "upload"))
                 ? "bg-[var(--brand,#0b4d8a)] text-white"
                 : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
             }`}
@@ -208,6 +296,66 @@ export function BankStatementImportClient() {
         </h2>
 
         {step === "upload" && <BankStatementUploadZone onFileSelect={handleFileSelect} />}
+
+        {step === "bank-select" && (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              Seleziona la banca del tuo estratto conto PDF per un&apos;analisi più accurata, oppure
+              continua con l&apos;analisi generica.
+            </p>
+            <div className="max-w-sm">
+              <Select value={selectedBank} onValueChange={(v) => v != null && setSelectedBank(v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona la banca (opzionale)..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__generic__">
+                    <span className="flex items-center gap-2">
+                      Analisi generica (nessun profilo)
+                    </span>
+                  </SelectItem>
+                  {loadingBanks && (
+                    <SelectItem value="__loading__" disabled>
+                      Caricamento profili...
+                    </SelectItem>
+                  )}
+                  {bankOptions.map((b) => (
+                    <SelectItem key={b.bankName} value={b.bankName}>
+                      <span className="flex items-center gap-2">
+                        <Landmark className="h-3.5 w-3.5 text-slate-400" />
+                        {b.bankName}
+                        {b.isSystemDefault && (
+                          <span className="text-[10px] text-slate-400">(predefinito)</span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStep("upload");
+                  setFile(null);
+                }}
+              >
+                Indietro
+              </Button>
+              <Button
+                onClick={() => {
+                  // Treat "__generic__" as no bank
+                  if (selectedBank === "__generic__") setSelectedBank("");
+                  handleBankConfirm();
+                }}
+              >
+                Continua
+              </Button>
+            </div>
+          </div>
+        )}
+
         {step === "parsing" && (
           <div className="flex items-center justify-center py-8">
             <div
