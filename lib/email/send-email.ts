@@ -25,6 +25,13 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
     console.log(`   To: ${params.to}`);
     console.log(`   Subject: ${params.subject}`);
     console.log(`   HTML length: ${params.html.length} chars`);
+    // Extract action links from HTML for easy click in terminal
+    const linkMatches = [...params.html.matchAll(/href="(https?:\/\/[^"]+)"/g)];
+    const uniqueLinks = [...new Set(linkMatches.map((m) => m[1]))];
+    if (uniqueLinks.length > 0) {
+      console.log("   Action links:");
+      uniqueLinks.slice(0, 5).forEach((link) => console.log(`     ${link}`));
+    }
     console.log("");
     return { success: true, messageId: "dev-" + Date.now() };
   }
