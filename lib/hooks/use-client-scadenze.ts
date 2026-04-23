@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { ScadenzaItem } from "@/app/api/client/scadenze/route";
+import type { ScadenzaItem } from "@/lib/queries/scadenze";
 
 export type { ScadenzaItem };
 

@@ -25,6 +25,7 @@ import {
   ArrowUpDown,
   Sparkles,
   Users,
+  FileBarChart,
 } from "lucide-react";
 
 interface BankAccount {
@@ -211,6 +212,13 @@ export default function AnagraficaPage({ params }: { params: Promise<{ id: strin
           >
             <Users className="mr-2 h-4 w-4" />
             Utenti
+          </Link>
+          <Link
+            href={`/firm/clients/${id}/report`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <FileBarChart className="mr-2 h-4 w-4" />
+            Report
           </Link>
         </div>
       </div>
