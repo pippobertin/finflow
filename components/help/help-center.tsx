@@ -1,19 +1,21 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Search, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import type { HelpChapter, HelpSection } from "@/content/help/types";
+import type { HelpChapterMeta } from "@/content/help/types";
 
 interface HelpCenterProps {
-  chapters: HelpChapter[];
+  chapters: HelpChapterMeta[];
   basePath: string; // "/firm/aiuto" or "/aiuto"
+  children: ReactNode;
 }
 
-export function HelpCenter({ chapters, basePath }: HelpCenterProps) {
+export function HelpCenter({ chapters, basePath, children }: HelpCenterProps) {
   const params = useParams();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -45,8 +47,6 @@ export function HelpCenter({ chapters, basePath }: HelpCenterProps) {
       }))
       .filter((ch) => ch.sections.length > 0);
   }, [chapters, query]);
-
-  const Content = activeSection?.content;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
@@ -118,7 +118,7 @@ export function HelpCenter({ chapters, basePath }: HelpCenterProps) {
                 </span>
               </div>
               <h1 className="!mt-1 !mb-6">{activeSection.title}</h1>
-              {Content && <Content />}
+              {children}
             </article>
 
             {/* Prev / Next */}
