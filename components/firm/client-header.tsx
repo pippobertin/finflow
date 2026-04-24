@@ -16,6 +16,7 @@ import {
   Landmark,
   Banknote,
   FileBarChart,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -68,6 +69,21 @@ const TAB_GROUPS: TabGroup[] = [
 // Flat list for label lookup, longest-match first for correct path resolution
 const ALL_TABS = TAB_GROUPS.flatMap((g) => g.tabs).sort((a, b) => b.href.length - a.href.length);
 
+// Map tab href → help slug for contextual "?" deep links
+const TAB_HELP_SLUG: Record<string, string> = {
+  anagrafica: "creare-cliente",
+  utenti: "utenti-permessi",
+  cdg: "mapping-piano-conti",
+  bilanci: "caricare-bilancio",
+  budget: "budget-excel",
+  iva: "ricalcolo-iva",
+  movimenti: "caricare-csv",
+  "movimenti/patterns": "pattern-riconoscimento",
+  f24: "scadenze-f24",
+  prestiti: "prestiti",
+  report: "generare-report",
+};
+
 // ─── Component ───────────────────────────────────────────────────
 
 interface ClientHeaderProps {
@@ -84,6 +100,7 @@ export function ClientHeader({ clientId, orgName }: ClientHeaderProps) {
   const activeTab = ALL_TABS.find((t) => subPath === t.href || subPath.startsWith(t.href + "/"));
   const sectionLabel = activeTab?.label ?? "Dettaglio";
   const isReportPage = activeTab?.href === "report";
+  const helpSlug = activeTab ? TAB_HELP_SLUG[activeTab.href] : undefined;
 
   return (
     <div className="bg-card border-b px-6 pt-5 pb-0">
@@ -95,7 +112,18 @@ export function ClientHeader({ clientId, orgName }: ClientHeaderProps) {
           </Link>
           <div>
             <h1 className="text-2xl leading-tight font-bold">{orgName}</h1>
-            <p className="text-muted-foreground text-sm">{sectionLabel}</p>
+            <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+              {sectionLabel}
+              {helpSlug && (
+                <Link
+                  href={`/firm/aiuto/${helpSlug}`}
+                  className="text-muted-foreground/60 hover:text-primary transition-colors"
+                  title="Apri guida"
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                </Link>
+              )}
+            </p>
           </div>
         </div>
         {!isReportPage && (
