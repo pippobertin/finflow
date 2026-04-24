@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { HelpSection } from "../types";
+import { HelpCallout } from "@/components/help/help-callout";
+import { HelpScreenshot } from "@/components/help/help-screenshot";
+import { HelpSteps, HelpStep } from "@/components/help/help-steps";
 
 const CH = 5;
 const CH_TITLE = "IVA, F24, prestiti";
@@ -14,52 +17,129 @@ export const sections: HelpSection[] = [
     keywords: ["ricalcolo", "IVA", "periodo", "liquidazione", "trimestrale"],
     content: () => (
       <>
-        <p>
-          FinFlow calcola l&apos;IVA a partire dai dati del bilancio di verifica caricato per il
-          cliente. Ogni volta che carichi un nuovo bilancio o aggiorni i dati, puoi ricalcolare la
-          posizione IVA per verificare debiti e crediti del periodo selezionato.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          La pagina IVA calcola le liquidazioni periodiche del cliente a partire dai movimenti
+          bancari categorizzati con aliquota IVA e dal bilancio di verifica. Ti restituisce una
+          tabella con IVA a debito, a credito, saldo, eventuale credito riportato dal periodo
+          precedente e importo da versare, con scadenza e stato di ogni periodo.
         </p>
 
-        <h2>Come accedere alla pagina IVA</h2>
+        <h2>Come si ricalcola l&apos;IVA</h2>
+
+        <HelpSteps>
+          <HelpStep number={1} title="Scegli l'anno e clicca Ricalcola">
+            <p>
+              Dal dettaglio del cliente seleziona la scheda <strong>IVA</strong>. In alto a destra
+              trovi il selettore <strong>Anno</strong> e il pulsante <strong>Ricalcola</strong>
+              (con icona refresh). Seleziona l&apos;anno che ti interessa e clicca Ricalcola.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/ricalcolo-iva/01-pulsante-ricalcola.png"
+              alt="Fascia superiore della pagina IVA con pulsante Ricalcola e selettore anno"
+              caption="I controlli in alto a destra: pulsante Ricalcola e selettore anno"
+              width={1635}
+              height={183}
+              hotspots={[
+                { x: 82, y: 50, label: 1, tooltip: "Pulsante Ricalcola" },
+                { x: 93, y: 50, label: 2, tooltip: "Selettore Anno" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={2} title="Finflow genera le liquidazioni periodiche">
+            <p>
+              Il motore IVA legge i movimenti categorizzati con aliquota e i saldi del bilancio,
+              aggrega IVA a debito e a credito per periodo (mensile o trimestrale in base alla
+              granularità CDG del cliente), e produce una liquidazione per ciascun periodo
+              dell&apos;anno. Il pulsante mostra &quot;Ricalcolo...&quot; durante l&apos;operazione;
+              dopo pochi secondi appare la tabella.
+            </p>
+          </HelpStep>
+
+          <HelpStep number={3} title="Verifica la tabella delle liquidazioni">
+            <p>
+              La tabella ha colonne Periodo, IVA a debito, IVA a credito, Saldo, Riporto, Da
+              versare, Scadenza, Stato, Azioni. Per ogni periodo ti dice quanto il cliente deve
+              versare (o quanto ha di credito), qual è la data di scadenza del versamento e se il
+              periodo è già stato pagato, da pagare o scaduto.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/ricalcolo-iva/02-tabella-iva.png"
+              alt="Tabella liquidazioni IVA con colonne periodo, debito, credito, saldo, scadenza"
+              caption="Le liquidazioni periodiche: una riga per ogni periodo dell'anno scelto"
+              width={1623}
+              height={278}
+              hotspots={[
+                { x: 30, y: 20, label: 1, tooltip: "IVA a debito" },
+                { x: 50, y: 20, label: 2, tooltip: "IVA a credito e saldo" },
+                { x: 80, y: 20, label: 3, tooltip: "Da versare, scadenza, stato" },
+              ]}
+            />
+          </HelpStep>
+        </HelpSteps>
+
+        <h2>Leggere gli stati</h2>
+        <p>Ogni riga della tabella mostra uno stato con codice colore:</p>
+        <ul>
+          <li>
+            <strong>A credito</strong> (blu): il periodo chiude con credito IVA. Non c&apos;è nulla
+            da versare; l&apos;importo viene riportato al periodo successivo.
+          </li>
+          <li>
+            <strong>Da pagare</strong> (ambra): il periodo chiude con debito e la scadenza del
+            versamento non è ancora passata. Importo da programmare per il versamento.
+          </li>
+          <li>
+            <strong>Scaduta</strong> (rosso): la scadenza del versamento è passata e il periodo
+            risulta ancora non pagato. Segnale da portare subito all&apos;attenzione del cliente.
+          </li>
+        </ul>
+        <HelpScreenshot
+          src="/help/firm/ricalcolo-iva/03-stati-iva.png"
+          alt="Dettaglio di righe con stati diversi: A credito, Da pagare, Scaduta"
+          caption="I tre stati possibili con codice colore: A credito (blu), Da pagare (ambra), Scaduta (rosso)"
+          width={1012}
+          height={267}
+          hotspots={[{ x: 70, y: 50, label: 1, tooltip: "Badge di stato con colore" }]}
+        />
+
+        <h2>Come Finflow calcola l&apos;IVA</h2>
         <p>
-          Dalla scheda del cliente, seleziona il tab <strong>IVA</strong>. La pagina mostra tre
-          valori principali: l&apos;IVA a debito (sulle vendite), l&apos;IVA a credito (sugli
-          acquisti) e la posizione netta. Se il saldo netto è positivo, il cliente ha IVA da
-          versare; se è negativo, ha un credito IVA da riportare.
+          Il motore aggrega due fonti di dati. Dai <strong>movimenti bancari</strong> categorizzati
+          con aliquota IVA (impostata sulla regola Pattern o manualmente), calcola lo split
+          netto/IVA di ogni movimento usando la formula{" "}
+          <code>iva = importo * aliquota / (100 + aliquota)</code>. Dal{" "}
+          <strong>bilancio di verifica</strong> legge i saldi dei conti IVA già presenti in
+          contabilità, così l&apos;IVA risultante è allineata al dato contabile e non dipende solo
+          dal categorizzato bancario. Le due fonti si completano: movimenti per il dettaglio
+          operativo, bilancio per l&apos;autorità contabile.
         </p>
 
-        <h2>Ricalcolare dopo un aggiornamento</h2>
+        <h2>Quando eseguire il ricalcolo</h2>
         <p>
-          Quando carichi un bilancio di verifica aggiornato, i valori IVA non si aggiornano in
-          automatico. Premi il pulsante <strong>Ricalcola</strong> per elaborare di nuovo i dati. Il
-          sistema rielabora tutte le voci con aliquota IVA e aggiorna i totali. Il ricalcolo
-          richiede pochi secondi.
+          Il ricalcolo IVA <strong>non è automatico</strong>: richiede un clic esplicito. Le
+          situazioni in cui è buona pratica rieseguirlo sono tre. Dopo aver caricato un nuovo
+          bilancio di verifica, per allineare i saldi IVA con il dato contabile aggiornato. Dopo
+          aver categorizzato nuovi movimenti bancari con aliquota IVA (via Pattern o modifica
+          manuale). Dopo aver modificato una regola Pattern esistente cambiandone l&apos;aliquota,
+          perché i movimenti matchati hanno un nuovo split netto/IVA.
         </p>
 
-        <h2>Selezionare l&apos;anno</h2>
-        <p>
-          In alto nella pagina trovi un selettore per l&apos;anno. Puoi scegliere qualsiasi anno per
-          cui esistono dati caricati. I valori mostrati si riferiscono sempre all&apos;anno
-          selezionato. Per confrontare due anni, apri la pagina in due schede del browser con anni
-          diversi.
-        </p>
+        <HelpCallout variant="tip" title="Credito IVA riportato">
+          Se l&apos;anno parte con un credito IVA residuo dall&apos;anno precedente, lo imposti
+          nell&apos;anagrafica del cliente nel campo <code>vatCarryForward</code>. Il motore lo
+          somma automaticamente al primo periodo come valore di partenza del calcolo. Conviene
+          impostarlo all&apos;inizio del primo utilizzo di Finflow per quel cliente, altrimenti i
+          conteggi del primo mese/trimestre risultano disallineati.
+        </HelpCallout>
 
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Dopo ogni caricamento di bilancio, premi sempre &quot;Ricalcola&quot; per avere i dati
-            IVA allineati. Se i numeri non corrispondono al gestionale, verifica che tutte le voci
-            del piano dei conti siano mappate correttamente.
-          </p>
-        </div>
-
-        <h2>Come vengono calcolati i valori</h2>
-        <p>
-          Il motore IVA legge le voci del bilancio di verifica che hanno natura IVA (conti con
-          codice IVA associato) e le aggrega per tipo: IVA a debito e IVA a credito. La posizione
-          netta è la differenza tra le due. I valori sono espressi in euro e arrotondati al
-          centesimo.
-        </p>
+        <HelpCallout variant="info" title="Se i numeri non tornano">
+          Se l&apos;importo IVA calcolato da Finflow differisce dal dato del gestionale contabile
+          del cliente, controlla nell&apos;ordine: che il bilancio di verifica caricato sia
+          aggiornato, che il mapping dei conti IVA sia completo (nessun conto natura IVA senza
+          categoria CDG), che i movimenti con aliquota siano stati categorizzati dai Pattern e non
+          siano rimasti fuori.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -153,61 +233,130 @@ export const sections: HelpSection[] = [
     keywords: ["scadenze", "F24", "tributi", "imposte", "pagamenti"],
     content: () => (
       <>
-        <p>
-          L&apos;F24 è il modello unificato per il pagamento di imposte, contributi e tributi in
-          Italia. FinFlow ti permette di registrare le scadenze F24 per ogni cliente, in modo da
-          tenerle sotto controllo insieme a tutte le altre scadenze finanziarie.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          L&apos;F24 è il modello unificato per il pagamento di imposte, contributi e tributi.
+          Inserendo manualmente le scadenze F24 del cliente in Finflow, le trovi insieme alle altre
+          scadenze finanziarie (IVA, rate prestiti) nello scadenziario unificato e nei report PDF
+          periodici.
         </p>
 
-        <h2>Aggiungere una nuova scadenza F24</h2>
-        <p>
-          Dalla scheda del cliente, apri il tab <strong>F24</strong>. Premi il pulsante
-          <strong> Nuovo F24</strong> in alto a destra. Si apre un modulo con i seguenti campi:
-        </p>
+        <h2>Inserire una nuova scadenza in tre passi</h2>
+
+        <HelpSteps>
+          <HelpStep number={1} title="Apri la scheda F24 e clicca Nuovo F24">
+            <p>
+              Dal dettaglio del cliente seleziona la scheda <strong>F24</strong>. Trovi una tabella
+              con le scadenze già registrate per l&apos;anno selezionato (eventualmente vuota, se
+              stai partendo da zero) e in alto a destra il pulsante <strong>Nuovo F24</strong>.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/scadenze-f24/01-lista-f24.png"
+              alt="Scheda F24 con tabella scadenze e pulsante Nuovo F24"
+              caption="La pagina F24 con il pulsante per aggiungere una nuova scadenza"
+              width={1627}
+              height={285}
+              hotspots={[
+                { x: 92, y: 20, label: 1, tooltip: "Pulsante Nuovo F24" },
+                { x: 50, y: 75, label: 2, tooltip: "Tabella scadenze registrate" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={2} title="Compila il form e salva">
+            <p>Il dialog chiede cinque dati, di cui tre obbligatori:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>
+                <strong>Periodo</strong> (obbligatorio): etichetta leggibile per distinguere la
+                scadenza (es. &quot;Gennaio 2026&quot;, &quot;IRES Saldo 2025&quot;, &quot;IRAP
+                Acconto II rata&quot;).
+              </li>
+              <li>
+                <strong>Codice tributo</strong>: il codice identificativo usato sul modello F24 (es.
+                1001 per ritenute lavoro dipendente, 2001 per IRES). Opzionale ma utile per il
+                riconoscimento rapido in lista e nei report.
+              </li>
+              <li>
+                <strong>Importo</strong> (obbligatorio): l&apos;ammontare in euro.
+              </li>
+              <li>
+                <strong>Scadenza</strong> (obbligatoria): la data entro cui effettuare il pagamento.
+              </li>
+              <li>
+                <strong>Note</strong>: testo libero per qualsiasi annotazione utile.
+              </li>
+            </ul>
+            <p className="mt-2">
+              Clicca <strong>Salva</strong>. La scadenza viene aggiunta immediatamente alla tabella
+              e allo scadenziario unificato.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/scadenze-f24/02-dialog-nuovo-f24.png"
+              alt="Dialog Nuovo F24 con campi periodo, codice tributo, importo, scadenza, note"
+              caption="Il form di inserimento: tre campi obbligatori (periodo, importo, scadenza) più due opzionali"
+              width={527}
+              height={481}
+              hotspots={[
+                { x: 50, y: 20, label: 1, tooltip: "Periodo (obbligatorio)" },
+                { x: 50, y: 35, label: 2, tooltip: "Codice tributo" },
+                { x: 50, y: 50, label: 3, tooltip: "Importo (obbligatorio)" },
+                { x: 50, y: 65, label: 4, tooltip: "Scadenza (obbligatoria)" },
+                { x: 85, y: 93, label: 5, tooltip: "Pulsante Salva" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={3} title="Rivedi la tabella e, se serve, modifica">
+            <p>
+              Ogni riga della tabella ha le azioni di modifica e cancellazione. Clicca sulla matita
+              per aggiornare uno qualsiasi dei campi, sul cestino per eliminare la scadenza. Le
+              scadenze scadute (data passata senza conferma di pagamento) vengono evidenziate per
+              aiutarti a non dimenticarle.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/scadenze-f24/03-tabella-popolata.png"
+              alt="Tabella scadenze F24 popolata con più righe"
+              caption="La tabella scadenze con azioni di modifica ed eliminazione per ogni riga"
+              width={1628}
+              height={155}
+              hotspots={[{ x: 95, y: 70, label: 1, tooltip: "Azioni: Modifica ed Elimina" }]}
+            />
+          </HelpStep>
+        </HelpSteps>
+
+        <h2>Codici tributo più comuni</h2>
+        <p>Un promemoria rapido dei codici più frequenti per ricordarteli al volo:</p>
         <ul>
           <li>
-            <strong>Data scadenza</strong> &mdash; la data entro cui effettuare il pagamento
+            <strong>1001</strong>: ritenute IRPEF lavoro dipendente
           </li>
           <li>
-            <strong>Importo</strong> &mdash; l&apos;ammontare in euro da versare
+            <strong>1040</strong>: ritenute IRPEF lavoro autonomo
           </li>
           <li>
-            <strong>Descrizione</strong> &mdash; una nota libera (ad es. &quot;Acconto IRES II
-            rata&quot;)
+            <strong>2001 / 2002</strong>: IRES saldo / acconto
           </li>
           <li>
-            <strong>Codice tributo</strong> &mdash; il codice identificativo del tributo (ad es.
-            2001, 3800)
+            <strong>3800 / 3812 / 3813</strong>: IRAP saldo / acconti
+          </li>
+          <li>
+            <strong>6099</strong>: IVA periodica (se versata via F24 invece che tramite liquidazione
+            IVA)
           </li>
         </ul>
-        <p>
-          Premi <strong>Salva</strong> per confermare. La scadenza viene aggiunta alla lista e
-          appare anche nello scadenziario unificato.
-        </p>
 
-        <h2>Modificare o eliminare una scadenza</h2>
-        <p>
-          Nella lista delle scadenze F24, clicca sulla riga che vuoi modificare. Puoi aggiornare
-          tutti i campi o eliminare la scadenza con il pulsante di cancellazione. Le scadenze già
-          pagate possono essere marcate come &quot;pagato&quot; per tenerle in archivio senza che
-          vengano segnalate come in scadenza.
-        </p>
+        <HelpCallout variant="tip" title="Inserisci tutto l'anno a inizio gennaio">
+          Molti tributi hanno scadenze fisse nell&apos;anno (16 di ogni mese per ritenute, 16 giugno
+          per saldo IRES/IRAP, 30 novembre per acconto). A inizio anno inserisci tutte le scadenze
+          note del cliente: lo scadenziario diventa da subito una fotografia completa del carico
+          fiscale e il report PDF 90 giorni riflette sempre l&apos;intero orizzonte fiscale.
+        </HelpCallout>
 
-        <h2>Scadenze ricorrenti</h2>
-        <p>
-          Molti tributi hanno scadenze fisse durante l&apos;anno (16 marzo, 16 giugno, 30 novembre,
-          ecc.). Ti consigliamo di inserire tutte le scadenze note a inizio anno, in modo da avere
-          una visione completa del carico fiscale del cliente.
-        </p>
-
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Usa la descrizione per distinguere acconti e saldi dello stesso tributo. Ad esempio:
-            &quot;IRES Acconto I rata&quot; e &quot;IRES Saldo&quot;. In questo modo trovi subito la
-            voce giusta nello scadenziario.
-          </p>
-        </div>
+        <HelpCallout variant="info" title="Perché inserire F24 a mano">
+          A differenza delle liquidazioni IVA, che Finflow calcola dai movimenti e dai bilanci, le
+          scadenze F24 sono un input dello studio: tu conosci il calendario fiscale del cliente,
+          Finflow lo registra per te. In futuro questa sezione potrà essere integrata con il
+          gestionale fiscale per l&apos;alimentazione automatica.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -230,67 +379,131 @@ export const sections: HelpSection[] = [
     keywords: ["prestiti", "finanziamenti", "mutui", "leasing", "rate"],
     content: () => (
       <>
-        <p>
-          La sezione Prestiti ti consente di registrare mutui, finanziamenti e linee di credito
-          attive per il cliente. Il sistema tiene traccia delle rate, del debito residuo e delle
-          prossime scadenze di pagamento.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          La sezione Prestiti registra mutui, finanziamenti bancari e linee di credito del cliente.
+          Definisci una volta i parametri (importo, rata, date, frequenza) e Finflow tiene traccia
+          delle prossime rate in scadenza, le integra nello scadenziario unificato e le include nel
+          report PDF 90 giorni.
         </p>
 
-        <h2>Aggiungere un nuovo prestito</h2>
+        <h2>Inserire un prestito in tre passi</h2>
+
+        <HelpSteps>
+          <HelpStep number={1} title="Apri la scheda Prestiti e clicca Nuovo prestito">
+            <p>
+              Dal dettaglio del cliente seleziona la scheda <strong>Prestiti</strong>. In alto a
+              destra trovi il pulsante <strong>Nuovo prestito</strong>. La tabella sotto mostra i
+              prestiti già registrati (vuota la prima volta).
+            </p>
+            <HelpScreenshot
+              src="/help/firm/prestiti/01-lista-prestiti.png"
+              alt="Scheda Prestiti con tabella e pulsante Nuovo prestito"
+              caption="La pagina Prestiti con il pulsante per aggiungere un nuovo finanziamento"
+              width={1624}
+              height={281}
+              hotspots={[{ x: 92, y: 22, label: 1, tooltip: "Pulsante Nuovo prestito" }]}
+            />
+          </HelpStep>
+
+          <HelpStep number={2} title="Compila il form del prestito">
+            <p>
+              Il dialog chiede diversi dati; i quattro obbligatori sono nome, importo totale, rata e
+              data inizio. Gli altri campi rifiniscono il piano e migliorano i calcoli del debito
+              residuo.
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>
+                <strong>Nome prestito</strong> (obbligatorio): etichetta descrittiva (es.
+                &quot;Mutuo sede&quot;, &quot;Leasing furgone&quot;).
+              </li>
+              <li>
+                <strong>Banca</strong>: istituto erogante (es. Intesa Sanpaolo, Unicredit).
+              </li>
+              <li>
+                <strong>Importo totale</strong> (obbligatorio): capitale iniziale del finanziamento.
+              </li>
+              <li>
+                <strong>Rata</strong> (obbligatoria): importo della rata periodica.
+              </li>
+              <li>
+                <strong>Quota capitale</strong> e <strong>Quota interessi</strong>: ripartizione
+                della rata, utile per la classificazione contabile (capitale come rientro del
+                debito, interessi come oneri finanziari).
+              </li>
+              <li>
+                <strong>Frequenza</strong>: mensile, trimestrale, semestrale, annuale.
+              </li>
+              <li>
+                <strong>Giorno del mese</strong>: il giorno in cui scade la rata (es. 15).
+              </li>
+              <li>
+                <strong>Data inizio</strong> (obbligatoria) e <strong>Data fine</strong>: intervallo
+                dell&apos;ammortamento. Se conosci la data fine esatta Finflow può stimare il numero
+                di rate residue.
+              </li>
+              <li>
+                <strong>Note</strong>: annotazioni libere.
+              </li>
+            </ul>
+            <p className="mt-2">Clicca Salva per registrare il prestito.</p>
+            <HelpScreenshot
+              src="/help/firm/prestiti/02-dialog-nuovo-prestito.png"
+              alt="Dialog Nuovo prestito con tutti i campi compilati"
+              caption="Il form completo: i quattro campi obbligatori sono contrassegnati con asterisco"
+              width={523}
+              height={544}
+              hotspots={[
+                { x: 50, y: 12, label: 1, tooltip: "Nome prestito (obbligatorio)" },
+                { x: 50, y: 30, label: 2, tooltip: "Importo totale e Rata (obbligatori)" },
+                { x: 50, y: 55, label: 3, tooltip: "Frequenza e giorno del mese" },
+                { x: 50, y: 78, label: 4, tooltip: "Data inizio (obbligatoria) e fine" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={3} title="Rivedi la tabella e gestisci i prestiti esistenti">
+            <p>
+              Dopo il salvataggio il prestito compare nella tabella con nome, banca, importo totale,
+              rata e date di inizio/fine. Le azioni per riga ti permettono di modificare i dati (se
+              cambia il piano di ammortamento, se estingui in anticipo) o eliminare il record.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/prestiti/03-tabella-popolata.png"
+              alt="Tabella prestiti con un prestito registrato"
+              caption="Ogni riga della tabella rappresenta un prestito attivo con le sue azioni"
+              width={1636}
+              height={161}
+              hotspots={[{ x: 95, y: 70, label: 1, tooltip: "Azioni: Modifica ed Elimina" }]}
+            />
+          </HelpStep>
+        </HelpSteps>
+
+        <h2>Perché separare Quota capitale e Quota interessi</h2>
         <p>
-          Dalla scheda del cliente, apri il tab <strong>Prestiti</strong>. Premi
-          <strong> Nuovo prestito</strong> e compila i campi richiesti:
-        </p>
-        <ul>
-          <li>
-            <strong>Banca / ente erogante</strong> &mdash; il nome dell&apos;istituto che ha
-            concesso il finanziamento
-          </li>
-          <li>
-            <strong>Importo totale</strong> &mdash; il capitale iniziale del prestito
-          </li>
-          <li>
-            <strong>Data inizio</strong> &mdash; la data di erogazione o di inizio del piano di
-            ammortamento
-          </li>
-          <li>
-            <strong>Data fine</strong> &mdash; la data di scadenza finale del prestito
-          </li>
-          <li>
-            <strong>Tasso di interesse</strong> &mdash; il tasso annuo (in percentuale)
-          </li>
-          <li>
-            <strong>Rata mensile</strong> &mdash; l&apos;importo della rata periodica
-          </li>
-        </ul>
-        <p>
-          Dopo il salvataggio, il prestito compare nella lista con un riepilogo del debito residuo
-          calcolato in base alle rate già scadute.
+          In un piano di ammortamento alla francese (il più comune nei mutui italiani) la rata è
+          costante ma la composizione interna cambia nel tempo: all&apos;inizio prevale la quota
+          interessi, poi man mano la quota capitale cresce. Finflow non calcola il piano per te
+          (quello te lo fornisce la banca), ma ti permette di registrare la suddivisione media così
+          la categorizzazione CDG è coerente: la quota capitale riduce il debito, la quota interessi
+          alimenta la categoria <code>FINANCIAL_EXPENSE</code>. Se non hai questi dati puoi
+          lasciarli vuoti: il prestito viene comunque tracciato nello scadenziario con la rata
+          intera.
         </p>
 
-        <h2>Monitorare il debito residuo</h2>
-        <p>
-          Per ogni prestito, FinFlow mostra il saldo residuo stimato e le prossime rate in scadenza.
-          Queste informazioni confluiscono nello scadenziario unificato, dove appaiono insieme alle
-          scadenze IVA e F24. In questo modo hai una vista unica su tutti gli impegni finanziari del
-          cliente.
-        </p>
+        <HelpCallout variant="warning" title="Il debito residuo è una stima">
+          Finflow calcola il debito residuo sulla base delle rate costanti registrate. Se il
+          prestito ha tasso variabile, rinegoziazioni o rate saltate, il valore stimato differisce
+          da quello reale della banca. Per l&apos;analisi di gestione è un&apos;ottima
+          approssimazione; per la comunicazione ufficiale al cliente, allega sempre il piano di
+          ammortamento aggiornato fornito dalla banca.
+        </HelpCallout>
 
-        <h2>Modificare un prestito esistente</h2>
-        <p>
-          Clicca sul prestito nella lista per aprire il dettaglio. Puoi modificare tutti i campi
-          tranne l&apos;importo iniziale (che resta come dato storico). Se il prestito è stato
-          estinto in anticipo, aggiorna la data di fine e il sistema ricalcola il piano.
-        </p>
-
-        <div className="not-prose rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4 dark:border-amber-600 dark:bg-amber-950/30">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Attenzione</p>
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-            Il calcolo del debito residuo è una stima basata sulle rate costanti. Se il prestito ha
-            un piano di ammortamento variabile (es. tasso variabile), i valori reali potrebbero
-            differire leggermente.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Registra anche le linee di credito">
+          Oltre a mutui e finanziamenti strutturati, conviene registrare qui anche le linee di
+          credito attive (fidi, aperture di credito): importo accordato come &quot;importo
+          totale&quot;, interessi stimati come rata periodica. Così nello scadenziario appaiono
+          anche gli oneri finanziari ricorrenti, non solo le rate piene.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>

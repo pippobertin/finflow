@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { HelpSection } from "../types";
+import { HelpCallout } from "@/components/help/help-callout";
+import { HelpScreenshot } from "@/components/help/help-screenshot";
+import { HelpSteps, HelpStep } from "@/components/help/help-steps";
 
 const CH = 3;
 const CH_TITLE = "Bilanci e piano dei conti";
@@ -14,67 +17,161 @@ export const sections: HelpSection[] = [
     keywords: ["bilancio", "verifica", "prooffice", "caricare", "import"],
     content: () => (
       <>
-        <p>
-          Il bilancio di verifica è il dato di partenza per il controllo di gestione. Finflow lo
-          importa direttamente dal file Excel esportato dal gestionale contabile (ProOffice o altro
-          software compatibile) e lo usa per generare il conto economico riclassificato.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          Il bilancio di verifica è il dato di partenza del controllo di gestione. Finflow lo legge
+          da un file Excel esportato dal gestionale contabile (ProOffice o software compatibile) e
+          lo usa per generare il conto economico riclassificato.
         </p>
 
-        <h2>Esportare il bilancio da ProOffice</h2>
+        <h2>Prima di iniziare: esportare il file da ProOffice</h2>
         <p>
-          In ProOffice, vai alla sezione di stampa del bilancio di verifica e scegli il formato XLS
-          o XLSX. Assicurati che il file contenga almeno queste colonne: codice conto, descrizione
-          del conto, importo Dare e importo Avere. Il file può contenere colonne aggiuntive (saldo
-          iniziale, saldo finale, ecc.): Finflow le ignora e utilizza solo le colonne che riconosce.
+          In ProOffice apri la sezione di stampa del bilancio di verifica e salva il file in formato{" "}
+          <strong>XLSX</strong> (o XLS). Il file deve contenere almeno queste colonne: codice conto,
+          descrizione, importo Dare, importo Avere. Eventuali colonne aggiuntive (saldo iniziale,
+          saldo finale) non sono un problema: Finflow le ignora.
         </p>
 
-        <h2>Caricare il file in Finflow</h2>
-        <p>
-          Apri la pagina di dettaglio del cliente e vai alla scheda &quot;Bilanci&quot;. Clicca
-          &quot;Carica bilancio&quot; e seleziona il file Excel dal tuo computer. Durante il
-          caricamento, il sistema ti chiede di specificare:
-        </p>
-        <ul>
-          <li>
-            <strong>Anno di riferimento</strong> — l&apos;esercizio contabile a cui si riferisce il
-            bilancio
-          </li>
-          <li>
-            <strong>Periodo</strong> — il mese o il trimestre fino a cui i dati sono aggiornati (ad
-            esempio: &quot;fino a marzo 2024&quot; oppure &quot;Q1 2024&quot;)
-          </li>
-        </ul>
+        <HelpCallout variant="warning" title="Evita questi errori comuni">
+          Esporta sempre come <strong>valori</strong> e non come formule. File con formule che
+          restituiscono <code>#RIF!</code> o <code>#VALORE!</code>, righe vuote intermedie o
+          intestazioni multiple possono bloccare la lettura dei dati.
+        </HelpCallout>
 
-        <h2>Anteprima e conferma</h2>
+        <h2>Caricare il file in quattro passi</h2>
+
+        <HelpSteps>
+          <HelpStep number={1} title="Apri la scheda Bilanci del cliente">
+            <p>
+              Dalla lista clienti, clicca sul nome del cliente per entrare nel suo workspace. In
+              alto trovi la barra delle schede: seleziona <strong>Bilanci</strong>.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/caricare-bilancio/01-scheda-bilanci.png"
+              alt="Workspace cliente con la scheda Bilanci evidenziata"
+              caption="Il tab Bilanci si trova nella barra superiore del workspace cliente"
+              width={1116}
+              height={315}
+              hotspots={[{ x: 34, y: 26, label: 1, tooltip: "Scheda Bilanci" }]}
+            />
+          </HelpStep>
+
+          <HelpStep number={2} title="Clicca Carica bilancio">
+            <p>
+              In alto a destra nella scheda trovi il pulsante <strong>Carica bilancio</strong>,
+              accanto a <strong>Mapping conti</strong> (il primo serve per caricare un nuovo file,
+              il secondo per associare i conti alle categorie CDG dopo il caricamento).
+            </p>
+            <HelpScreenshot
+              src="/help/firm/caricare-bilancio/02-pulsante-carica.png"
+              alt="Scheda Bilanci con pulsanti Mapping conti e Carica bilancio"
+              caption="I pulsanti in alto a destra della scheda Bilanci"
+              width={1624}
+              height={348}
+              hotspots={[
+                { x: 83, y: 52, label: 1, tooltip: "Mapping conti" },
+                { x: 93, y: 52, label: 2, tooltip: "Carica bilancio" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={3} title="Compila il modulo di upload">
+            <p>Nel modulo ti vengono chiesti questi dati:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>
+                <strong>Inizio periodo</strong> e <strong>Fine periodo</strong>: le due date che
+                delimitano il periodo coperto dal bilancio (es. 1&thinsp;gennaio 2024 –
+                31&thinsp;dicembre 2024 per un bilancio annuale, o 1&thinsp;gennaio 2024 –
+                31&thinsp;marzo 2024 per un Q1).
+              </li>
+              <li>
+                <strong>Nome foglio Excel</strong>: il nome della scheda dentro il file .xlsx che
+                contiene il bilancio. Il default è <code>1-BV</code>, valido per i file esportati da
+                ProOffice in formato standard. Cambialo solo se il tuo file usa un nome diverso.
+              </li>
+              <li>
+                <strong>File Excel</strong>: trascina il file nell&apos;area di upload oppure clicca
+                per selezionarlo dal tuo computer.
+              </li>
+              <li>
+                <strong>Note</strong> (opzionali): una breve descrizione che ti aiuti a identificare
+                questo caricamento nell&apos;elenco (es. &quot;BV settembre 2025 definitivo&quot;).
+              </li>
+            </ul>
+            <p className="mt-3">
+              Quando hai compilato tutto, clicca <strong>Carica e analizza</strong>.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/caricare-bilancio/03-form-upload.png"
+              alt="Modulo di caricamento bilancio con date, nome foglio, dropzone file e note"
+              width={798}
+              height={540}
+              hotspots={[
+                { x: 44, y: 22, label: 1, tooltip: "Inizio periodo" },
+                { x: 78, y: 22, label: 2, tooltip: "Fine periodo" },
+                { x: 62, y: 37, label: 3, tooltip: "Nome foglio Excel" },
+                { x: 62, y: 64, label: 4, tooltip: "Dropzone file" },
+                { x: 40, y: 95, label: 5, tooltip: "Carica e analizza" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={4} title="Verifica l'esito del caricamento">
+            <p>
+              Finflow legge il file e mostra subito il riepilogo: numero di righe importate, totale
+              Dare, totale Avere. Se appaiono avvisi (&quot;N righe senza importo Dare né Avere,
+              ignorate&quot;) è comportamento atteso: sono intestazioni di gruppo o conti padre
+              privi di saldo proprio. Il parser le salta e conserva solo le righe con valori
+              numerici effettivi, che sono quelle rilevanti per il CDG.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/caricare-bilancio/04-esito-upload.png"
+              alt="Esito del caricamento con righe importate, totali e avvisi"
+              width={492}
+              height={427}
+              hotspots={[
+                { x: 62, y: 22, label: 1, tooltip: "Messaggio di successo con totali" },
+                { x: 62, y: 55, label: 2, tooltip: "Lista avvisi (informativa)" },
+              ]}
+            />
+            <p className="mt-3">
+              Il bilancio appare nell&apos;elenco della scheda Bilanci con periodo, nome file,
+              numero righe, data di upload e stato (bozza o confermato). Il periodo coperto viene
+              congelato automaticamente per preservare i dati chiusi.
+            </p>
+          </HelpStep>
+        </HelpSteps>
+
+        <HelpCallout variant="info" title="E adesso? Il mapping">
+          Il bilancio è caricato ma i singoli conti non sono ancora associati alle categorie CDG.
+          Per completare il controllo di gestione vai su{" "}
+          <Link href="/firm/aiuto/mapping-piano-conti" className="font-medium underline">
+            Mappare il piano dei conti
+          </Link>
+          . Se hai già mappato lo stesso cliente in passato, i codici conto esistenti vengono
+          riconosciuti automaticamente: dovrai mappare solo gli eventuali conti nuovi.
+        </HelpCallout>
+
+        <h2>Cosa succede se il file non viene letto correttamente</h2>
         <p>
-          Dopo il caricamento, Finflow mostra un&apos;anteprima dei dati letti dal file:
-          l&apos;elenco dei conti con codice, descrizione e importi. Verifica che i dati siano
-          corretti. Se il file ha un formato imprevisto (ad esempio colonne in ordine diverso o
-          righe di intestazione multiple), il sistema segnala il problema e ti chiede di correggere
-          il file o di indicare manualmente la riga di partenza dei dati.
-        </p>
-        <p>
-          Conferma il caricamento per salvare il bilancio. Il sistema lo registra nell&apos;elenco
-          dei bilanci del cliente con la data di caricamento e il periodo di riferimento.
+          Se Finflow rileva un formato imprevisto (colonne in ordine diverso, righe di intestazione
+          multiple, celle vuote dove erano attesi numeri), segnala il problema e propone due
+          alternative: indicare manualmente la riga di partenza dei dati oppure correggere il file e
+          ricaricarlo. La seconda è quasi sempre la scelta migliore, perché un file pulito evita
+          problemi nei caricamenti successivi.
         </p>
 
-        <h2>Aggiornare il bilancio</h2>
+        <h2>Aggiornare il bilancio nel corso dell&apos;anno</h2>
         <p>
-          Puoi caricare più bilanci per lo stesso anno ma con periodi diversi. Ad esempio: un
-          bilancio aggiornato a marzo, poi uno aggiornato a giugno, poi a settembre. Ogni
-          caricamento aggiorna il conto economico riclassificato per il periodo corrispondente. I
-          periodi già caricati vengono congelati automaticamente.
+          Per lo stesso anno puoi caricare più bilanci con periodi progressivi: un bilancio fino a
+          marzo, poi uno fino a giugno, poi a settembre e a dicembre. Ogni caricamento aggiorna il
+          conto economico del periodo corrispondente e congela i mesi già inclusi.
         </p>
 
-        <div className="not-prose rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4 dark:border-amber-600 dark:bg-amber-950/30">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Attenzione</p>
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-            Controlla sempre che il file Excel non contenga righe vuote o formule che restituiscono
-            errore (#RIF!, #VALORE!). Questi elementi possono impedire la lettura corretta dei dati.
-            Esporta preferibilmente il bilancio come &quot;valori&quot; anziché come
-            &quot;formule&quot;.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Ritmo consigliato">
+          Carica un bilancio aggiornato ogni mese o ogni trimestre, non appena la contabilità chiude
+          il periodo. Questo mantiene il CDG allineato alla realtà contabile e riduce al minimo le
+          fatture retroattive che non incidono sul CE riclassificato.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -82,9 +179,6 @@ export const sections: HelpSection[] = [
             <Link href="/firm/aiuto/mapping-piano-conti">
               Mappare il piano dei conti verso le categorie CDG
             </Link>
-          </li>
-          <li>
-            <Link href="/firm/aiuto/wizard-mapping">Il wizard di mapping automatico</Link>
           </li>
           <li>
             <Link href="/firm/aiuto/congelamento-periodi">Congelamento periodi chiusi</Link>
@@ -102,90 +196,146 @@ export const sections: HelpSection[] = [
     keywords: ["mapping", "piano", "conti", "categorie", "CDG", "riclassificazione"],
     content: () => (
       <>
-        <p>
-          La mappatura del piano dei conti è il processo con cui associ ogni conto del bilancio di
-          verifica a una delle categorie del controllo di gestione. Questa associazione permette a
-          Finflow di generare il conto economico riclassificato con margini progressivi.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          La mappatura associa ogni conto del bilancio a una delle 17 categorie del controllo di
+          gestione. È il passaggio che trasforma i numeri contabili nel conto economico
+          riclassificato con i margini progressivi (MdC, EBITDA, EBIT, utile netto).
         </p>
 
-        <h2>Le 17 categorie CDG</h2>
+        <HelpCallout variant="info" title="Prima di iniziare">
+          Devi aver già caricato almeno un bilancio di verifica per il cliente. Se la pagina mapping
+          è vuota con il messaggio &quot;Nessun conto trovato&quot;, torna prima su{" "}
+          <Link href="/firm/aiuto/caricare-bilancio" className="font-medium underline">
+            Caricare il bilancio di verifica
+          </Link>
+          .
+        </HelpCallout>
+
+        <h2>Come mappare i conti</h2>
+
+        <HelpSteps>
+          <HelpStep number={1} title="Apri la pagina Mapping conti">
+            <p>
+              Dalla scheda <strong>Bilanci</strong> del cliente, clicca{" "}
+              <strong>Mapping conti</strong> in alto a destra. Si apre la tabella con tutti i conti
+              trovati nel bilancio di verifica.
+            </p>
+            <p className="mt-2">
+              In alto vedi il conteggio dei conti ancora da mappare (in ambra) e il pulsante{" "}
+              <strong>Salva</strong> a destra. Le righe con sfondo ambra chiaro sono quelle non
+              ancora associate a una categoria.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/mapping-piano-conti/01-vista-mapping.png"
+              alt="Pagina Mapping conti con tabella e contatore da mappare"
+              caption="Vista generale della pagina di mapping: conteggio in ambra, pulsante Salva, tabella conti"
+              width={1636}
+              height={361}
+              hotspots={[
+                { x: 30, y: 25, label: 1, tooltip: "Conteggio conti da mappare" },
+                { x: 95, y: 25, label: 2, tooltip: "Pulsante Salva" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={2} title="Seleziona la categoria CDG per ogni conto">
+            <p>
+              Clicca sul menu a tendina nella colonna <strong>Categoria CdG</strong> della riga e
+              scegli la voce appropriata. Le 17 categorie disponibili coprono tutte le macro-aree
+              del conto economico (le vedi elencate più in basso). Quando selezioni una categoria,
+              la riga cambia sfondo (diventa blu chiaro) per segnalare che c&apos;è una modifica non
+              ancora salvata.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/mapping-piano-conti/02-dropdown-categorie.png"
+              alt="Dropdown aperto con l'elenco delle 17 categorie CDG"
+              caption="Il menu a tendina mostra tutte le categorie disponibili"
+              width={1498}
+              height={454}
+              hotspots={[{ x: 58, y: 50, label: 1, tooltip: "Menu categorie CDG" }]}
+            />
+          </HelpStep>
+
+          <HelpStep number={3} title="Salva le modifiche">
+            <p>
+              Il pulsante <strong>Salva</strong> mostra fra parentesi il numero di righe modificate.
+              Cliccalo per confermare: le modifiche vengono scritte nel database e lo stato della
+              pagina si aggiorna. Quando l&apos;operazione va a buon fine vedi il messaggio{" "}
+              <strong>Salvato</strong> con spunta verde. Puoi mappare e salvare a blocchi (non serve
+              fare tutto in una sola sessione).
+            </p>
+            <HelpScreenshot
+              src="/help/firm/mapping-piano-conti/03-salvataggio.png"
+              alt="Area pulsante Salva con contatore modifiche pendenti"
+              width={706}
+              height={327}
+              hotspots={[{ x: 75, y: 50, label: 1, tooltip: "Pulsante Salva con contatore" }]}
+            />
+          </HelpStep>
+        </HelpSteps>
+
+        <h2>Le 17 categorie disponibili</h2>
         <p>
-          Finflow utilizza una struttura a 17 categorie che coprono l&apos;intero conto economico.
-          Ecco le macro-aree:
+          La struttura è pensata per coprire l&apos;intero conto economico con una granularità utile
+          al controllo di gestione ma senza frammentare troppo l&apos;analisi.
         </p>
         <ul>
           <li>
-            <strong>Ricavi</strong> — ricavi delle vendite e delle prestazioni
+            <strong>Ricavi</strong>: vendite e prestazioni
           </li>
           <li>
-            <strong>Costi Variabili</strong> (3 categorie) — materie prime, servizi variabili, altri
-            costi variabili
+            <strong>Costi variabili</strong> (3 voci): materiali, servizi, lavoro diretto
           </li>
           <li>
-            <strong>Costi Fissi</strong> (8 categorie) — personale, affitti, utenze, ammortamenti,
-            consulenze, assicurazioni, manutenzioni, altri costi fissi
+            <strong>Costi fissi</strong> (8 voci): ammortamenti, compensi amministratori, affitti,
+            utenze, assicurazioni, consulenze, marketing, generali
           </li>
           <li>
-            <strong>Gestione finanziaria</strong> — interessi attivi e passivi, oneri bancari
+            <strong>Gestione finanziaria</strong> (2 voci): proventi e oneri finanziari
           </li>
           <li>
-            <strong>Gestione straordinaria</strong> — componenti non ricorrenti (plusvalenze,
-            minusvalenze, sopravvenienze)
+            <strong>Gestione straordinaria</strong> (2 voci): proventi e oneri straordinari
           </li>
           <li>
-            <strong>Imposte</strong> — IRES, IRAP e altre imposte sul reddito
+            <strong>Imposte</strong>: IRES, IRAP e altre imposte sul reddito
           </li>
         </ul>
 
-        <h2>Come funziona la mappatura</h2>
-        <p>
-          Dopo il caricamento del primo bilancio di verifica, Finflow presenta l&apos;elenco di
-          tutti i conti trovati nel file. Per ogni conto devi indicare a quale categoria CDG
-          appartiene. Il sistema offre un menu a tendina con le 17 categorie disponibili. Seleziona
-          la categoria corretta e passa al conto successivo.
-        </p>
-        <p>
-          La mappatura si fa una sola volta per ogni conto. Quando carichi un secondo bilancio per
-          lo stesso cliente, i conti già mappati vengono riconosciuti automaticamente tramite il
-          codice conto. Solo i conti nuovi (mai visti prima) richiedono una nuova mappatura.
-        </p>
-
-        <h2>Cosa succede dopo la mappatura</h2>
-        <p>
-          Completata la mappatura di tutti i conti, Finflow genera il conto economico
-          riclassificato. I valori vengono aggregati per categoria e presentati con i margini
-          progressivi:
-        </p>
+        <h2>I margini che ottieni</h2>
+        <p>Completata la mappatura, Finflow calcola automaticamente i margini progressivi:</p>
         <ul>
           <li>
-            <strong>Margine di Contribuzione (MdC)</strong> = Ricavi - Costi Variabili
+            <strong>Margine di contribuzione (MdC)</strong> = Ricavi − Costi variabili
           </li>
           <li>
-            <strong>EBITDA</strong> = MdC - Costi Fissi (esclusi ammortamenti)
+            <strong>EBITDA</strong> = MdC − Costi fissi (esclusi ammortamenti)
           </li>
           <li>
-            <strong>EBIT</strong> = EBITDA - Ammortamenti
+            <strong>EBIT</strong> = EBITDA − Ammortamenti
           </li>
           <li>
-            <strong>Utile Netto</strong> = EBIT - Gestione finanziaria +/- Straordinari - Imposte
+            <strong>Utile netto</strong> = EBIT − Gestione finanziaria ± Straordinari − Imposte
           </li>
         </ul>
 
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Se gestisci clienti con piani dei conti simili (ad esempio aziende dello stesso settore
-            o dello stesso gruppo), usa i template di mappatura. Mappa il primo cliente e salva la
-            mappatura come template. Per i clienti successivi, applica il template e correggi solo
-            le differenze.
-          </p>
-        </div>
+        <h2>Il mapping si fa una volta sola</h2>
+        <p>
+          Quando carichi un secondo bilancio per lo stesso cliente, i conti già mappati vengono
+          riconosciuti tramite il codice conto e mantengono la loro categoria. Devi intervenire solo
+          sui conti nuovi, quelli che non esistevano nel bilancio precedente. Il contatore{" "}
+          <em>N conti da mappare</em> scende progressivamente man mano che lo storico del cliente si
+          consolida.
+        </p>
+
+        <HelpCallout variant="tip" title="Template studio">
+          Se gestisci più clienti con piani dei conti simili (stesso settore o stesso gruppo), mappa
+          accuratamente il primo e salva la mappatura come template. Per i clienti successivi,
+          l&apos;applicazione del template mappa in automatico tutti i codici conto condivisi: ti
+          resta da sistemare solo le differenze.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
-          <li>
-            <Link href="/firm/aiuto/wizard-mapping">Il wizard di mapping automatico</Link>
-          </li>
           <li>
             <Link href="/firm/aiuto/caricare-bilancio">Caricare il bilancio di verifica</Link>
           </li>
@@ -199,109 +349,11 @@ export const sections: HelpSection[] = [
     ),
   },
   {
-    slug: "wizard-mapping",
-    title: "Il wizard di mapping automatico",
-    chapter: CH,
-    chapterTitle: CH_TITLE,
-    section: 3,
-    keywords: ["wizard", "mapping", "automatico", "AI", "suggerimenti"],
-    content: () => (
-      <>
-        <p>
-          Il wizard di mapping automatico velocizza la fase di associazione dei conti alle categorie
-          CDG. Analizza il nome di ogni conto e propone una categoria basandosi su regole e pattern
-          ricorrenti nei piani dei conti italiani.
-        </p>
-
-        <h2>Come funziona il wizard</h2>
-        <p>
-          Quando avvii la mappatura di un bilancio di verifica, il wizard si attiva automaticamente.
-          Per ogni conto non ancora mappato, il sistema analizza la descrizione testuale e propone
-          la categoria CDG più probabile. Ad esempio:
-        </p>
-        <ul>
-          <li>
-            &quot;Ricavi da vendita merci&quot; viene proposto come <strong>Ricavi</strong>
-          </li>
-          <li>
-            &quot;Acquisto materie prime&quot; viene proposto come{" "}
-            <strong>Costi Variabili — Materie prime</strong>
-          </li>
-          <li>
-            &quot;Stipendi e salari&quot; viene proposto come{" "}
-            <strong>Costi Fissi — Personale</strong>
-          </li>
-          <li>
-            &quot;Ammortamento impianti&quot; viene proposto come{" "}
-            <strong>Costi Fissi — Ammortamenti</strong>
-          </li>
-          <li>
-            &quot;Interessi passivi su mutui&quot; viene proposto come{" "}
-            <strong>Gestione finanziaria</strong>
-          </li>
-        </ul>
-        <p>
-          Per ogni proposta, il wizard mostra un indicatore di confidenza. I conti con nomi chiari e
-          standard ottengono una confidenza alta. I conti con nomi ambigui o generici (ad esempio
-          &quot;Conto transitorio&quot;) ottengono una confidenza bassa e richiedono la tua verifica
-          manuale.
-        </p>
-
-        <h2>Confermare o correggere le proposte</h2>
-        <p>
-          Scorri l&apos;elenco dei conti e verifica le proposte del wizard. Puoi accettare la
-          proposta con un clic oppure selezionare una categoria diversa dal menu a tendina. Una
-          volta confermati tutti i conti, clicca &quot;Salva mappatura&quot; per completare il
-          processo.
-        </p>
-
-        <h2>Template studio</h2>
-        <p>
-          Dopo aver completato la mappatura per un cliente, puoi salvarla come &quot;Template
-          studio&quot;. Il template registra le associazioni codice conto - categoria CDG. Quando
-          crei un nuovo cliente con un piano dei conti simile, puoi applicare il template: tutti i
-          conti con lo stesso codice vengono mappati automaticamente. Dovrai mappare manualmente
-          solo i conti che non esistono nel template.
-        </p>
-        <p>
-          I template sono gestiti nella sezione &quot;Template&quot; della barra laterale. Puoi
-          crearli, modificarli, duplicarli o eliminarli in qualsiasi momento.
-        </p>
-
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Anche se il wizard propone le categorie corrette, prenditi il tempo di scorrere tutti i
-            conti almeno la prima volta. Alcuni conti possono avere nomi fuorvianti (ad esempio
-            &quot;Consulenze&quot; che in realtà sono costi variabili legati alla produzione, non
-            costi fissi). La qualità della mappatura determina la qualità di tutta l&apos;analisi a
-            valle.
-          </p>
-        </div>
-
-        <h3>Link correlati</h3>
-        <ul>
-          <li>
-            <Link href="/firm/aiuto/mapping-piano-conti">
-              Mappare il piano dei conti verso le categorie CDG
-            </Link>
-          </li>
-          <li>
-            <Link href="/firm/aiuto/caricare-bilancio">Caricare il bilancio di verifica</Link>
-          </li>
-          <li>
-            <Link href="/firm/aiuto/gruppo-clienti">Gestire più clienti dello stesso gruppo</Link>
-          </li>
-        </ul>
-      </>
-    ),
-  },
-  {
     slug: "congelamento-periodi",
     title: "Congelamento periodi chiusi",
     chapter: CH,
     chapterTitle: CH_TITLE,
-    section: 4,
+    section: 3,
     keywords: ["congelamento", "periodi", "chiusi", "blocco", "lock"],
     content: () => (
       <>
@@ -375,7 +427,7 @@ export const sections: HelpSection[] = [
     title: "Fatture retroattive su periodo congelato",
     chapter: CH,
     chapterTitle: CH_TITLE,
-    section: 5,
+    section: 4,
     keywords: ["fatture", "retroattive", "congelato", "periodo", "chiuso"],
     content: () => (
       <>

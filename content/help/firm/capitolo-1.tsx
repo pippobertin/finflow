@@ -240,9 +240,6 @@ export const sections: HelpSection[] = [
           <li>
             <Link href="/firm/aiuto/caricare-bilancio">Caricare il bilancio di verifica</Link>
           </li>
-          <li>
-            <Link href="/firm/aiuto/wizard-mapping">Il wizard di mapping automatico</Link>
-          </li>
         </ul>
       </>
     ),

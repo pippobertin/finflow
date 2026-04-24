@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Search, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
@@ -15,10 +15,18 @@ interface HelpCenterProps {
   children: ReactNode;
 }
 
+// Key used in sessionStorage to persist sidebar scroll between navigations.
+// Keyed by basePath so controller and client help keep their own positions.
+const scrollKey = (basePath: string) => `help-sidebar-scroll:${basePath}`;
+
 export function HelpCenter({ chapters, basePath, children }: HelpCenterProps) {
   const params = useParams();
   const router = useRouter();
   const [query, setQuery] = useState("");
+
+  // Refs for scroll preservation across route changes
+  const sidebarRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Build flat list for navigation
   const allSections = useMemo(() => chapters.flatMap((ch) => ch.sections), [chapters]);
@@ -48,6 +56,31 @@ export function HelpCenter({ chapters, basePath, children }: HelpCenterProps) {
       .filter((ch) => ch.sections.length > 0);
   }, [chapters, query]);
 
+  // Restore sidebar scroll position on mount. useLayoutEffect applies it
+  // before paint so the user never sees the sidebar jump to top and scroll back.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = sessionStorage.getItem(scrollKey(basePath));
+    if (saved && sidebarRef.current) {
+      sidebarRef.current.scrollTop = parseInt(saved, 10);
+    }
+  }, [basePath]);
+
+  // Persist sidebar scroll on every scroll event (cheap: only writes to sessionStorage).
+  const handleSidebarScroll = () => {
+    if (sidebarRef.current) {
+      sessionStorage.setItem(scrollKey(basePath), String(sidebarRef.current.scrollTop));
+    }
+  };
+
+  // Content area: scroll to top whenever the active section changes,
+  // so each new page starts from the top regardless of where the previous one was.
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [activeSlug]);
+
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       {/* Sidebar */}
@@ -66,7 +99,11 @@ export function HelpCenter({ chapters, basePath, children }: HelpCenterProps) {
         </div>
 
         {/* Chapter list */}
-        <nav className="flex-1 overflow-y-auto py-2">
+        <nav
+          ref={sidebarRef}
+          onScroll={handleSidebarScroll}
+          className="flex-1 overflow-y-auto py-2"
+        >
           {filteredChapters.map((ch) => (
             <div key={ch.number} className="mb-2">
               <p className="px-4 py-1.5 text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-slate-500">
@@ -106,7 +143,7 @@ export function HelpCenter({ chapters, basePath, children }: HelpCenterProps) {
       </aside>
 
       {/* Content area */}
-      <div className="flex flex-1 flex-col overflow-y-auto">
+      <div ref={contentRef} className="flex flex-1 flex-col overflow-y-auto">
         {activeSection ? (
           <>
             {/* Content */}

@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { HelpSection } from "../types";
+import { HelpCallout } from "@/components/help/help-callout";
+import { HelpScreenshot } from "@/components/help/help-screenshot";
+import { HelpSteps, HelpStep } from "@/components/help/help-steps";
 
 const CH = 2;
 const CH_TITLE = "Gestione studio e clienti";
@@ -85,72 +88,114 @@ export const sections: HelpSection[] = [
     keywords: ["creare", "nuovo", "cliente", "aggiungere", "organizzazione"],
     content: () => (
       <>
-        <p>
-          Per iniziare a lavorare con un nuovo cliente, devi creare la sua Organizzazione in
-          Finflow. Il processo richiede meno di un minuto e ti prepara lo spazio per caricare
-          bilanci, budget e movimenti.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          Creare un cliente in Finflow significa aprire lo spazio dove poi caricherai i suoi
+          bilanci, il budget, i movimenti bancari. L&apos;operazione richiede meno di un minuto.
         </p>
 
         <h2>Come creare il cliente</h2>
-        <p>
-          Dalla barra laterale vai su &quot;Clienti&quot;, poi clicca il pulsante &quot;Nuovo&quot;
-          in alto a destra. Si apre il modulo di creazione con i seguenti campi:
-        </p>
+
+        <HelpSteps>
+          <HelpStep number={1} title="Vai alla lista clienti e clicca Nuovo">
+            <p>
+              Dalla barra laterale seleziona <strong>Clienti</strong>. In alto a destra trovi il
+              pulsante <strong>Nuovo</strong> (o <strong>Nuovo cliente</strong> a seconda della
+              larghezza dello schermo). Cliccalo per aprire il modulo di creazione.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/creare-cliente/01-pulsante-nuovo-cliente.png"
+              alt="Intestazione lista clienti con pulsante Nuovo in alto a destra"
+              caption="Il pulsante per creare un nuovo cliente si trova in alto a destra nella lista"
+              width={1627}
+              height={119}
+              hotspots={[{ x: 95, y: 50, label: 1, tooltip: "Pulsante Nuovo cliente" }]}
+            />
+          </HelpStep>
+
+          <HelpStep number={2} title="Compila il modulo">
+            <p>
+              Il modulo chiede pochi dati essenziali. Solo il <strong>Nome organizzazione</strong> è
+              obbligatorio; tutto il resto lo puoi integrare in seguito dall&apos;anagrafica del
+              cliente.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/creare-cliente/02-form-cliente.png"
+              alt="Modulo di creazione nuovo cliente con campi nome, partita IVA, email, telefono, granularità"
+              caption="I campi del modulo di creazione: Nome (obbligatorio), dati fiscali e granularità CDG"
+              width={654}
+              height={452}
+              hotspots={[
+                { x: 50, y: 18, label: 1, tooltip: "Nome organizzazione (obbligatorio)" },
+                { x: 50, y: 40, label: 2, tooltip: "Partita IVA" },
+                { x: 50, y: 62, label: 3, tooltip: "Email e telefono" },
+                { x: 50, y: 84, label: 4, tooltip: "Granularità CDG" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={3} title="Conferma e atterra sul cliente">
+            <p>
+              Al salvataggio, Finflow ti porta direttamente alla pagina di dettaglio del nuovo
+              cliente, con la tab bar delle sue aree (Anagrafica, Utenti, CDG, Bilanci, Budget, IVA,
+              Movimenti, Pattern, F24, Prestiti, Report). Da qui puoi iniziare subito a caricare il
+              primo bilancio.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/creare-cliente/03-cliente-creato.png"
+              alt="Pagina di dettaglio del cliente appena creato"
+              caption="Dopo il salvataggio atterri sulla pagina del cliente, pronto per le operazioni"
+              width={685}
+              height={584}
+              hotspots={[
+                { x: 35, y: 10, label: 1, tooltip: "Nome del cliente in alto" },
+                { x: 50, y: 22, label: 2, tooltip: "Tab bar delle aree del cliente" },
+              ]}
+            />
+          </HelpStep>
+        </HelpSteps>
+
+        <h2>I campi del modulo in dettaglio</h2>
         <ul>
           <li>
-            <strong>Nome organizzazione</strong> (obbligatorio) — la ragione sociale o il nome con
-            cui identifichi il cliente
+            <strong>Nome organizzazione</strong> (obbligatorio): la ragione sociale o il nome con
+            cui identifichi il cliente nei tuoi elenchi e nei report.
           </li>
           <li>
-            <strong>Partita IVA</strong> (facoltativo) — utile per i report e per
-            l&apos;identificazione univoca
+            <strong>Partita IVA</strong>: utile per i report ufficiali e per l&apos;identificazione
+            univoca. Non obbligatoria in fase di creazione, puoi aggiungerla dopo.
           </li>
           <li>
-            <strong>Indirizzo</strong> (facoltativo) — sede legale del cliente
+            <strong>Email</strong>: l&apos;indirizzo di riferimento dell&apos;azienda (non è la
+            stessa cosa dell&apos;email che userai per invitare l&apos;imprenditore al workspace,
+            quella la inserirai in un secondo momento).
           </li>
           <li>
-            <strong>Email</strong> (facoltativo) — email di riferimento dell&apos;azienda
+            <strong>Telefono</strong>: facoltativo, serve per l&apos;anagrafica interna.
           </li>
           <li>
-            <strong>Granularità CDG</strong> (facoltativo) — scegli tra &quot;mensile&quot; e
-            &quot;trimestrale&quot;; determina come il sistema segmenta i periodi nel conto
-            economico riclassificato
+            <strong>Granularità CDG</strong>: <code>MONTHLY</code> (mensile) o{" "}
+            <code>QUARTERLY</code> (trimestrale). Determina come il conto economico riclassificato
+            segmenta i periodi. Il default è <code>MONTHLY</code>.
           </li>
         </ul>
 
-        <h2>Dopo la creazione</h2>
+        <h2>Cosa fare subito dopo</h2>
         <p>
-          Una volta creato il cliente, il sistema ti porta alla sua pagina di dettaglio. Da qui
-          puoi:
-        </p>
-        <ul>
-          <li>Caricare il primo bilancio di verifica (scheda Bilanci)</li>
-          <li>Mappare il piano dei conti sulle categorie CDG</li>
-          <li>Inserire o importare il budget annuale (scheda Budget)</li>
-          <li>Invitare l&apos;imprenditore ad accedere alla dashboard (scheda Utenti)</li>
-        </ul>
-        <p>
-          Non c&apos;è un ordine obbligatorio, ma il flusso consigliato è: prima il bilancio, poi la
-          mappatura, poi il budget. L&apos;invito al cliente può avvenire in qualsiasi momento.
+          Una volta creato il cliente, il flusso consigliato è: caricare il primo bilancio di
+          verifica dalla scheda <strong>Bilanci</strong>, mappare i conti dalla pagina{" "}
+          <strong>Mapping conti</strong>, poi inserire il budget dalla scheda{" "}
+          <strong>Budget</strong>. L&apos;invito all&apos;imprenditore può avvenire in qualsiasi
+          momento, anche prima di avere dati in CDG (il cliente vedrà semplicemente una dashboard
+          vuota finché non carichi qualcosa).
         </p>
 
-        <h2>Granularità mensile o trimestrale</h2>
-        <p>
-          La granularità determina la frequenza con cui il conto economico riclassificato viene
-          segmentato. Con granularità &quot;mensile&quot;, ogni mese è un periodo distinto. Con
-          &quot;trimestrale&quot;, i dati vengono aggregati per trimestre (Q1, Q2, Q3, Q4). La
-          scelta dipende dalla frequenza con cui il cliente aggiorna i dati contabili e dalla
-          complessità dell&apos;azienda.
-        </p>
-
-        <div className="not-prose rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4 dark:border-amber-600 dark:bg-amber-950/30">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Attenzione</p>
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-            La granularità del CDG può essere cambiata anche dopo la creazione, ma il cambio
-            influisce sulla visualizzazione di tutti i periodi già caricati. Valuta con attenzione
-            prima di modificarla a posteriori.
-          </p>
-        </div>
+        <HelpCallout variant="warning" title="Granularità: meglio scegliere bene all'inizio">
+          La granularità CDG può essere cambiata anche dopo la creazione, ma la modifica impatta la
+          visualizzazione di tutti i periodi già caricati (ricalcolo e rienumerazione). Scegli in
+          base alla frequenza con cui il cliente chiude la contabilità: se lavora su base mensile,
+          usa <code>MONTHLY</code>; se chiude solo a trimestre, <code>QUARTERLY</code> evita di
+          mostrare 12 colonne vuote.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -176,64 +221,129 @@ export const sections: HelpSection[] = [
     keywords: ["invitare", "imprenditore", "email", "invito", "accesso"],
     content: () => (
       <>
-        <p>
-          Una volta configurato il cliente e caricati i primi dati, puoi invitare
-          l&apos;imprenditore ad accedere alla propria dashboard. L&apos;invito avviene tramite
-          email e richiede meno di un minuto.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          L&apos;invito dà all&apos;imprenditore l&apos;accesso alla propria dashboard, dove può
+          consultare KPI, andamenti e scadenze della sua azienda. Il flusso è in tre passi e
+          richiede meno di un minuto.
         </p>
 
         <h2>Come inviare l&apos;invito</h2>
-        <p>
-          Apri la pagina di dettaglio del cliente e vai alla scheda &quot;Utenti&quot;. Clicca
-          &quot;Nuovo utente&quot; e compila i campi richiesti:
-        </p>
+
+        <HelpSteps>
+          <HelpStep number={1} title="Apri la scheda Utenti del cliente">
+            <p>
+              Dal dettaglio del cliente seleziona la scheda <strong>Utenti</strong> nella tab bar in
+              alto. Vedi la lista degli utenti già associati (se ne hai creati in passato) e il form
+              per aggiungerne uno nuovo.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/invitare-cliente/01-scheda-utenti.png"
+              alt="Scheda Utenti del cliente con lista utenti e form di invito"
+              caption="La scheda Utenti mostra utenti esistenti e form per aggiungerne di nuovi"
+              width={746}
+              height={391}
+              hotspots={[
+                { x: 50, y: 30, label: 1, tooltip: "Form per aggiungere un nuovo utente" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={2} title="Compila Email, Nome e Ruolo">
+            <p>Il form chiede tre dati:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>
+                <strong>Email</strong> (obbligatoria): l&apos;indirizzo dove arriverà il link di
+                invito.
+              </li>
+              <li>
+                <strong>Nome</strong> (opzionale): il nome e cognome dell&apos;utente, utile per
+                riconoscerlo nella lista.
+              </li>
+              <li>
+                <strong>Ruolo</strong>: determina cosa l&apos;utente può vedere. Per
+                l&apos;imprenditore cliente scegli <code>CLIENT_OWNER</code> (accesso completo in
+                sola lettura alla dashboard). Il default <code>CLIENT_ADMIN_BANK_ONLY</code> è
+                pensato per un collaboratore che deve solo inserire movimenti bancari.
+              </li>
+            </ul>
+            <HelpScreenshot
+              src="/help/firm/invitare-cliente/02-form-invito.png"
+              alt="Form di invito compilato con email, nome e ruolo"
+              caption="I campi del form di invito: email, nome opzionale, dropdown ruolo"
+              width={736}
+              height={250}
+              hotspots={[
+                { x: 25, y: 50, label: 1, tooltip: "Email (obbligatoria)" },
+                { x: 55, y: 50, label: 2, tooltip: "Nome (opzionale)" },
+                { x: 85, y: 50, label: 3, tooltip: "Ruolo" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={3} title="Invia l'invito">
+            <p>
+              Clicca il pulsante di creazione. Finflow registra l&apos;utente, gli associa il ruolo
+              scelto e invia un&apos;email automatica con il link per impostare la password. Appena
+              il salvataggio va a buon fine vedi il messaggio di conferma e il nuovo utente compare
+              nella lista.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/invitare-cliente/03-invito-inviato.png"
+              alt="Scheda Utenti dopo l'invio con messaggio di successo e nuovo utente in lista"
+              caption="Dopo l'invio: messaggio di successo e nuovo utente aggiunto all'elenco"
+              width={734}
+              height={451}
+              hotspots={[
+                { x: 50, y: 20, label: 1, tooltip: "Messaggio di conferma" },
+                { x: 50, y: 60, label: 2, tooltip: "Nuovo utente nella lista" },
+              ]}
+            />
+          </HelpStep>
+        </HelpSteps>
+
+        <h2>I ruoli disponibili</h2>
         <ul>
           <li>
-            <strong>Email</strong> — l&apos;indirizzo email dell&apos;imprenditore
+            <strong>
+              <code>CLIENT_OWNER</code>
+            </strong>
+            : l&apos;imprenditore titolare dell&apos;azienda. Vede tutta la dashboard in sola
+            lettura (KPI, CE, grafici, scadenze, cassa, documenti). Non può modificare dati,
+            bilanci, mapping o budget.
           </li>
           <li>
-            <strong>Ruolo</strong> — seleziona &quot;CLIENT_OWNER&quot; per dare accesso completo in
-            lettura alla dashboard
+            <strong>
+              <code>CLIENT_ADMIN_BANK_ONLY</code>
+            </strong>
+            : un collaboratore interno del cliente (es. addetto amministrativo) che deve solo
+            caricare estratti conto e categorizzare movimenti. Vede la sezione Movimenti, non il
+            resto della dashboard.
           </li>
         </ul>
-        <p>
-          Dopo il salvataggio, il sistema invia un&apos;email automatica all&apos;indirizzo
-          specificato. L&apos;email contiene un link per impostare la password e accedere alla
-          piattaforma.
-        </p>
 
         <h2>Cosa vede il cliente dopo il login</h2>
         <p>
-          L&apos;imprenditore accede a un&apos;interfaccia dedicata, separata da quella dello
-          studio. La sua dashboard mostra:
-        </p>
-        <ul>
-          <li>I KPI principali: ricavi, EBITDA, utile netto</li>
-          <li>I grafici di andamento mensile o trimestrale</li>
-          <li>Gli indicatori di salute finanziaria</li>
-          <li>Lo stato delle scadenze (IVA, F24, rate prestiti)</li>
-        </ul>
-        <p>
-          Il cliente non può modificare i dati, caricare bilanci, cambiare la mappatura dei conti o
-          alterare il budget. Tutte le operazioni di scrittura restano riservate al controller dello
-          studio.
+          L&apos;imprenditore accede a un&apos;interfaccia separata da quella dello studio. La sua
+          dashboard include KPI principali (ricavi, EBITDA, utile netto), grafici di andamento
+          mensile o trimestrale, indicatori di salute finanziaria e stato delle scadenze (IVA, F24,
+          rate prestiti). Tutte le operazioni di scrittura (caricare bilanci, cambiare mapping,
+          alterare budget) restano riservate al controller dello studio.
         </p>
 
         <h2>Reinviare l&apos;invito</h2>
         <p>
-          Se il cliente non ha ricevuto l&apos;email o il link è scaduto, puoi reinviare
-          l&apos;invito dalla stessa scheda Utenti. Individua l&apos;utente nell&apos;elenco e usa
-          l&apos;azione di reinvio. Il sistema genera un nuovo link con una nuova scadenza.
+          Se il cliente non ha ricevuto l&apos;email o il link è scaduto, dalla stessa scheda Utenti
+          puoi reinviare l&apos;invito. Individua l&apos;utente nell&apos;elenco e usa l&apos;azione
+          di reinvio: Finflow genera un nuovo link con una nuova scadenza, sostituendo il
+          precedente.
         </p>
 
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Invita il cliente solo quando hai già caricato almeno un bilancio e completato la
-            mappatura. In questo modo, al primo accesso l&apos;imprenditore troverà subito dati
-            significativi nella dashboard, non una pagina vuota.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Quando invitare">
+          Il momento migliore per invitare l&apos;imprenditore è quando hai già caricato almeno un
+          bilancio e completato la mappatura dei conti. Al primo accesso troverà subito dati
+          significativi e non una pagina vuota, e la sua prima esperienza della piattaforma sarà
+          positiva.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -392,9 +502,6 @@ export const sections: HelpSection[] = [
           </li>
           <li>
             <Link href="/firm/aiuto/creare-cliente">Creare un nuovo cliente</Link>
-          </li>
-          <li>
-            <Link href="/firm/aiuto/wizard-mapping">Il wizard di mapping automatico</Link>
           </li>
         </ul>
       </>

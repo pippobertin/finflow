@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { HelpSection } from "../types";
+import { HelpCallout } from "@/components/help/help-callout";
+import { HelpScreenshot } from "@/components/help/help-screenshot";
+import { HelpSteps, HelpStep } from "@/components/help/help-steps";
 
 const CH = 4;
 const CH_TITLE = "Budget e preconsuntivo";
@@ -14,51 +17,119 @@ export const sections: HelpSection[] = [
     keywords: ["budget", "excel", "caricare", "import", "annuale"],
     content: () => (
       <>
-        <p>
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
           Il budget annuale è il riferimento contro cui Finflow misura le performance effettive del
-          cliente. Puoi caricarlo da un file Excel con la ripartizione mensile per ogni categoria
-          CDG.
+          cliente. Lo carichi da un file Excel con la ripartizione mensile delle 17 categorie CDG,
+          oppure lo inserisci a mano nella griglia a 12 mesi.
         </p>
+
+        <h2>Caricare il file in tre passi</h2>
+
+        <HelpSteps>
+          <HelpStep number={1} title="Apri la scheda Budget e scegli l'anno">
+            <p>
+              Dal dettaglio del cliente seleziona la scheda <strong>Budget</strong>. In alto a
+              destra trovi il selettore dell&apos;anno (dropdown con l&apos;anno corrente e i due
+              precedenti più quello successivo). Scegli l&apos;anno per cui vuoi caricare il budget.
+              Accanto vedi i pulsanti <strong>Varianze</strong> (per confrontare consuntivo e
+              budget), <strong>Carica Excel</strong> e, se hai già dati per l&apos;anno,{" "}
+              <strong>Elimina anno</strong>.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/budget-excel/01-header-budget.png"
+              alt="Fascia superiore della pagina Budget con selettore anno e pulsanti azione"
+              caption="I controlli in alto a destra: Varianze, anno, Carica Excel, Elimina anno"
+              width={1230}
+              height={117}
+              hotspots={[
+                { x: 60, y: 50, label: 1, tooltip: "Selettore anno" },
+                { x: 80, y: 50, label: 2, tooltip: "Carica Excel" },
+              ]}
+            />
+          </HelpStep>
+
+          <HelpStep number={2} title="Clicca Carica Excel e seleziona il file">
+            <p>
+              Al clic si apre il file picker di sistema. Seleziona il file <code>.xlsx</code> o{" "}
+              <code>.xls</code> preparato secondo il formato indicato più sotto. Finflow legge le
+              celle, aggiorna la griglia del budget per l&apos;anno selezionato e mostra un
+              messaggio di esito (successo o lista errori).
+            </p>
+          </HelpStep>
+
+          <HelpStep number={3} title="Verifica la griglia popolata">
+            <p>
+              Dopo il caricamento vedi la griglia popolata: righe per le 17 categorie CDG, colonne
+              per i 12 mesi. Le righe dei margini progressivi (Margine di contribuzione, EBITDA,
+              EBIT, Utile ante imposte, Utile netto) sono calcolate automaticamente e mostrate con
+              evidenziazione grafica. Scorri e verifica che i valori corrispondano al file sorgente.
+            </p>
+            <HelpScreenshot
+              src="/help/firm/budget-excel/02-griglia-popolata.png"
+              alt="Griglia budget completa con categorie, mesi e margini progressivi evidenziati"
+              caption="La griglia budget 12 mesi × 17 categorie, con i margini progressivi calcolati"
+              width={1631}
+              height={620}
+              hotspots={[
+                { x: 50, y: 45, label: 1, tooltip: "Sezione categorie CDG" },
+                { x: 50, y: 80, label: 2, tooltip: "Margini progressivi calcolati" },
+              ]}
+            />
+          </HelpStep>
+        </HelpSteps>
 
         <h2>Formato del file Excel</h2>
         <p>
-          Il file deve contenere una tabella con 13 colonne: la prima colonna indica la categoria
-          CDG, le successive 12 colonne contengono i valori mensili da gennaio a dicembre. Ogni riga
-          corrisponde a una delle 17 categorie CDG (Ricavi, Costi Variabili, Costi Fissi, ecc.).
+          Il file deve avere 13 colonne: la prima con il nome della categoria CDG, le altre dodici
+          con i valori mensili da gennaio a dicembre. Ogni riga corrisponde a una delle 17 categorie
+          CDG (Ricavi, Costi variabili materiali, Costi variabili servizi, Costi variabili lavoro
+          diretto, le 8 sottocategorie di Costi fissi, Proventi finanziari, Oneri finanziari,
+          Proventi straordinari, Oneri straordinari, Imposte).
         </p>
         <p>
-          Non è necessario inserire le righe dei subtotali (MdC, EBITDA, EBIT, Utile Netto): Finflow
-          li calcola automaticamente a partire dai valori delle singole categorie. Se il file
-          contiene righe di subtotale, il sistema le ignora.
+          Non serve inserire le righe dei subtotali (MdC, EBITDA, EBIT, Utile netto): Finflow li
+          calcola in automatico. Se il file contiene righe di subtotale, il sistema le ignora.
         </p>
 
-        <h2>Procedura di caricamento</h2>
+        <HelpCallout variant="warning" title="Evita formule e riferimenti">
+          Le celle mensili devono contenere valori numerici puri. Formule, riferimenti ad altri
+          fogli o celle con errori (<code>#RIF!</code>, <code>#VALORE!</code>) bloccano la lettura.
+          Se hai preparato il budget con formule, duplica il foglio e incolla i valori come
+          &quot;solo valori&quot; prima di salvare il file da caricare.
+        </HelpCallout>
+
+        <h2>Modificare i valori a mano</h2>
         <p>
-          Apri la pagina di dettaglio del cliente e vai alla scheda &quot;Budget&quot;. Clicca
-          &quot;Importa da Excel&quot; e seleziona il file. Il sistema legge le colonne e mostra
-          un&apos;anteprima con i valori trovati per ogni categoria e ogni mese.
+          Oltre al caricamento Excel, puoi editare i singoli valori direttamente nella griglia:
+          clicca in una cella mensile di una categoria, scrivi il valore e premi Invio (o clicca
+          fuori). Il totale della riga e i margini progressivi si ricalcolano immediatamente. Questa
+          modalità è utile per correggere pochi valori senza ricaricare tutto il file o per
+          impostare manualmente un budget quando non hai un Excel pronto.
         </p>
+        <HelpScreenshot
+          src="/help/firm/budget-excel/03-cella-editabile.png"
+          alt="Cella editabile nella griglia budget con valore in modifica"
+          caption="Le celle mensili sono editabili: clicca e modifica i valori a mano"
+          width={573}
+          height={205}
+          hotspots={[{ x: 50, y: 50, label: 1, tooltip: "Cella in modifica" }]}
+        />
+
+        <h2>Aggiornare o eliminare il budget</h2>
         <p>
-          Verifica che i valori nell&apos;anteprima corrispondano al file originale. Se tutto è
-          corretto, conferma l&apos;importazione. Il budget viene salvato e diventa immediatamente
-          disponibile per il confronto con il consuntivo nella pagina delle varianze.
+          Puoi ricaricare il budget in qualsiasi momento. Il nuovo file sovrascrive completamente
+          quello precedente per lo stesso anno. Se vuoi partire da zero su un anno già caricato, usa{" "}
+          <strong>Elimina anno</strong>: svuota la griglia senza toccare gli altri anni.
         </p>
 
-        <h2>Aggiornare il budget</h2>
-        <p>
-          Puoi ricaricare il budget in qualsiasi momento. Il nuovo file sovrascrive completamente il
-          budget precedente per lo stesso anno. Se devi modificare solo alcuni valori, può essere
-          più comodo usare l&apos;inserimento manuale invece di ricaricare l&apos;intero file.
-        </p>
-
-        <div className="not-prose rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4 dark:border-amber-600 dark:bg-amber-950/30">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Attenzione</p>
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-            Il file Excel deve contenere solo valori numerici nelle celle mensili. Evita formule,
-            riferimenti ad altri fogli o formattazioni speciali. Se usi formule, esporta il foglio
-            come &quot;solo valori&quot; prima del caricamento.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Il prossimo passo">
+          Quando il budget è caricato e il consuntivo è disponibile (bilancio di verifica mappato),
+          puoi leggere il confronto andando su{" "}
+          <Link href="/firm/aiuto/budget-varianze" className="font-medium underline">
+            Consuntivo vs budget: leggere le varianze
+          </Link>
+          .
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -174,80 +245,115 @@ export const sections: HelpSection[] = [
     keywords: ["consuntivo", "budget", "varianze", "scostamenti", "analisi"],
     content: () => (
       <>
-        <p>
-          La pagina delle varianze mette a confronto i dati effettivi (consuntivo) con il budget
-          previsto. Mostra le differenze in valore assoluto e in percentuale, evidenziando dove le
-          performance superano o mancano le aspettative.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          La pagina Varianze confronta il consuntivo (dai bilanci mappati) con il budget annuale e
+          mostra gli scostamenti in euro e in percentuale, con codifica cromatica che rende la
+          lettura immediata.
         </p>
 
-        <h2>Struttura della pagina</h2>
+        <h2>I tre KPI di sintesi</h2>
         <p>
-          In alto trovi i KPI card che sintetizzano i dati principali: Ricavi, EBITDA e Utile Netto,
-          ciascuno con il valore consuntivo, il valore di budget e la varianza percentuale. Sotto i
-          KPI, la tabella dettagliata mostra tutte le 17 categorie CDG con quattro colonne:
+          In cima alla pagina tre card riassumono le grandezze principali: Ricavi, EBITDA e Utile
+          Netto. Ciascuna card mostra il valore consuntivo in evidenza, il valore di budget come
+          riferimento e la varianza (in euro e in percentuale). Ti basta uno sguardo per capire dove
+          il cliente sta andando meglio o peggio rispetto alle attese.
+        </p>
+        <HelpScreenshot
+          src="/help/firm/budget-varianze/01-kpi-varianze.png"
+          alt="Tre card KPI Ricavi, EBITDA e Utile Netto con budget, consuntivo e varianza"
+          caption="Le tre card di sintesi in alto con budget, consuntivo e scostamenti"
+          width={1639}
+          height={182}
+          hotspots={[
+            { x: 18, y: 50, label: 1, tooltip: "KPI Ricavi" },
+            { x: 50, y: 50, label: 2, tooltip: "KPI EBITDA" },
+            { x: 82, y: 50, label: 3, tooltip: "KPI Utile Netto" },
+          ]}
+        />
+
+        <h2>La tabella dettagliata</h2>
+        <p>
+          Sotto i KPI trovi la tabella completa che scompone il conto economico nelle 17 categorie
+          CDG più i subtotali progressivi. Le colonne sono:
         </p>
         <ul>
           <li>
-            <strong>Budget</strong> — il valore previsto per la categoria nel periodo selezionato
+            <strong>Voce</strong>: la categoria o il margine (MdC, EBITDA, EBIT, utile netto).
           </li>
           <li>
-            <strong>Consuntivo</strong> — il valore effettivo ricavato dal conto economico
-            riclassificato
+            <strong>Budget</strong>: il valore previsto per la voce nel periodo selezionato.
           </li>
           <li>
-            <strong>Varianza (euro)</strong> — la differenza in valore assoluto tra consuntivo e
-            budget
+            <strong>Consuntivo</strong>: il valore effettivo dal conto economico riclassificato.
           </li>
           <li>
-            <strong>Varianza (%)</strong> — la differenza espressa in percentuale rispetto al budget
+            <strong>Var. €</strong>: la differenza in valore assoluto (consuntivo meno budget).
+          </li>
+          <li>
+            <strong>Var. %</strong>: la stessa differenza espressa come percentuale del budget.
           </li>
         </ul>
+        <p>
+          Le righe dei subtotali hanno sfondo più scuro e testo in grassetto, così distingui a colpo
+          d&apos;occhio le voci operative dai margini aggregati.
+        </p>
+        <HelpScreenshot
+          src="/help/firm/budget-varianze/02-tabella-varianze.png"
+          alt="Tabella varianze con Voce, Budget, Consuntivo, Var. euro, Var. percentuale"
+          caption="La tabella dettagliata con tutte le categorie e i subtotali progressivi"
+          width={1635}
+          height={524}
+          hotspots={[
+            { x: 50, y: 10, label: 1, tooltip: "Intestazione colonne" },
+            { x: 82, y: 50, label: 2, tooltip: "Varianze con codice colore" },
+          ]}
+        />
 
         <h2>Leggere i colori</h2>
         <p>
-          Finflow usa una codifica cromatica per rendere immediata la lettura degli scostamenti:
+          Finflow colora le varianze in base alla loro natura rispetto alla voce, non al segno
+          aritmetico:
         </p>
         <ul>
           <li>
-            <strong>Verde</strong> — varianza favorevole. Per i ricavi significa che il consuntivo
-            supera il budget. Per i costi significa che il consuntivo è inferiore al budget (hai
-            speso meno del previsto)
+            <strong>Verde</strong>: varianza favorevole. Per i ricavi significa consuntivo sopra
+            budget; per i costi significa consuntivo sotto budget (ho speso meno del previsto).
           </li>
           <li>
-            <strong>Rosso</strong> — varianza sfavorevole. Per i ricavi significa che il consuntivo
-            è sotto il budget. Per i costi significa che hai speso più del previsto
+            <strong>Rosso</strong>: varianza sfavorevole. Per i ricavi consuntivo sotto budget; per
+            i costi consuntivo sopra budget (ho speso più del previsto).
           </li>
         </ul>
         <p>
-          La logica si inverte automaticamente tra ricavi e costi: il sistema &quot;sa&quot; che per
-          un costo un valore inferiore al budget è positivo, non negativo.
+          La logica si inverte automaticamente tra ricavi e costi: il sistema sa che per un costo un
+          valore inferiore al budget è positivo, non negativo, e colora di conseguenza.
         </p>
+        <HelpScreenshot
+          src="/help/firm/budget-varianze/03-dettaglio-varianza.png"
+          alt="Dettaglio di tre righe della tabella con varianze verdi e rosse"
+          caption="Zoom su righe con varianze favorevoli (verde) e sfavorevoli (rosso)"
+          width={903}
+          height={201}
+          hotspots={[
+            { x: 70, y: 30, label: 1, tooltip: "Varianza favorevole (verde)" },
+            { x: 70, y: 70, label: 2, tooltip: "Varianza sfavorevole (rosso)" },
+          ]}
+        />
 
-        <h2>Selezionare il periodo</h2>
+        <h2>Scegliere l&apos;anno</h2>
         <p>
-          Usa il selettore in alto per scegliere l&apos;anno di riferimento. La pagina mostra i dati
-          cumulati dall&apos;inizio dell&apos;anno fino all&apos;ultimo periodo disponibile. Se il
-          cliente ha granularità mensile, puoi anche filtrare per singolo mese o per intervallo di
-          mesi.
+          Il selettore in alto sceglie l&apos;anno di riferimento. La pagina mostra il cumulato
+          anno-a-oggi: tutti i mesi disponibili sommati, confrontati con il budget dei mesi
+          corrispondenti. Questo evita confronti distorti (non paragoni 12 mesi di budget con 4 mesi
+          di consuntivo).
         </p>
 
-        <h2>Interpretare le varianze</h2>
-        <p>
-          Una varianza percentuale entro il +/-5% è generalmente considerata fisiologica. Varianze
-          superiori al 10% meritano un approfondimento: verifica se dipendono da eventi
-          straordinari, da errori nella stesura del budget o da reali cambiamenti nell&apos;attività
-          del cliente. Le varianze sono lo strumento principale per il dialogo tra controller e
-          imprenditore.
-        </p>
-
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Concentra l&apos;attenzione sulle varianze che hanno un impatto significativo
-            sull&apos;EBITDA. Una varianza del 50% su una voce che vale 500 euro incide poco. Una
-            varianza del 5% su una voce da 200.000 euro merita un&apos;analisi approfondita.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Dove concentrare l'attenzione">
+          Una varianza del 50% su una voce da 500 euro incide poco sul risultato. Una varianza del
+          5% su una voce da 200.000 euro invece vale 10.000 euro di impatto a bilancio. Guarda
+          sempre la varianza in euro, non solo la percentuale, quando decidi cosa approfondire.
+          Varianze entro il ±5% sono di norma fisiologiche; sopra il 10% meritano un&apos;analisi.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
