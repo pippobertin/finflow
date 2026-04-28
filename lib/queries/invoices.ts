@@ -42,7 +42,10 @@ export async function listInvoices(params: InvoiceListParams) {
     }),
   };
 
-  const [data, total, agg, pendingReceivableAgg] = await Promise.all([
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [data, total, agg, pendingReceivableAgg, forecastReceivableAgg] = await Promise.all([
     prisma.invoice.findMany({
       where,
       orderBy: { date: "desc" },
@@ -55,7 +58,12 @@ export async function listInvoices(params: InvoiceListParams) {
       _sum: { grossAmount: true },
     }),
     prisma.invoice.aggregate({
-      where: { organizationId, direction: "ACTIVE", status: "PENDING" },
+      where: { organizationId, direction: "ACTIVE", status: "PENDING", date: { lte: today } },
+      _sum: { grossAmount: true },
+      _count: true,
+    }),
+    prisma.invoice.aggregate({
+      where: { organizationId, direction: "ACTIVE", status: "PENDING", date: { gt: today } },
       _sum: { grossAmount: true },
       _count: true,
     }),
@@ -68,6 +76,10 @@ export async function listInvoices(params: InvoiceListParams) {
     pendingReceivable: {
       total: Number(pendingReceivableAgg._sum.grossAmount ?? 0),
       count: pendingReceivableAgg._count,
+    },
+    forecastReceivable: {
+      total: Number(forecastReceivableAgg._sum.grossAmount ?? 0),
+      count: forecastReceivableAgg._count,
     },
     page,
     pageSize,

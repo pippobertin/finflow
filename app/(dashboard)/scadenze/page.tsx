@@ -55,6 +55,7 @@ function formatMonthLabel(yearMonth: string): string {
 export default function ScadenzePage() {
   const [days, setDays] = useState(90);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [directionFilter, setDirectionFilter] = useState<"all" | "in" | "out">("all");
   const { data, isLoading, error } = useClientScadenze(days);
 
   if (isLoading) {
@@ -82,8 +83,21 @@ export default function ScadenzePage() {
     );
   }
 
-  const { items, summary } = data;
-  const filtered = typeFilter ? items.filter((i) => i.type === typeFilter) : items;
+  const { items } = data;
+  let filtered = typeFilter ? items.filter((i) => i.type === typeFilter) : items;
+  if (directionFilter !== "all") {
+    filtered = filtered.filter((i) => i.direction === directionFilter);
+  }
+  const filteredIn = filtered.filter((i) => i.direction === "in").reduce((s, i) => s + i.amount, 0);
+  const filteredOut = filtered
+    .filter((i) => i.direction === "out")
+    .reduce((s, i) => s + i.amount, 0);
+  const summary = {
+    totalIn: Math.round(filteredIn),
+    totalOut: Math.round(filteredOut),
+    netFlow: Math.round(filteredIn - filteredOut),
+    count: filtered.length,
+  };
   const overdueItems = filtered.filter((i) => i.isOverdue);
   const upcomingItems = filtered.filter((i) => !i.isOverdue);
   const grouped = groupByMonth(upcomingItems);
@@ -166,6 +180,27 @@ export default function ScadenzePage() {
             </button>
           );
         })}
+
+        <div className="mx-2 h-4 w-px bg-slate-200 dark:bg-slate-700" />
+        {(
+          [
+            { value: "all", label: "Tutte" },
+            { value: "in", label: "Solo entrate" },
+            { value: "out", label: "Solo uscite" },
+          ] as const
+        ).map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setDirectionFilter(opt.value)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              directionFilter === opt.value
+                ? "bg-[var(--brand,#0b4d8a)] text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
 
         <div className="ml-auto flex gap-1">
           {[30, 60, 90, 180].map((d) => (

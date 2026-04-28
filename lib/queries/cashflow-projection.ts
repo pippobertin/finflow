@@ -185,7 +185,7 @@ export function expandPayable(
  * V2 paradigm — simplified cashflow projection.
  * Inflows:  pending ACTIVE invoices (by dueDate), FutureReceivable
  * Outflows: pending PASSIVE invoices (by dueDate), RecurringExpense,
- *           OneOffExpense, ExpectedPayable, VAT
+ *           OneOffExpense, ExpectedPayable, VAT, F24Schedule, LoanSchedule
  */
 export async function buildDailyProjection(
   organizationId: string,
@@ -511,6 +511,75 @@ export async function buildDailyProjection(
     }
   }
 
+  // ── F24 tax payments (outflows) ─────────────────────────────────────────
+  try {
+    const f24s = await prisma.f24Schedule.findMany({
+      where: { organizationId, isPaid: false, dueDate: { gte: today, lte: endDate } },
+      select: { id: true, periodLabel: true, codiceTributo: true, amount: true, dueDate: true },
+    });
+    for (const f of f24s) {
+      const amt = Number(f.amount);
+      if (amt <= 0) continue;
+      const key = format(startOfDay(f.dueDate), "yyyy-MM-dd");
+      const point = dayMap.get(key);
+      if (point) {
+        point.f24Payments = (point.f24Payments ?? 0) + amt;
+        point.details.push({
+          id: f.id,
+          type: "f24Payment",
+          label: `F24 ${f.periodLabel}${f.codiceTributo ? ` (${f.codiceTributo})` : ""}`,
+          amount: amt,
+        });
+      }
+    }
+  } catch {
+    // F24Schedule table may not exist
+  }
+
+  // ── Loan installments (outflows) ────────────────────────────────────────
+  try {
+    const loans = await prisma.loanSchedule.findMany({
+      where: { organizationId, OR: [{ endDate: null }, { endDate: { gte: today } }] },
+      select: {
+        id: true,
+        loanName: true,
+        bankName: true,
+        installment: true,
+        frequency: true,
+        startDate: true,
+        endDate: true,
+        dayOfMonth: true,
+      },
+    });
+    for (const loan of loans) {
+      const amt = Number(loan.installment);
+      if (amt <= 0) continue;
+      const occurrences = expandPayable(
+        loan.startDate,
+        loan.endDate,
+        loan.frequency,
+        loan.dayOfMonth,
+        today,
+        endDate,
+      );
+      for (const date of occurrences) {
+        const key = format(date, "yyyy-MM-dd");
+        const point = dayMap.get(key);
+        if (point) {
+          point.loanPayments = (point.loanPayments ?? 0) + amt;
+          point.details.push({
+            id: loan.id,
+            type: "loanPayment",
+            label: `Rata ${loan.loanName}${loan.bankName ? ` — ${loan.bankName}` : ""}`,
+            amount: amt,
+          });
+        }
+      }
+    }
+  } catch {
+    // LoanSchedule table may not exist
+  }
+
   // ── Running balance ───────────────────────────────────────────────────────
   const projection: DailyProjectionPoint[] = [];
   let runningBalance = startingBalance;
@@ -523,7 +592,9 @@ export async function buildDailyProjection(
       point.recurringExpenses -
       point.oneOffExpenses -
       point.futurePayables -
-      (point.vatPayments ?? 0);
+      (point.vatPayments ?? 0) -
+      (point.f24Payments ?? 0) -
+      (point.loanPayments ?? 0);
     runningBalance += point.netFlow;
     point.balance = Math.round(runningBalance * 100) / 100;
     projection.push(point);

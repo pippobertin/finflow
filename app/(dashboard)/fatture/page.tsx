@@ -7,7 +7,16 @@ import {
   useMarkFatturaPaid,
 } from "@/lib/hooks/use-client-fatture";
 import { formatEUR, formatDateShort } from "@/lib/helpers/format";
-import { FileText, Plus, Check, ChevronLeft, ChevronRight, X, ArrowDownLeft } from "lucide-react";
+import {
+  FileText,
+  Plus,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  ArrowDownLeft,
+  Clock,
+} from "lucide-react";
 
 interface InvoiceRow {
   id: string;
@@ -28,6 +37,7 @@ interface FattureResult {
   total: number;
   totalGrossAmount: number;
   pendingReceivable: { total: number; count: number };
+  forecastReceivable: { total: number; count: number };
   page: number;
   pageSize: number;
   totalPages: number;
@@ -73,26 +83,46 @@ export default function FatturePage() {
       {/* Create form */}
       {showForm && <CreateInvoiceForm onClose={() => setShowForm(false)} />}
 
-      {/* Hero KPI */}
+      {/* Hero KPIs */}
       {data && (
-        <div
-          className="rounded-xl p-4 text-white"
-          style={{ backgroundColor: "var(--brand, #0b4d8a)" }}
-        >
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
-              <ArrowDownLeft className="h-4 w-4 text-white" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div
+            className="rounded-xl p-4 text-white"
+            style={{ backgroundColor: "var(--brand, #0b4d8a)" }}
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
+                <ArrowDownLeft className="h-4 w-4 text-white" />
+              </div>
+              <p className="text-xs font-semibold tracking-wide text-white/70 uppercase">
+                Fatture da incassare
+              </p>
             </div>
-            <p className="text-xs font-semibold tracking-wide text-white/70 uppercase">
-              Fatture da incassare
+            <p className="font-numeric mt-2 text-2xl font-bold tabular-nums">
+              {formatEUR(data.pendingReceivable.total)}
+            </p>
+            <p className="mt-0.5 text-xs text-white/60">
+              {data.pendingReceivable.count} fatture attive emesse
             </p>
           </div>
-          <p className="font-numeric mt-2 text-2xl font-bold tabular-nums">
-            {formatEUR(data.pendingReceivable.total)}
-          </p>
-          <p className="mt-0.5 text-xs text-white/60">
-            {data.pendingReceivable.count} fatture attive in attesa
-          </p>
+          {data.forecastReceivable.count > 0 && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 dark:border-violet-800 dark:bg-violet-950/20">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
+                  <Clock className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                </div>
+                <p className="text-xs font-semibold tracking-wide text-violet-600 uppercase dark:text-violet-400">
+                  Fatture previste in entrata
+                </p>
+              </div>
+              <p className="font-numeric mt-2 text-2xl font-bold text-violet-700 tabular-nums dark:text-violet-300">
+                {formatEUR(data.forecastReceivable.total)}
+              </p>
+              <p className="mt-0.5 text-xs text-violet-500 dark:text-violet-400">
+                {data.forecastReceivable.count} fatture con data futura
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -203,7 +233,17 @@ export default function FatturePage() {
                     key={inv.id}
                     className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   >
-                    <td className="px-4 py-3 font-medium">{inv.number}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <span className="flex items-center gap-1.5">
+                        {inv.number}
+                        {new Date(inv.date) > new Date(new Date().toDateString()) && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                            <Clock className="h-2.5 w-2.5" />
+                            Prevista
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${

@@ -231,12 +231,17 @@ export const sections: HelpSection[] = [
 
         <h2>Da dove arrivano le fatture</h2>
         <p>
-          Le fatture visibili in FinFlow sono importate dal commercialista a partire dai dati del
-          Sistema di Interscambio (SDI), la piattaforma dell&apos;Agenzia delle Entrate attraverso
-          cui transitano tutte le fatture elettroniche emesse e ricevute. Il commercialista scarica
-          periodicamente i dati aggiornati e li carica nella piattaforma: per questo motivo è
-          possibile un leggero ritardo tra l&apos;emissione di una fattura e la sua comparsa nella
-          pagina.
+          Le fatture passate e correnti — quelle realmente emesse e ricevute — vengono caricate dal
+          commercialista, che le importa periodicamente dal proprio gestionale fiscale. Tu come
+          imprenditore puoi aggiungere fatture previste con data futura, per anticipare la
+          pianificazione finanziaria: una fattura attiva da emettere a giugno, una passiva attesa da
+          un fornitore, eventi che sai si verificheranno.
+        </p>
+        <p>
+          Le fatture previste contribuiscono alla proiezione di cassa, alle scadenze e
+          all&apos;andamento dei ricavi insieme alle fatture reali, e sono distinte da un badge
+          &quot;Prevista&quot; nella tabella. Quando il commercialista caricherà la fattura reale
+          corrispondente, potrai cancellare la previsione manualmente.
         </p>
 
         <HelpCallout variant="info" title="Il Sistema di Interscambio (SDI)">
