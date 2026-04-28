@@ -1,8 +1,23 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { getClientSession } from "@/lib/helpers/auth-guard";
-import { listInvoices, updateInvoice } from "@/lib/queries/invoices";
+import { listInvoices, updateInvoice, deleteInvoice } from "@/lib/queries/invoices";
 import { prisma } from "@/lib/prisma";
 import type { InvoiceDirection, InvoiceStatus } from "@prisma/client";
+
+const patchSchema = z.object({
+  invoiceId: z.string().min(1),
+  // Mark-as-paid flow (legacy)
+  markPaid: z.literal(true).optional(),
+  paidAt: z.string().optional(),
+  // General field updates
+  direction: z.enum(["ACTIVE", "PASSIVE"]).optional(),
+  date: z.string().optional(),
+  dueDate: z.string().nullable().optional(),
+  netAmount: z.number().optional(),
+  vatAmount: z.number().optional(),
+  notes: z.string().nullable().optional(),
+});
 
 /**
  * GET /api/client/fatture
@@ -99,8 +114,10 @@ export async function POST(request: NextRequest) {
 /**
  * PATCH /api/client/fatture
  *
- * Mark an invoice as paid.
- * Body: { invoiceId, paidAt? }
+ * Two modes:
+ * 1. Mark as paid: { invoiceId, markPaid: true, paidAt? }
+ * 2. General update: { invoiceId, direction?, date?, dueDate?, netAmount?, vatAmount?, notes? }
+ *    If netAmount or vatAmount are provided, grossAmount is recalculated.
  */
 export async function PATCH(request: NextRequest) {
   const { error, session, organizationId } = await getClientSession();
@@ -110,25 +127,97 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { invoiceId, paidAt } = await request.json();
-
-    if (!invoiceId) {
-      return Response.json({ error: "invoiceId obbligatorio" }, { status: 400 });
+    const body = await request.json();
+    const parsed = patchSchema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json(
+        { error: "Dati non validi", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
     }
 
-    const result = await updateInvoice(invoiceId, organizationId, {
-      status: "PAID" as InvoiceStatus,
-      paidAt: paidAt ? new Date(paidAt) : new Date(),
-    });
+    const { invoiceId, markPaid, paidAt, ...fields } = parsed.data;
 
-    if (!result) {
+    // Mode 1: mark as paid (legacy flow)
+    if (markPaid) {
+      const result = await updateInvoice(invoiceId, organizationId, {
+        status: "PAID" as InvoiceStatus,
+        paidAt: paidAt ? new Date(paidAt) : new Date(),
+      });
+      if (!result) {
+        return Response.json({ error: "Fattura non trovata" }, { status: 404 });
+      }
+      return Response.json(result);
+    }
+
+    // Mode 2: general field update
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, organizationId },
+    });
+    if (!invoice) {
       return Response.json({ error: "Fattura non trovata" }, { status: 404 });
     }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (fields.direction !== undefined) updateData.direction = fields.direction;
+    if (fields.date !== undefined) updateData.date = new Date(fields.date);
+    if (fields.dueDate !== undefined)
+      updateData.dueDate = fields.dueDate ? new Date(fields.dueDate) : null;
+    if (fields.notes !== undefined) updateData.notes = fields.notes;
+
+    // Recalculate gross if net or vat changed
+    if (fields.netAmount !== undefined || fields.vatAmount !== undefined) {
+      const net = fields.netAmount ?? Number(invoice.netAmount);
+      const vat = fields.vatAmount ?? Number(invoice.vatAmount);
+      updateData.netAmount = net;
+      updateData.vatAmount = vat;
+      updateData.grossAmount = net + vat;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return Response.json(invoice);
+    }
+
+    const result = await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: updateData,
+    });
 
     return Response.json(result);
   } catch (err) {
     console.error("[client/fatture] PATCH error:", err);
     return Response.json({ error: "Errore nell'aggiornamento della fattura" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/client/fatture
+ *
+ * Delete an invoice. Body: { invoiceId }
+ */
+export async function DELETE(request: NextRequest) {
+  const { error, session, organizationId } = await getClientSession();
+  if (error) return error;
+  if (session.user.userType === "CLIENT_ADMIN_BANK_ONLY") {
+    return Response.json({ error: "Accesso riservato al titolare" }, { status: 403 });
+  }
+
+  try {
+    const { invoiceId } = await request.json();
+    if (!invoiceId || typeof invoiceId !== "string") {
+      return Response.json({ error: "invoiceId obbligatorio" }, { status: 400 });
+    }
+
+    const result = await deleteInvoice(invoiceId, organizationId);
+    if (!result) {
+      return Response.json({ error: "Fattura non trovata" }, { status: 404 });
+    }
+
+    return Response.json({ success: true });
+  } catch (err) {
+    console.error("[client/fatture] DELETE error:", err);
+    return Response.json({ error: "Errore nell'eliminazione della fattura" }, { status: 500 });
   }
 }
 

@@ -71,13 +71,61 @@ export function useMarkFatturaPaid() {
       fetchJson("/api/client/fatture", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceId, paidAt }),
+        body: JSON.stringify({ invoiceId, markPaid: true, paidAt }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["client-fatture"] });
       qc.invalidateQueries({ queryKey: ["client-cassa"] });
       qc.invalidateQueries({ queryKey: ["client-scadenze"] });
       toast.success("Fattura segnata come pagata");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+export interface UpdateInvoiceInput {
+  invoiceId: string;
+  direction?: "ACTIVE" | "PASSIVE";
+  date?: string;
+  dueDate?: string | null;
+  netAmount?: number;
+  vatAmount?: number;
+  notes?: string | null;
+}
+
+export function useUpdateFattura() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateInvoiceInput) =>
+      fetchJson("/api/client/fatture", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["client-fatture"] });
+      qc.invalidateQueries({ queryKey: ["client-cassa"] });
+      qc.invalidateQueries({ queryKey: ["client-scadenze"] });
+      toast.success("Fattura aggiornata");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+export function useDeleteFattura() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) =>
+      fetchJson("/api/client/fatture", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["client-fatture"] });
+      qc.invalidateQueries({ queryKey: ["client-cassa"] });
+      qc.invalidateQueries({ queryKey: ["client-scadenze"] });
+      toast.success("Fattura eliminata");
     },
     onError: (err) => toast.error(err.message),
   });

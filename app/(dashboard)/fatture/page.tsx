@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   useClientFatture,
   useCreateFattura,
   useMarkFatturaPaid,
+  useUpdateFattura,
+  useDeleteFattura,
 } from "@/lib/hooks/use-client-fatture";
 import { formatEUR, formatDateShort } from "@/lib/helpers/format";
 import {
@@ -16,7 +19,17 @@ import {
   X,
   ArrowDownLeft,
   Clock,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface InvoiceRow {
   id: string;
@@ -43,12 +56,21 @@ interface FattureResult {
   totalPages: number;
 }
 
+// Sentinel value to distinguish "create" from "edit" mode
+const CREATE_MODE = "CREATE" as const;
+type FormMode = typeof CREATE_MODE | InvoiceRow;
+
 export default function FatturePage() {
+  const { data: session } = useSession();
+  const userType = session?.user?.userType;
+  const isBankOnly = userType === "CLIENT_ADMIN_BANK_ONLY";
+
   const [directionFilter, setDirectionFilter] = useState<string | undefined>();
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState<FormMode | null>(null);
+  const [deletingInvoice, setDeletingInvoice] = useState<InvoiceRow | null>(null);
 
   const { data, isLoading } = useClientFatture({
     direction: directionFilter,
@@ -59,6 +81,10 @@ export default function FatturePage() {
   }) as { data: FattureResult | undefined; isLoading: boolean };
 
   const markPaid = useMarkFatturaPaid();
+  const deleteMut = useDeleteFattura();
+
+  const showingForm = formMode !== null;
+  const isCreateMode = formMode === CREATE_MODE;
 
   return (
     <div className="space-y-6 p-6 lg:p-8">
@@ -71,17 +97,25 @@ export default function FatturePage() {
           <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Le tue fatture</h1>
           <p className="mt-1 text-sm text-slate-500">Tutto quello che hai emesso e ricevuto</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 rounded-lg bg-[var(--brand,#0b4d8a)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
-        >
-          {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {showForm ? "Chiudi" : "Nuova fattura"}
-        </button>
+        {!isBankOnly && (
+          <button
+            onClick={() => setFormMode(showingForm ? null : CREATE_MODE)}
+            className="flex items-center gap-2 rounded-lg bg-[var(--brand,#0b4d8a)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+          >
+            {showingForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {showingForm ? "Chiudi" : "Nuova fattura"}
+          </button>
+        )}
       </div>
 
-      {/* Create form */}
-      {showForm && <CreateInvoiceForm onClose={() => setShowForm(false)} />}
+      {/* Invoice form (create or edit) */}
+      {formMode !== null && (
+        <InvoiceForm
+          mode={isCreateMode ? "create" : "edit"}
+          initialValues={isCreateMode ? undefined : formMode}
+          onClose={() => setFormMode(null)}
+        />
+      )}
 
       {/* Hero KPIs */}
       {data && (
@@ -259,7 +293,7 @@ export default function FatturePage() {
                       {formatDateShort(inv.date)}
                     </td>
                     <td className="font-numeric px-4 py-3 text-slate-600 tabular-nums dark:text-slate-400">
-                      {inv.dueDate ? formatDateShort(inv.dueDate) : "—"}
+                      {inv.dueDate ? formatDateShort(inv.dueDate) : "\u2014"}
                     </td>
                     <td className="font-numeric px-4 py-3 text-right tabular-nums">
                       {formatEUR(Number(inv.netAmount))}
@@ -281,18 +315,40 @@ export default function FatturePage() {
                         {inv.status === "PAID" ? "Pagata" : "In attesa"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      {inv.status === "PENDING" && (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        {inv.status === "PENDING" && (
+                          <button
+                            onClick={() => markPaid.mutate({ invoiceId: inv.id })}
+                            disabled={markPaid.isPending || isBankOnly}
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                            title={
+                              isBankOnly ? "Solo il titolare può modificare" : "Segna come pagata"
+                            }
+                          >
+                            <Check className="h-3 w-3" />
+                            Marca come pagata
+                          </button>
+                        )}
                         <button
-                          onClick={() => markPaid.mutate({ invoiceId: inv.id })}
-                          disabled={markPaid.isPending}
-                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
-                          title="Segna come pagata"
+                          onClick={() => setFormMode(inv)}
+                          disabled={isBankOnly}
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                          title={
+                            isBankOnly ? "Solo il titolare può modificare" : "Modifica fattura"
+                          }
                         >
-                          <Check className="h-3 w-3" />
-                          Marca come pagata
+                          <Pencil className="h-3.5 w-3.5" />
                         </button>
-                      )}
+                        <button
+                          onClick={() => setDeletingInvoice(inv)}
+                          disabled={isBankOnly}
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                          title={isBankOnly ? "Solo il titolare può eliminare" : "Elimina fattura"}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -329,19 +385,72 @@ export default function FatturePage() {
           )}
         </>
       )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog
+        open={deletingInvoice !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingInvoice(null);
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Eliminare la fattura?</DialogTitle>
+            <DialogDescription>
+              Stai per eliminare la fattura <strong>{deletingInvoice?.number}</strong>.
+              L&apos;azione è irreversibile.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setDeletingInvoice(null)}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={() => {
+                if (!deletingInvoice) return;
+                deleteMut.mutate(deletingInvoice.id, {
+                  onSuccess: () => setDeletingInvoice(null),
+                });
+              }}
+              disabled={deleteMut.isPending}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleteMut.isPending ? "Eliminazione..." : "Elimina"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function CreateInvoiceForm({ onClose }: { onClose: () => void }) {
+function InvoiceForm({
+  mode,
+  initialValues,
+  onClose,
+}: {
+  mode: "create" | "edit";
+  initialValues?: InvoiceRow;
+  onClose: () => void;
+}) {
   const create = useCreateFattura();
+  const update = useUpdateFattura();
+  const isPending = mode === "create" ? create.isPending : update.isPending;
+
   const [form, setForm] = useState({
-    direction: "ACTIVE" as "ACTIVE" | "PASSIVE",
-    date: new Date().toISOString().slice(0, 10),
-    dueDate: "",
-    netAmount: "",
-    vatAmount: "",
-    notes: "",
+    direction: (initialValues?.direction ?? "ACTIVE") as "ACTIVE" | "PASSIVE",
+    date: initialValues?.date
+      ? new Date(initialValues.date).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10),
+    dueDate: initialValues?.dueDate
+      ? new Date(initialValues.dueDate).toISOString().slice(0, 10)
+      : "",
+    netAmount: initialValues ? String(Number(initialValues.netAmount)) : "",
+    vatAmount: initialValues ? String(Number(initialValues.vatAmount)) : "",
+    notes: initialValues?.notes ?? "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -350,21 +459,32 @@ function CreateInvoiceForm({ onClose }: { onClose: () => void }) {
     const vat = parseFloat((form.vatAmount || "0").replace(",", "."));
     if (isNaN(net) || net <= 0) return;
 
-    create.mutate(
-      {
-        direction: form.direction,
-        date: form.date,
-        dueDate: form.dueDate || undefined,
-        netAmount: net,
-        vatAmount: isNaN(vat) ? 0 : vat,
-        notes: form.notes || undefined,
-      },
-      {
-        onSuccess: () => {
-          onClose();
+    if (mode === "create") {
+      create.mutate(
+        {
+          direction: form.direction,
+          date: form.date,
+          dueDate: form.dueDate || undefined,
+          netAmount: net,
+          vatAmount: isNaN(vat) ? 0 : vat,
+          notes: form.notes || undefined,
         },
-      },
-    );
+        { onSuccess: () => onClose() },
+      );
+    } else {
+      update.mutate(
+        {
+          invoiceId: initialValues!.id,
+          direction: form.direction,
+          date: form.date,
+          dueDate: form.dueDate || null,
+          netAmount: net,
+          vatAmount: isNaN(vat) ? 0 : vat,
+          notes: form.notes || null,
+        },
+        { onSuccess: () => onClose() },
+      );
+    }
   };
 
   return (
@@ -372,7 +492,9 @@ function CreateInvoiceForm({ onClose }: { onClose: () => void }) {
       onSubmit={handleSubmit}
       className="rounded-xl border border-[var(--brand,#0b4d8a)]/20 bg-[var(--brand,#0b4d8a)]/5 p-5"
     >
-      <h3 className="mb-4 text-sm font-semibold">Nuova fattura</h3>
+      <h3 className="mb-4 text-sm font-semibold">
+        {mode === "create" ? "Nuova fattura" : `Modifica fattura ${initialValues?.number}`}
+      </h3>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Direction */}
         <div>
@@ -429,7 +551,7 @@ function CreateInvoiceForm({ onClose }: { onClose: () => void }) {
         {/* Net amount */}
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
-            Imponibile (€) *
+            Imponibile (&euro;) *
           </label>
           <input
             type="text"
@@ -444,7 +566,7 @@ function CreateInvoiceForm({ onClose }: { onClose: () => void }) {
         {/* VAT */}
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
-            IVA (€)
+            IVA (&euro;)
           </label>
           <input
             type="text"
@@ -480,10 +602,10 @@ function CreateInvoiceForm({ onClose }: { onClose: () => void }) {
         </button>
         <button
           type="submit"
-          disabled={create.isPending}
+          disabled={isPending}
           className="rounded-lg bg-[var(--brand,#0b4d8a)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
         >
-          {create.isPending ? "Salvataggio..." : "Salva fattura"}
+          {isPending ? "Salvataggio..." : mode === "create" ? "Salva fattura" : "Salva modifiche"}
         </button>
       </div>
     </form>
