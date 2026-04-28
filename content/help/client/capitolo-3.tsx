@@ -229,6 +229,23 @@ export const sections: HelpSection[] = [
           height={448}
         />
 
+        <h2>Da dove arrivano le fatture</h2>
+        <p>
+          Le fatture visibili in FinFlow sono importate dal commercialista a partire dai dati del
+          Sistema di Interscambio (SDI), la piattaforma dell&apos;Agenzia delle Entrate attraverso
+          cui transitano tutte le fatture elettroniche emesse e ricevute. Il commercialista scarica
+          periodicamente i dati aggiornati e li carica nella piattaforma: per questo motivo è
+          possibile un leggero ritardo tra l&apos;emissione di una fattura e la sua comparsa nella
+          pagina.
+        </p>
+
+        <HelpCallout variant="info" title="Il Sistema di Interscambio (SDI)">
+          Dal 2019 tutte le fatture tra soggetti IVA italiani devono transitare in formato
+          elettronico attraverso il SDI. Questo garantisce che i dati siano completi e certificati.
+          Il tuo commercialista gestisce il flusso SDI e importa le fatture in FinFlow: non è
+          necessario alcun intervento da parte tua.
+        </HelpCallout>
+
         <h2>Le colonne della tabella</h2>
         <ul>
           <li>

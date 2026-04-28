@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useClientScadenze, type ScadenzaItem } from "@/lib/hooks/use-client-scadenze";
 import { formatEUR, formatDate } from "@/lib/helpers/format";
-import { CalendarClock, ArrowDownLeft, ArrowUpRight, Filter } from "lucide-react";
+import { CalendarClock, ArrowDownLeft, ArrowUpRight, Filter, AlertTriangle } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
   invoice_active: "Fattura attiva",
@@ -11,6 +11,8 @@ const TYPE_LABELS: Record<string, string> = {
   recurring_expense: "Spesa ricorrente",
   expected_payable: "Pagamento atteso",
   vat: "IVA",
+  f24: "F24",
+  loan: "Rata prestito",
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -82,7 +84,9 @@ export default function ScadenzePage() {
 
   const { items, summary } = data;
   const filtered = typeFilter ? items.filter((i) => i.type === typeFilter) : items;
-  const grouped = groupByMonth(filtered);
+  const overdueItems = filtered.filter((i) => i.isOverdue);
+  const upcomingItems = filtered.filter((i) => !i.isOverdue);
+  const grouped = groupByMonth(upcomingItems);
 
   return (
     <div className="space-y-6 p-6 lg:p-8">
@@ -180,8 +184,55 @@ export default function ScadenzePage() {
         </div>
       </div>
 
+      {/* Overdue section */}
+      {overdueItems.length > 0 && (
+        <div>
+          <h3 className="mb-2 flex items-center gap-2 text-xs font-bold tracking-wider text-red-500 uppercase">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            In ritardo
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400">
+              {overdueItems.length}
+            </span>
+          </h3>
+          <div className="rounded-xl border border-red-200 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/20">
+            <div className="divide-y divide-red-100 dark:divide-red-900/30">
+              {overdueItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 shrink-0 text-right">
+                      <span className="font-numeric text-sm font-medium text-red-500 tabular-nums">
+                        {formatDate(item.date)}
+                      </span>
+                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        TYPE_COLORS[item.type] ?? "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {TYPE_LABELS[item.type] ?? item.type}
+                    </span>
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </div>
+                  <span
+                    className={`font-numeric text-sm font-semibold tabular-nums ${
+                      item.direction === "in" ? "text-emerald-600" : "text-red-500"
+                    }`}
+                  >
+                    {item.direction === "in" ? "+" : "−"}
+                    {formatEUR(item.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Timeline grouped by month */}
-      {filtered.length === 0 ? (
+      {upcomingItems.length === 0 && overdueItems.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
           <p className="text-sm text-slate-500">Nessuna scadenza nel periodo selezionato.</p>
         </div>

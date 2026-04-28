@@ -61,12 +61,18 @@ const navSections = [
 const BANK_ONLY_ALLOWED = new Set(["/movimenti", "/fatture"]);
 
 interface ClientSidebarProps {
+  organizationName?: string;
   firmName?: string;
   firmLogoUrl?: string;
   userType?: string;
 }
 
-export function ClientSidebar({ firmName, firmLogoUrl, userType }: ClientSidebarProps) {
+export function ClientSidebar({
+  organizationName,
+  firmName,
+  firmLogoUrl,
+  userType,
+}: ClientSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -90,17 +96,22 @@ export function ClientSidebar({ firmName, firmLogoUrl, userType }: ClientSidebar
             F
           </div>
         )}
-        <div className="flex flex-col">
+        <div className="flex flex-col overflow-hidden">
           <span
-            className="text-lg leading-tight font-bold"
+            className="truncate text-lg leading-tight font-bold"
             style={{
               background: "linear-gradient(135deg, var(--brand, #0b4d8a), var(--accent, #0e7c66))",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
           >
-            {firmName ?? "FinFlow"}
+            {organizationName ?? firmName ?? "FinFlow"}
           </span>
+          {organizationName && firmName && (
+            <span className="truncate text-[10px] leading-tight text-slate-400 dark:text-slate-500">
+              Studio {firmName}
+            </span>
+          )}
         </div>
       </div>
 

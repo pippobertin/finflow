@@ -21,6 +21,7 @@ export interface ScadenzaItem {
   amount: number;
   direction: "in" | "out";
   status?: string;
+  isOverdue?: boolean;
 }
 
 export interface ScadenzeResult {
@@ -74,7 +75,7 @@ export async function fetchScadenze(
     where: {
       organizationId,
       status: "PENDING",
-      dueDate: { gte: today, lte: horizon },
+      dueDate: { lte: horizon },
     },
     orderBy: { dueDate: "asc" },
     select: {
@@ -97,6 +98,7 @@ export async function fetchScadenze(
       amount: Number(inv.grossAmount),
       direction: inv.direction === "ACTIVE" ? "in" : "out",
       status: "pending",
+      isOverdue: inv.dueDate < today,
     });
   }
 

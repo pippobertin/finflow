@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useClientRevenueMonthly } from "@/lib/hooks/use-client-revenue-monthly";
 import { useClientCdg } from "@/lib/hooks/use-client-cdg";
 import { NarrativeBox } from "@/components/client/narrative-box";
 import { formatEUR } from "@/lib/helpers/format";
@@ -7,20 +9,55 @@ import { CHART_TOOLTIP_PROPS, formatTooltipEUR } from "@/components/client/chart
 import {
   BarChart,
   Bar,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-function fmtPct(v: number): string {
-  return v.toFixed(1).replace(".", ",") + "%";
-}
+const MONTH_LABELS = [
+  "Gen",
+  "Feb",
+  "Mar",
+  "Apr",
+  "Mag",
+  "Giu",
+  "Lug",
+  "Ago",
+  "Set",
+  "Ott",
+  "Nov",
+  "Dic",
+];
+
+const MONTH_LABELS_FULL = [
+  "Gennaio",
+  "Febbraio",
+  "Marzo",
+  "Aprile",
+  "Maggio",
+  "Giugno",
+  "Luglio",
+  "Agosto",
+  "Settembre",
+  "Ottobre",
+  "Novembre",
+  "Dicembre",
+];
 
 export default function AndamentoPage() {
-  const { data, isLoading, error } = useClientCdg();
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear);
+  const {
+    currentYear: currentData,
+    previousYear: prevData,
+    isLoading,
+    error,
+  } = useClientRevenueMonthly(year);
+  const { data: cdgData } = useClientCdg();
 
   if (isLoading) {
     return (
@@ -31,7 +68,7 @@ export default function AndamentoPage() {
     );
   }
 
-  if (error || !data) {
+  if (error || !currentData) {
     return (
       <div className="p-8">
         <h1 className="text-2xl font-bold">Andamento dei ricavi</h1>
@@ -40,35 +77,79 @@ export default function AndamentoPage() {
     );
   }
 
-  const { incomeStatement: ce, ratios, narrative } = data;
+  // Build chart data
+  const chartData = MONTH_LABELS.map((label, i) => ({
+    name: label,
+    [String(year)]: currentData.months[i],
+    ...(prevData ? { [String(year - 1)]: prevData.months[i] } : {}),
+  }));
 
-  // CE cascade for bar chart
-  const cascadeData = [
-    { name: "Ricavi", value: ce.revenue, fill: "#0b4d8a" },
-    { name: "Costi variabili", value: ce.variableCosts, fill: "#b45309" },
-    { name: "MdC", value: ce.mdc, fill: "#0e7c66" },
-    { name: "Costi fissi", value: ce.fixedCostsOperating, fill: "#d97706" },
-    { name: "EBITDA", value: ce.ebitda, fill: "#0e7c66" },
-  ];
+  const currentMonth = currentYear === year ? new Date().getMonth() : 11;
 
   return (
     <div className="space-y-6 p-6 lg:p-8">
-      <div>
-        <h1 className="text-2xl font-bold">Andamento dei ricavi</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Quanto l&apos;azienda vende, a confronto con i costi principali.
-        </p>
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
+            Panoramica
+          </p>
+          <h1 className="mt-1 text-2xl font-bold lg:text-3xl">Andamento dei ricavi</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Il fatturato mese per mese, a confronto con l&apos;anno precedente.
+          </p>
+        </div>
+        {/* Year selector */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setYear((y) => y - 1)}
+            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="font-numeric min-w-[4ch] text-center text-sm font-semibold tabular-nums">
+            {year}
+          </span>
+          <button
+            onClick={() => setYear((y) => Math.min(currentYear, y + 1))}
+            disabled={year >= currentYear}
+            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 disabled:opacity-30 dark:hover:bg-slate-800"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Revenue bar */}
+      {/* KPI totale anno */}
+      <div
+        className="rounded-xl p-4 text-white"
+        style={{ backgroundColor: "var(--brand, #0b4d8a)" }}
+      >
+        <p className="text-xs font-semibold tracking-wide text-white/70 uppercase">
+          Ricavi totali {year}
+        </p>
+        <p className="font-numeric mt-1 text-2xl font-bold tabular-nums">
+          {formatEUR(currentData.total)}
+        </p>
+        {prevData && prevData.total > 0 && (
+          <p className="mt-0.5 text-xs text-white/60">
+            {currentData.total >= prevData.total ? "+" : ""}
+            {((currentData.total / prevData.total - 1) * 100).toFixed(1).replace(".", ",")}% vs{" "}
+            {year - 1} ({formatEUR(prevData.total)})
+          </p>
+        )}
+      </div>
+
+      {/* Chart */}
       <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-        <h3 className="text-sm font-semibold">Ricavi e margini a confronto</h3>
+        <h3 className="text-sm font-semibold">Ricavi mensili</h3>
         <p className="mb-4 text-xs text-slate-500">
-          Periodo: {data.periodStart} – {data.periodEnd}
+          Fatture attive emesse per mese
+          {prevData ? ` — confronto ${year} vs ${year - 1}` : ""}
         </p>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={cascadeData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#64748b" }} />
               <YAxis
@@ -78,103 +159,121 @@ export default function AndamentoPage() {
               />
               <Tooltip
                 {...CHART_TOOLTIP_PROPS}
-                formatter={(value) => [formatTooltipEUR(value as number), ""]}
+                formatter={(value, name) => [formatTooltipEUR(value as number), name]}
               />
-              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                {cascadeData.map((entry, idx) => (
-                  <Cell key={idx} fill={entry.fill} />
-                ))}
-              </Bar>
+              <Legend
+                wrapperStyle={{ fontSize: 12 }}
+                formatter={(value) => (
+                  <span className="text-slate-600 dark:text-slate-400">{value}</span>
+                )}
+              />
+              {prevData && (
+                <Bar dataKey={String(year - 1)} fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={20} />
+              )}
+              <Bar
+                dataKey={String(year)}
+                fill="var(--brand, #4f46e5)"
+                radius={[4, 4, 0, 0]}
+                barSize={20}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Summary table */}
-      <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+      {/* Monthly table */}
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-100 dark:border-slate-800">
-              <th className="px-5 py-3 text-left text-xs font-semibold tracking-wider text-slate-500 uppercase">
-                Voce
+            <tr className="border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/50">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">
+                Mese
               </th>
-              <th className="px-5 py-3 text-right text-xs font-semibold tracking-wider text-slate-500 uppercase">
-                Importo
+              <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase">
+                {year}
               </th>
-              <th className="px-5 py-3 text-right text-xs font-semibold tracking-wider text-slate-500 uppercase">
-                % Ricavi
-              </th>
+              {prevData && (
+                <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase">
+                  {year - 1}
+                </th>
+              )}
+              {prevData && (
+                <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase">
+                  Δ %
+                </th>
+              )}
             </tr>
           </thead>
-          <tbody>
-            <SummaryRow label="Ricavi netti" amount={ce.revenue} pct={100} bold />
-            <SummaryRow
-              label="Costi variabili"
-              amount={-ce.variableCosts}
-              pct={ratios.variableCostRatio}
-            />
-            <SummaryRow
-              label="Margine di Contribuzione"
-              amount={ce.mdc}
-              pct={ratios.mdcMargin}
-              bold
-              highlight
-            />
-            <SummaryRow
-              label="Costi fissi operativi"
-              amount={-ce.fixedCostsOperating}
-              pct={ratios.fixedCostRatio}
-            />
-            <SummaryRow
-              label="EBITDA"
-              amount={ce.ebitda}
-              pct={ratios.ebitdaMargin}
-              bold
-              highlight
-            />
+          <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+            {MONTH_LABELS_FULL.map((label, i) => {
+              const curr = currentData.months[i];
+              const prev = prevData?.months[i] ?? 0;
+              const delta = prev > 0 ? (curr / prev - 1) * 100 : null;
+              const isFuture = year === currentYear && i > currentMonth;
+              return (
+                <tr key={label} className={isFuture ? "opacity-40" : ""}>
+                  <td className="px-3 py-2 font-medium">{label}</td>
+                  <td className="font-numeric px-3 py-2 text-right tabular-nums">
+                    {formatEUR(curr)}
+                  </td>
+                  {prevData && (
+                    <td className="font-numeric px-3 py-2 text-right text-slate-500 tabular-nums">
+                      {formatEUR(prev)}
+                    </td>
+                  )}
+                  {prevData && (
+                    <td
+                      className={`font-numeric px-3 py-2 text-right text-xs tabular-nums ${
+                        delta === null
+                          ? "text-slate-400"
+                          : delta >= 0
+                            ? "text-emerald-600"
+                            : "text-red-500"
+                      }`}
+                    >
+                      {delta !== null
+                        ? `${delta >= 0 ? "+" : ""}${delta.toFixed(1).replace(".", ",")}%`
+                        : "—"}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            {/* Total row */}
+            <tr className="border-t-2 border-slate-200 bg-slate-50/80 font-semibold dark:border-slate-700 dark:bg-slate-800/30">
+              <td className="px-3 py-2">Totale</td>
+              <td className="font-numeric px-3 py-2 text-right tabular-nums">
+                {formatEUR(currentData.total)}
+              </td>
+              {prevData && (
+                <td className="font-numeric px-3 py-2 text-right text-slate-500 tabular-nums">
+                  {formatEUR(prevData.total)}
+                </td>
+              )}
+              {prevData && (
+                <td
+                  className={`font-numeric px-3 py-2 text-right text-xs tabular-nums ${
+                    prevData.total > 0 && currentData.total >= prevData.total
+                      ? "text-emerald-600"
+                      : "text-red-500"
+                  }`}
+                >
+                  {prevData.total > 0
+                    ? `${currentData.total >= prevData.total ? "+" : ""}${((currentData.total / prevData.total - 1) * 100).toFixed(1).replace(".", ",")}%`
+                    : "—"}
+                </td>
+              )}
+            </tr>
           </tbody>
         </table>
       </div>
 
-      <NarrativeBox tag="Cosa significa">
-        {narrative.revenueNote} {narrative.profitabilityNote}
-      </NarrativeBox>
+      {/* Narrative from CDG */}
+      {cdgData?.narrative && (
+        <NarrativeBox tag="Cosa significa">
+          {cdgData.narrative.revenueNote} {cdgData.narrative.profitabilityNote}
+        </NarrativeBox>
+      )}
     </div>
-  );
-}
-
-function SummaryRow({
-  label,
-  amount,
-  pct,
-  bold,
-  highlight,
-}: {
-  label: string;
-  amount: number;
-  pct: number | null | undefined;
-  bold?: boolean;
-  highlight?: boolean;
-}) {
-  return (
-    <tr
-      className={
-        highlight
-          ? "bg-slate-50/80 dark:bg-slate-800/30"
-          : "border-b border-slate-50 dark:border-slate-800/50"
-      }
-    >
-      <td className={`px-5 py-2.5 ${bold ? "font-semibold" : ""}`}>{label}</td>
-      <td
-        className={`font-numeric px-5 py-2.5 text-right tabular-nums ${bold ? "font-semibold" : ""} ${
-          amount >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-        }`}
-      >
-        {formatEUR(amount)}
-      </td>
-      <td className="font-numeric px-5 py-2.5 text-right text-xs text-slate-500 tabular-nums">
-        {pct != null ? fmtPct(pct) : ""}
-      </td>
-    </tr>
   );
 }

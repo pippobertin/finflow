@@ -22,6 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const isClientUser = userType === "CLIENT_OWNER" || userType === "CLIENT_ADMIN_BANK_ONLY";
 
   // Fetch branding from accounting firm if client user
+  let organizationName: string | undefined;
   let firmName: string | undefined;
   let firmLogoUrl: string | undefined;
   let brandColor: string | undefined;
@@ -32,11 +33,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
       const org = await prisma.organization.findUnique({
         where: { id: session.user.organizationId },
         select: {
+          name: true,
           accountingFirm: {
             select: { name: true, branding: true },
           },
         },
       });
+      if (org) {
+        organizationName = org.name || undefined;
+      }
       if (org?.accountingFirm) {
         const branding = (org.accountingFirm.branding as BrandingJson) ?? {};
         firmName = branding.displayName || org.accountingFirm.name;
@@ -65,6 +70,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {isClientUser ? (
         <>
           <ClientSidebar
+            organizationName={organizationName}
             firmName={firmName}
             firmLogoUrl={firmLogoUrl}
             userType={userType ?? undefined}

@@ -250,7 +250,7 @@ export default function FatturePage() {
                           title="Segna come pagata"
                         >
                           <Check className="h-3 w-3" />
-                          Pagata
+                          Marca come pagata
                         </button>
                       )}
                     </td>
