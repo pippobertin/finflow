@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { HelpSection } from "../types";
+import { HelpCallout } from "@/components/help/help-callout";
+import { HelpScreenshot } from "@/components/help/help-screenshot";
 
 const CH = 3;
 const CH_TITLE = "Le tue scadenze e la tua cassa";
@@ -14,53 +16,67 @@ export const sections: HelpSection[] = [
     keywords: ["cassa", "liquidità", "saldo", "disponibilità", "denaro"],
     content: () => (
       <>
-        <p>
-          La pagina Cassa ti mostra una stima di quanti soldi ha la tua azienda in questo momento. È
-          il numero che risponde alla domanda più diretta: &quot;quanti soldi ho?&quot;
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          La pagina Cassa risponde a due domande operative: la liquidità disponibile in questo
+          momento e la sua proiezione rispetto alle scadenze in arrivo nei prossimi mesi.
         </p>
 
-        <h2>Da dove viene il numero</h2>
+        <HelpScreenshot
+          src="/help/clienti/cassa-attuale/03-cassa-cliente.png"
+          alt="Pagina cassa con saldo attuale, soglia minima e prossime scadenze"
+          caption="La pagina Cassa: saldo corrente, soglia minima e scadenze nei prossimi 90 giorni"
+          width={1629}
+          height={604}
+        />
+
+        <h2>Origine del dato</h2>
         <p>
-          Il saldo di cassa viene calcolato a partire dai movimenti bancari importati dal tuo
-          commercialista. Il sistema somma tutti gli incassi (soldi in entrata) e sottrae tutti i
-          pagamenti (soldi in uscita): fornitori, stipendi, rate di prestiti, tasse e ogni altra
-          uscita registrata.
+          Il saldo di cassa è calcolato a partire dai movimenti dei conti correnti aziendali,
+          importati periodicamente dal commercialista. Il sistema somma le entrate, sottrae le
+          uscite (fornitori, stipendi, rate, tributi) e restituisce il saldo netto.
         </p>
         <p>
-          Tieni presente che il dato è aggiornato all&apos;ultimo caricamento fatto dal
-          commercialista. Se l&apos;ultimo import dei movimenti risale a una settimana fa, il saldo
-          potrebbe non riflettere le operazioni più recenti.
+          Il valore mostrato è aggiornato all&apos;ultimo caricamento disponibile: per il saldo in
+          tempo reale è opportuno consultare l&apos;home banking. La pagina Cassa serve invece per
+          la visione d&apos;insieme che integra saldo e proiezione delle uscite future.
         </p>
 
-        <h2>Cassa e ricavi sono cose diverse</h2>
+        <h2>La distinzione tra cassa e ricavi</h2>
         <p>
-          Un errore comune è confondere la cassa con i ricavi. I ricavi sono il valore delle vendite
-          fatturate; la cassa è il denaro effettivamente disponibile sul conto. Puoi avere ricavi
-          alti ma poca cassa, ad esempio se i clienti pagano con ritardo. Oppure puoi avere molta
-          cassa ma ricavi in calo, se stai incassando fatture dei mesi precedenti.
+          I ricavi misurano il valore delle vendite fatturate; la cassa misura la liquidità
+          effettivamente disponibile sui conti. Le due grandezze possono divergere
+          significativamente: con clienti che pagano a 60 giorni, una fattura emessa a marzo
+          incrementa i ricavi del periodo ma genera incasso solo a maggio. Vanno lette in parallelo
+          per avere un quadro completo.
         </p>
 
-        <h2>Perché tenerla sotto controllo</h2>
+        <h2>La soglia minima di liquidità</h2>
         <p>
-          La cassa è la linfa vitale della tua azienda. Anche un&apos;azienda che guadagna può
-          trovarsi in difficoltà se resta senza liquidità. Le bollette, gli stipendi e i fornitori
-          non aspettano: vanno pagati a scadenza, indipendentemente da quando i tuoi clienti ti
-          pagheranno.
-        </p>
-        <p>
-          Se la cassa scende sotto un certo livello, è il momento di parlarne con il commercialista
-          per capire come gestire la situazione, ad esempio sollecitando i pagamenti dei clienti o
-          rinegoziando le condizioni con i fornitori.
+          La soglia mostrata sotto il saldo è un parametro concordato con il commercialista, che
+          rappresenta il livello minimo di cassa raccomandato per garantire la regolarità dei
+          pagamenti correnti. Quando il saldo previsto si avvicina a questa soglia, il sistema
+          attiva una segnalazione visiva.
         </p>
 
-        <div className="not-prose rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4 dark:border-amber-600 dark:bg-amber-950/30">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Attenzione</p>
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-            Il saldo di cassa mostrato in Finflow è una stima basata sui dati importati. Per il
-            saldo esatto in tempo reale, consulta il tuo home banking. I due numeri dovrebbero
-            essere vicini, ma piccole differenze sono normali.
-          </p>
-        </div>
+        <h2>Le scadenze nei prossimi 90 giorni</h2>
+        <p>
+          Sotto il saldo trovi l&apos;elenco delle uscite di cassa programmate: tributi, F24, rate
+          di finanziamenti, fatture fornitori, con data, importo e tipologia. La somma algebrica con
+          il saldo corrente permette di verificare la tenuta della cassa nei mesi a venire.
+        </p>
+
+        <HelpCallout variant="warning" title="Tempestività degli interventi">
+          Quando il saldo previsto si avvicina alla soglia minima, è opportuno attivare per tempo le
+          contromisure: sollecito degli incassi, rinegoziazione delle scadenze fornitori,
+          valutazione di linee di credito. Le opzioni disponibili sono efficaci se attivate prima
+          che la situazione diventi urgente.
+        </HelpCallout>
+
+        <HelpCallout variant="tip" title="Monitoraggio periodico">
+          Una verifica settimanale della pagina Cassa, con controllo del saldo corrente e delle
+          scadenze dei 30 giorni successivi, è sufficiente per identificare per tempo eventuali
+          criticità di liquidità.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -86,61 +102,71 @@ export const sections: HelpSection[] = [
     keywords: ["scadenze", "pagamenti", "fatture", "prossimi", "calendario"],
     content: () => (
       <>
-        <p>
-          La pagina Scadenze ti mostra un elenco di tutto quello che devi pagare e tutto quello che
-          devi incassare nei prossimi giorni e settimane. Fatture dei fornitori, rate di prestiti,
-          versamenti F24 e fatture dei clienti in attesa di incasso: tutto in un unico posto.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          La pagina Scadenze raccoglie in un unico elenco gli impegni di pagamento e di incasso
+          programmati: fatture passive verso fornitori, fatture attive verso clienti, versamenti F24
+          e rate di finanziamenti, ordinati per data.
         </p>
 
-        <h2>I colori delle scadenze</h2>
-        <p>Ogni scadenza ha un colore che ti dice a che punto sei:</p>
+        <HelpScreenshot
+          src="/help/clienti/scadenze-prossime/01-scadenze.png"
+          alt="Lista scadenze ordinate per data con codice colore di urgenza"
+          caption="Tutte le scadenze in arrivo, ordinate per data e differenziate per stato"
+          width={1611}
+          height={460}
+        />
+
+        <h2>Il codice colore</h2>
+        <p>
+          Lo stato di ogni scadenza è identificato visivamente da un colore che rappresenta il
+          livello di urgenza:
+        </p>
         <ul>
           <li>
-            <strong>Rosso</strong> — scadenza già passata, cioè un pagamento scaduto e non ancora
-            saldato. Va gestito il prima possibile.
+            <strong>Rosso</strong>: scadenza superata e non ancora saldata. Richiede intervento
+            immediato.
           </li>
           <li>
-            <strong>Giallo / arancione</strong> — scadenza imminente, a pochi giorni dalla data. È
-            il momento di prepararsi al pagamento o sollecitare l&apos;incasso.
+            <strong>Giallo / arancione</strong>: scadenza imminente, prevista nei giorni successivi.
+            Da pianificare per il pagamento o, in caso di credito, per il sollecito.
           </li>
           <li>
-            <strong>Grigio</strong> — scadenza futura, c&apos;è ancora tempo. La vedi per
-            pianificare, non per agire subito.
+            <strong>Grigio</strong>: scadenza futura, fuori dall&apos;orizzonte di azione immediata.
+            Funzione di pianificazione.
           </li>
         </ul>
 
-        <h2>Tipi di scadenze</h2>
-        <p>Nella lista trovi diversi tipi di scadenze:</p>
+        <h2>Tipologie di scadenze</h2>
+        <p>L&apos;elenco aggrega diverse tipologie:</p>
         <ul>
           <li>
-            <strong>Fatture passive</strong> — fatture dei fornitori da pagare
+            <strong>Fatture passive</strong>: documenti emessi dai fornitori, in attesa di
+            pagamento.
           </li>
           <li>
-            <strong>Fatture attive</strong> — fatture emesse ai clienti, in attesa di incasso
+            <strong>Fatture attive</strong>: documenti emessi ai clienti, in attesa di incasso.
           </li>
           <li>
-            <strong>F24</strong> — versamenti fiscali (IVA, ritenute, contributi)
+            <strong>F24</strong>: versamenti fiscali e contributivi (IVA, ritenute, contributi).
           </li>
           <li>
-            <strong>Rate prestiti</strong> — rate di finanziamenti in corso
+            <strong>Rate prestiti</strong>: rate periodiche dei finanziamenti in essere.
           </li>
         </ul>
 
-        <h2>Come usare la pagina</h2>
+        <h2>Modalità di consultazione</h2>
         <p>
-          Guarda la pagina almeno una volta alla settimana. Parti dalle scadenze rosse (se ce ne
-          sono) e poi controlla quelle gialle. Questo ti permette di non farti cogliere di sorpresa
-          da pagamenti dimenticati e di pianificare la liquidità necessaria nei prossimi giorni.
+          Una verifica settimanale è sufficiente per non perdere il controllo. La sequenza corretta
+          privilegia prima le voci in rosso (gli arretrati) e poi quelle in giallo (le scadenze
+          imminenti), in modo da pianificare per tempo la liquidità necessaria.
         </p>
 
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Se vedi molte scadenze rosse (pagamenti scaduti), parlane con il tuo commercialista.
-            Potrebbe trattarsi di dati non ancora aggiornati — ad esempio un pagamento che hai già
-            fatto ma che non è stato registrato — oppure di veri ritardi da gestire.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Scadenze rosse persistenti">
+          Una concentrazione di scadenze in rosso può dipendere da pagamenti già effettuati ma non
+          ancora registrati nel sistema, oppure da arretrati effettivi. In entrambi i casi è
+          opportuno il confronto con il commercialista, sia per allineare i dati che per gestire
+          eventuali ritardi reali.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -166,67 +192,79 @@ export const sections: HelpSection[] = [
     keywords: ["fatture", "attive", "passive", "clienti", "fornitori"],
     content: () => (
       <>
-        <p>
-          La pagina Fatture elenca tutte le fatture della tua azienda: quelle che hai emesso ai
-          clienti (fatture attive) e quelle che hai ricevuto dai fornitori (fatture passive). È la
-          fotografia di quanto ti devono i clienti e quanto devi tu ai fornitori.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          La pagina Fatture restituisce il quadro completo dei rapporti documentali
+          dell&apos;azienda: le fatture <strong>attive</strong> emesse ai clienti e quelle{" "}
+          <strong>passive</strong> ricevute dai fornitori. È la rappresentazione di
+          quanto&apos;l&apos;azienda deve incassare e quanto deve pagare.
         </p>
 
-        <h2>Fatture attive: quelle che emetti tu</h2>
+        <h2>Fatture attive</h2>
         <p>
-          Le fatture attive sono i documenti che la tua azienda emette quando vende un prodotto o un
-          servizio. Ogni riga della tabella mostra il cliente, l&apos;importo, la data di emissione,
-          la data di scadenza e lo stato (pagata, non pagata, parzialmente pagata).
+          Le fatture attive sono i documenti emessi a fronte di vendite di beni o servizi. Per
+          ciascuna riga sono riportati il cliente, l&apos;importo, la data di emissione, la data di
+          scadenza e lo stato di pagamento (pagata, parzialmente pagata, non pagata). Una fattura
+          attiva con stato non pagato e scadenza superata segnala un ritardo nel pagamento da parte
+          del cliente.
         </p>
-        <p>
-          Se una fattura attiva risulta &quot;non pagata&quot; e la scadenza è passata, significa
-          che il tuo cliente è in ritardo con il pagamento.
-        </p>
+        <HelpScreenshot
+          src="/help/clienti/fatture-attive-passive/01-fatture-attive.png"
+          alt="Lista delle fatture attive emesse ai clienti"
+          caption="Le fatture attive: documenti emessi ai clienti, in attesa di incasso"
+          width={1368}
+          height={411}
+        />
 
-        <h2>Fatture passive: quelle che ricevi</h2>
+        <h2>Fatture passive</h2>
         <p>
-          Le fatture passive sono quelle che i fornitori emettono verso la tua azienda. Ogni riga
-          mostra il fornitore, l&apos;importo, le date e lo stato di pagamento. Se una fattura
-          passiva è in scadenza, devi prepararti a pagarla.
+          Le fatture passive sono i documenti ricevuti dai fornitori. La tabella riporta il
+          fornitore, l&apos;importo, le date e lo stato di pagamento. Le scadenze imminenti
+          richiedono pianificazione di liquidità per garantire il pagamento puntuale.
         </p>
+        <HelpScreenshot
+          src="/help/clienti/fatture-attive-passive/02-fatture-passive.png"
+          alt="Lista delle fatture passive ricevute dai fornitori"
+          caption="Le fatture passive: documenti ricevuti dai fornitori, in attesa di pagamento"
+          width={1446}
+          height={448}
+        />
 
-        <h2>La tabella delle fatture</h2>
-        <p>Per ogni fattura vedi:</p>
+        <h2>Le colonne della tabella</h2>
         <ul>
           <li>
-            <strong>Controparte</strong> — il nome del cliente o del fornitore
+            <strong>Controparte</strong>: nominativo del cliente (per le attive) o del fornitore
+            (per le passive).
           </li>
           <li>
-            <strong>Importo</strong> — il valore della fattura, IVA inclusa
+            <strong>Importo</strong>: valore della fattura, IVA inclusa.
           </li>
           <li>
-            <strong>Data emissione</strong> — quando è stata emessa
+            <strong>Data emissione</strong>: data di emissione del documento.
           </li>
           <li>
-            <strong>Data scadenza</strong> — entro quando va pagata
+            <strong>Data scadenza</strong>: termine ultimo per il pagamento.
           </li>
           <li>
-            <strong>Stato</strong> — pagata, in scadenza, scaduta
+            <strong>Stato</strong>: pagata, in scadenza, scaduta.
           </li>
         </ul>
 
-        <h2>IVA: cos&apos;è in breve</h2>
+        <h2>L&apos;IVA in sintesi</h2>
         <p>
-          Ogni fattura include l&apos;IVA (Imposta sul Valore Aggiunto). È una tassa che il cliente
-          paga a te e che tu poi giri allo Stato. Allo stesso modo, l&apos;IVA che paghi ai
-          fornitori ti viene &quot;restituita&quot; in detrazione. Il saldo tra IVA incassata e IVA
-          pagata va versato periodicamente tramite F24. Per i dettagli su come funziona l&apos;IVA,
-          chiedi al tuo commercialista.
+          L&apos;Imposta sul Valore Aggiunto è una componente di ogni fattura. L&apos;azienda
+          incassa IVA dai propri clienti sulle fatture attive e paga IVA ai propri fornitori sulle
+          fatture passive: la differenza tra IVA incassata e IVA pagata costituisce il saldo da
+          versare periodicamente tramite F24, oppure il credito da utilizzare a compensazione. Il
+          calcolo dettagliato e la gestione delle liquidazioni sono in capo al commercialista.
         </p>
 
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Se vedi fatture attive scadute da tempo, potrebbe valere la pena sollecitare il
-            pagamento. Ogni fattura non incassata è denaro che manca alla tua cassa. Parlane con il
-            commercialista se non sai come procedere.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Crediti commerciali e cassa">
+          Le fatture attive con scadenza superata rappresentano crediti incagliati che incidono
+          direttamente sulla liquidità aziendale. Il sollecito tempestivo dei pagamenti scaduti è
+          un&apos;azione di gestione che protegge la cassa e mantiene ordinato il rapporto
+          commerciale. Per le procedure di sollecito, il commercialista può fornire il supporto
+          operativo.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>

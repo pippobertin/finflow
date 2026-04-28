@@ -147,7 +147,16 @@ export function HelpCenter({ chapters, basePath, children }: HelpCenterProps) {
         {activeSection ? (
           <>
             {/* Content */}
-            <article className="prose prose-slate dark:prose-invert mx-auto w-full max-w-3xl flex-1 px-8 py-8">
+            <article
+              className={cn(
+                "prose prose-slate dark:prose-invert mx-auto w-full max-w-3xl flex-1 px-8 py-8",
+                // Override prose styles for clearer hierarchy of section titles
+                "prose-h2:mt-12 prose-h2:mb-4 prose-h2:text-2xl prose-h2:font-bold prose-h2:tracking-tight prose-h2:text-slate-900 dark:prose-h2:text-slate-100",
+                "prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-200 dark:prose-h2:border-slate-800",
+                "prose-h3:mt-8 prose-h3:mb-3 prose-h3:text-lg prose-h3:font-semibold prose-h3:text-slate-900 dark:prose-h3:text-slate-100",
+                "prose-p:leading-relaxed prose-li:leading-relaxed",
+              )}
+            >
               <div className="mb-1 flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-indigo-500" />
                 <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">

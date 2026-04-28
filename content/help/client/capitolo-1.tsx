@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { HelpSection } from "../types";
+import { HelpCallout } from "@/components/help/help-callout";
+import { HelpScreenshot } from "@/components/help/help-screenshot";
 
 const CH = 1;
 const CH_TITLE = "Benvenuto";
@@ -156,83 +158,103 @@ export const sections: HelpSection[] = [
     keywords: ["sezioni", "dashboard", "navigazione", "menu", "aree"],
     content: () => (
       <>
-        <p>
-          Nella barra laterale della tua dashboard trovi diverse sezioni. Ognuna ti mostra un
-          aspetto diverso della tua azienda. Ecco un giro veloce per capire cosa trovi in ciascuna.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          Nella barra laterale trovi le pagine della dashboard. Ognuna risponde a una domanda
+          specifica sull&apos;andamento aziendale. Di seguito una panoramica del contenuto di
+          ciascuna.
         </p>
+
+        <HelpScreenshot
+          src="/help/clienti/sezioni-dashboard/01-menu-dashboard.png"
+          alt="Barra laterale della dashboard cliente con tutte le sezioni elencate"
+          caption="Il menu laterale: ogni voce è una pagina della tua dashboard"
+          width={248}
+          height={674}
+        />
 
         <h2>Dashboard</h2>
         <p>
-          La pagina principale. Appena entri in Finflow atterri qui. In alto trovi i numeri chiave
-          (ricavi, EBITDA, utile netto) e sotto una serie di grafici che riassumono l&apos;andamento
-          dell&apos;azienda. È il punto di partenza per avere una visione d&apos;insieme.
+          È la prima pagina che vedi quando entri. In alto i numeri chiave (ricavi, EBITDA, utile
+          netto), sotto i grafici di andamento. Se hai poco tempo, è qui che capisci subito come sta
+          andando.
         </p>
 
         <h2>Andamento ricavi</h2>
         <p>
-          Un grafico che mostra come è andato il tuo fatturato mese per mese (o trimestre per
-          trimestre). Utile per capire se stai crescendo, se sei stabile o se c&apos;è qualche mese
-          più debole.
+          Il fatturato rappresentato mese per mese su un grafico. Risponde alla domanda
+          &quot;l&apos;azienda sta crescendo, è stabile o sta rallentando?&quot; con una vista
+          immediata dei mesi forti e di quelli deboli.
         </p>
 
         <h2>Quanto guadagno</h2>
         <p>
-          Qui vedi quanto ti resta davvero in tasca dopo aver pagato i costi. Non basta fatturare
-          tanto: quello che conta è quanto rimane dopo le spese. Questa sezione te lo mostra in modo
-          chiaro.
+          Distingue il fatturato dal guadagno effettivo: una volta sottratti fornitori, dipendenti,
+          affitto, utenze e tasse, qual è il margine reale che resta. Il numero che orienta le
+          decisioni di gestione.
         </p>
 
         <h2>Dove vanno i soldi</h2>
         <p>
-          Un&apos;analisi dei tuoi costi: materie prime, personale, affitto, utenze e tutto il
-          resto. Grafici e tabelle ti aiutano a capire dove finiscono i soldi che incassi.
+          La composizione delle uscite per voce di costo: materie prime, personale, affitto, tasse e
+          tutte le altre. La pagina di partenza per pianificare interventi di razionalizzazione.
         </p>
 
         <h2>Punto di pareggio</h2>
         <p>
-          Ti dice quanto devi fatturare come minimo per coprire tutti i costi fissi. Sotto quel
-          livello sei in perdita, sopra inizi a guadagnare. Un numero semplice ma molto utile.
-        </p>
-
-        <h2>Situazione patrimoniale</h2>
-        <p>
-          Una fotografia di cosa possiede l&apos;azienda (attività) e cosa deve (debiti). Ti dà
-          un&apos;idea della solidità complessiva.
+          Il fatturato minimo necessario per coprire i costi fissi. Sotto questa soglia
+          l&apos;attività genera perdite; sopra, inizia a produrre utili.
         </p>
 
         <h2>Salute finanziaria</h2>
         <p>
-          Un sistema a semaforo: verde, giallo, rosso. Ogni indicatore ti dice se un aspetto della
-          tua azienda è in buona forma, se richiede attenzione o se c&apos;è un problema da
-          affrontare.
+          Un sistema a semaforo che restituisce, indicatore per indicatore, lo stato aziendale:
+          verde quando il valore è in norma, giallo se richiede attenzione, rosso quando serve
+          intervenire. Lettura sintetica in pochi secondi.
         </p>
 
         <h2>Previsione anno</h2>
         <p>
-          Una stima di come chiuderai l&apos;anno. Il sistema prende i dati reali dei mesi passati e
-          proietta i mesi restanti, dandoti un&apos;idea anticipata del risultato di fine anno.
+          Una proiezione di chiusura d&apos;esercizio basata sui mesi già consuntivati e su ipotesi
+          di andamento per i mesi residui. Permette di anticipare il risultato finale e intervenire
+          per tempo se necessario.
         </p>
 
-        <h2>Cassa, Scadenze, Fatture, Movimenti</h2>
+        <h2>Cassa</h2>
         <p>
-          Sezioni operative: quanto hai in cassa, cosa devi pagare nei prossimi giorni,
-          l&apos;elenco delle fatture emesse e ricevute, e i movimenti del conto corrente. Tutto
-          importato e aggiornato dal tuo commercialista.
+          Saldo corrente dei conti aziendali e proiezione di liquidità nei prossimi 90 giorni, con
+          dettaglio delle scadenze in arrivo (tasse, F24, rate prestiti, fornitori).
+        </p>
+
+        <h2>Scadenze</h2>
+        <p>
+          L&apos;elenco completo dei pagamenti previsti — IVA, F24, rate prestiti, fatture fornitori
+          — ordinati per data, con importo e dettagli per ciascuna voce.
+        </p>
+
+        <h2>Fatture</h2>
+        <p>
+          L&apos;archivio delle fatture emesse (attive) e ricevute (passive), aggiornato dal
+          commercialista tramite il Sistema di Interscambio.
+        </p>
+
+        <h2>Movimenti</h2>
+        <p>
+          Le operazioni dei conti correnti aziendali, importate dagli estratti conto bancari e
+          classificate per tipologia di entrata o uscita.
         </p>
 
         <h2>Glossario e Aiuto</h2>
         <p>
-          Il glossario spiega in modo semplice ogni termine contabile che trovi nella dashboard.
-          L&apos;aiuto (dove sei adesso) contiene guide dettagliate su ogni sezione.
+          Il glossario raccoglie le definizioni dei termini contabili usati nella dashboard (EBITDA,
+          margine di contribuzione, margine netto e così via). L&apos;aiuto, dove ti trovi ora,
+          ospita le guide operative di ogni pagina.
         </p>
 
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Non devi per forza guardare tutte le sezioni ogni volta. Se hai poco tempo, la Dashboard
-            e la sezione Cassa ti danno già un quadro rapido della situazione.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Le pagine prioritarie">
+          Per un controllo rapido bastano due pagine: <strong>Dashboard</strong> per la visione
+          d&apos;insieme e <strong>Cassa</strong> per la situazione di liquidità. Le altre servono
+          per gli approfondimenti e per le riunioni con il commercialista.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>

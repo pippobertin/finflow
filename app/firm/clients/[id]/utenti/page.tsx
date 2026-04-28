@@ -12,6 +12,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Plus,
   UserPlus,
   Copy,
@@ -21,7 +30,9 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  KeyRound,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface UserRow {
   id: string;
@@ -41,6 +52,8 @@ export default function UtentiPage({ params }: { params: Promise<{ id: string }>
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [copiedPw, setCopiedPw] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [resetDialogUser, setResetDialogUser] = useState<UserRow | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -118,6 +131,28 @@ export default function UtentiPage({ params }: { params: Promise<{ id: string }>
       method: "DELETE",
     });
     if (res.ok) fetchUsers();
+  }
+
+  async function handleResetPassword() {
+    if (!resetDialogUser) return;
+    setResetting(true);
+    try {
+      const res = await fetch(
+        `/api/firm/clients/${id}/utenti/${resetDialogUser.id}/reset-password`,
+        { method: "POST" },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Errore durante il reset");
+      } else {
+        toast.success(`Email di reset inviata a ${resetDialogUser.email}`);
+      }
+    } catch {
+      toast.error("Errore di rete");
+    } finally {
+      setResetting(false);
+      setResetDialogUser(null);
+    }
   }
 
   function copyPassword() {
@@ -271,6 +306,14 @@ export default function UtentiPage({ params }: { params: Promise<{ id: string }>
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Reset password"
+                        onClick={() => setResetDialogUser(u)}
+                      >
+                        <KeyRound className="h-4 w-4 text-amber-600" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         title={u.isActive ? "Disattiva" : "Attiva"}
                         onClick={() => toggleActive(u.id, u.isActive)}
                       >
@@ -296,6 +339,32 @@ export default function UtentiPage({ params }: { params: Promise<{ id: string }>
           </table>
         </div>
       )}
+
+      {/* Reset password confirmation dialog */}
+      <Dialog
+        open={!!resetDialogUser}
+        onOpenChange={(open) => {
+          if (!open) setResetDialogUser(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset password</DialogTitle>
+            <DialogDescription>
+              Verrà inviata un&apos;email a <strong>{resetDialogUser?.email}</strong> con un link
+              per reimpostare la password. Il link sarà valido per 1 ora.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetDialogUser(null)}>
+              Annulla
+            </Button>
+            <Button onClick={handleResetPassword} disabled={resetting}>
+              {resetting ? "Invio..." : "Invia email di reset"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

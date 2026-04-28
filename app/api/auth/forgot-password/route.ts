@@ -10,6 +10,49 @@ interface BrandingJson {
 }
 
 /**
+ * Minimal in-memory rate limiting.
+ * Max 3 requests per email per hour.
+ * Not persistent across restarts — acceptable for a single-instance app.
+ */
+const rateLimitMap = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_MAX = 3;
+
+function isRateLimited(email: string): boolean {
+  const now = Date.now();
+  const timestamps = rateLimitMap.get(email) ?? [];
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+
+  if (recent.length >= RATE_LIMIT_MAX) {
+    return true;
+  }
+
+  recent.push(now);
+  rateLimitMap.set(email, recent);
+  return false;
+}
+
+// Periodically clean up stale entries (every 10 minutes)
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [email, timestamps] of rateLimitMap.entries()) {
+      const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+      if (recent.length === 0) {
+        rateLimitMap.delete(email);
+      } else {
+        rateLimitMap.set(email, recent);
+      }
+    }
+  },
+  10 * 60 * 1000,
+).unref?.();
+
+function sha256(input: string): string {
+  return crypto.createHash("sha256").update(input).digest("hex");
+}
+
+/**
  * POST /api/auth/forgot-password
  *
  * Sends a password reset email with a time-limited token.
@@ -20,6 +63,11 @@ export async function POST(request: Request) {
   const email = body.email?.trim()?.toLowerCase();
 
   if (!email) {
+    return Response.json({ ok: true });
+  }
+
+  // Rate limit check (before DB lookup to avoid enumeration via timing)
+  if (isRateLimited(email)) {
     return Response.json({ ok: true });
   }
 
@@ -40,18 +88,25 @@ export async function POST(request: Request) {
 
   // Always return ok (don't leak user existence)
   if (!user || !user.isActive) {
+    console.log(`[forgot-password] no-op forgot password for ${email}`);
     return Response.json({ ok: true });
   }
 
-  // Generate token and store it (expires in 1 hour)
-  const token = crypto.randomBytes(32).toString("hex");
-  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  // Invalidate previous unused tokens for this user
+  await prisma.passwordResetToken.deleteMany({
+    where: { userId: user.id, usedAt: null },
+  });
 
-  await prisma.verificationToken.create({
+  // Generate token: plaintext UUID → SHA-256 hash stored in DB
+  const tokenPlain = crypto.randomUUID();
+  const tokenHash = sha256(tokenPlain);
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await prisma.passwordResetToken.create({
     data: {
-      identifier: user.email,
-      token,
-      expires,
+      userId: user.id,
+      tokenHash,
+      expiresAt,
     },
   });
 
@@ -60,11 +115,11 @@ export async function POST(request: Request) {
   const firmName = branding.displayName || user.organization?.accountingFirm?.name || "FinFlow";
   const firmColor = branding.brandColor || "#0b4d8a";
   const appUrl = process.env.APP_URL || "http://localhost:3000";
-  const resetUrl = `${appUrl}/login/reset-password?token=${token}`;
+  const resetUrl = `${appUrl}/login/reset-password?token=${tokenPlain}`;
 
   await sendEmail({
     to: user.email,
-    subject: `Reset password — ${firmName}`,
+    subject: `Reimposta la tua password — ${firmName}`,
     html: renderPasswordResetEmail({
       branding: { firmName, firmLogo: branding.logoDataUrl, firmColor },
       userName: user.name ?? undefined,

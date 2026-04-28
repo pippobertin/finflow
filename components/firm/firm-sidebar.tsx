@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Palette, FileText, HelpCircle, LogOut } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { LayoutDashboard, Users, Palette, FileText, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { UserProfileDropdown } from "@/components/shared/user-profile-dropdown";
 
 const navItems = [
   { href: "/firm/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -96,17 +95,9 @@ export function FirmSidebar() {
         </Link>
       </div>
 
-      {/* Logout */}
+      {/* Profile */}
       <div className="border-t border-[var(--sidebar-border)] p-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-3 text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-        >
-          <LogOut className="h-4 w-4" />
-          Esci
-        </Button>
+        <UserProfileDropdown />
       </div>
     </aside>
   );

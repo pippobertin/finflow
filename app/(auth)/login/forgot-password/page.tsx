@@ -40,8 +40,8 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="space-y-4 text-center">
               <p className="text-muted-foreground text-sm">
-                Se l&apos;email è associata a un account, riceverai un link per reimpostare la
-                password.
+                Se l&apos;email inserita è registrata, riceverai entro pochi minuti un&apos;email
+                con un link per reimpostare la password. Controlla anche la cartella spam.
               </p>
               <Link href="/login" className="text-primary text-sm font-medium hover:underline">
                 Torna al login

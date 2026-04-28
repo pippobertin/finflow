@@ -7,6 +7,50 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Eye, EyeOff } from "lucide-react";
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="relative">
+        <Input
+          id={id}
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="pr-10"
+          required
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setShow(!show)}
+          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const hasLetter = (s: string) => /[a-zA-Z]/.test(s);
+const hasNumber = (s: string) => /[0-9]/.test(s);
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
@@ -18,15 +62,18 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const pwValid = password.length >= 8 && hasLetter(password) && hasNumber(password);
+  const confirmValid = confirm.length > 0 && confirm === password;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    if (password.length < 6) {
-      setError("La password deve avere almeno 6 caratteri");
+    if (!pwValid) {
+      setError("La password deve avere almeno 8 caratteri, una lettera e un numero");
       return;
     }
-    if (password !== confirm) {
+    if (!confirmValid) {
       setError("Le password non coincidono");
       return;
     }
@@ -36,7 +83,7 @@ export default function ResetPasswordPage() {
     const res = await fetch("/api/auth/reset-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, password }),
+      body: JSON.stringify({ token, newPassword: password }),
     });
 
     const data = await res.json();
@@ -54,15 +101,13 @@ export default function ResetPasswordPage() {
     return (
       <div className="bg-muted/30 flex min-h-screen items-center justify-center px-4">
         <Card className="w-full max-w-sm">
-          <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground text-sm">
-              Link non valido. Richiedi un nuovo reset dalla pagina di login.
-            </p>
+          <CardContent className="space-y-4 pt-6 text-center">
+            <p className="text-muted-foreground text-sm">Link non valido o scaduto.</p>
             <Link
-              href="/login"
-              className="text-primary mt-4 inline-block text-sm font-medium hover:underline"
+              href="/login/forgot-password"
+              className="text-primary inline-block text-sm font-medium hover:underline"
             >
-              Torna al login
+              Richiedi un nuovo link
             </Link>
           </CardContent>
         </Card>
@@ -89,31 +134,35 @@ export default function ResetPasswordPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Nuova password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimo 6 caratteri"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm">Conferma password</Label>
-                <Input
-                  id="confirm"
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  required
-                />
-              </div>
+              <PasswordField
+                id="password"
+                label="Nuova password"
+                value={password}
+                onChange={setPassword}
+                placeholder="Minimo 8 caratteri, una lettera e un numero"
+              />
+              {password.length > 0 && !pwValid && (
+                <p className="text-destructive text-xs">
+                  Almeno 8 caratteri, una lettera e un numero.
+                </p>
+              )}
+              <PasswordField
+                id="confirm"
+                label="Conferma password"
+                value={confirm}
+                onChange={setConfirm}
+              />
+              {confirm.length > 0 && !confirmValid && (
+                <p className="text-destructive text-xs">Le password non coincidono.</p>
+              )}
 
               {error && <p className="text-destructive text-sm">{error}</p>}
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading || !pwValid || !confirmValid}
+              >
                 {loading ? "Salvataggio..." : "Salva password"}
               </Button>
             </form>

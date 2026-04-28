@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { HelpSection } from "../types";
+import { HelpCallout } from "@/components/help/help-callout";
+import { HelpScreenshot } from "@/components/help/help-screenshot";
 
 const CH = 4;
 const CH_TITLE = "Operatività quotidiana";
@@ -14,65 +16,71 @@ export const sections: HelpSection[] = [
     keywords: ["movimenti", "bancari", "transazioni", "conto", "banca"],
     content: () => (
       <>
-        <p>
-          La pagina Movimenti ti mostra tutte le operazioni del tuo conto corrente: bonifici in
-          entrata, pagamenti in uscita, addebiti automatici e qualsiasi altro movimento registrato
-          dalla banca. È come un estratto conto, ma organizzato in modo più leggibile.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          La pagina Movimenti raccoglie tutte le operazioni dei conti correnti aziendali: bonifici
+          in entrata, pagamenti in uscita, addebiti automatici e ogni altra transazione registrata
+          dalla banca. Funziona come un estratto conto, con un&apos;organizzazione più leggibile e
+          l&apos;aggiunta della categorizzazione per tipologia di costo o ricavo.
         </p>
 
-        <h2>Chi carica i movimenti</h2>
+        <HelpScreenshot
+          src="/help/clienti/movimenti-bancari/01-movimenti-bancari.png"
+          alt="Lista movimenti bancari con data, descrizione, importo e categoria"
+          caption="La lista movimenti: data, descrizione, importo e categoria di ogni operazione"
+          width={1437}
+          height={531}
+        />
+
+        <h2>Origine dei dati</h2>
         <p>
-          I movimenti bancari vengono importati dal tuo commercialista. Lui scarica l&apos;estratto
-          conto dalla banca (o dal gestionale contabile) e lo carica in Finflow. Tu puoi
-          consultarli, ma non puoi modificarli o aggiungerne di nuovi.
+          I movimenti vengono importati periodicamente dal commercialista, a partire dagli estratti
+          conto bancari o dai dati del gestionale contabile. L&apos;accesso del cliente è in sola
+          lettura: la consultazione è libera, ma non è possibile aggiungere o modificare voci.
         </p>
         <p>
-          Se mancano movimenti recenti, è probabile che il commercialista non abbia ancora fatto
-          l&apos;ultimo aggiornamento. I dati non arrivano in tempo reale dalla banca: vengono
-          caricati periodicamente.
+          Eventuali movimenti recenti non ancora visibili indicano semplicemente che l&apos;ultimo
+          caricamento non è stato ancora effettuato. Il flusso non è in tempo reale:
+          l&apos;aggiornamento avviene secondo la cadenza concordata con lo studio.
         </p>
 
-        <h2>Le categorie colorate</h2>
+        <h2>La categorizzazione</h2>
         <p>
-          Ogni movimento ha una categoria assegnata, indicata da un&apos;etichetta colorata. Le
-          categorie raggruppano i movimenti per tipo: ricavi da vendite, costi del personale,
-          utenze, acquisti di materie prime e così via.
+          Ogni movimento è associato a una categoria, identificata da un&apos;etichetta colorata. Le
+          categorie raggruppano le operazioni per natura: ricavi da vendite, costi del personale,
+          utenze, materie prime e così via.
         </p>
         <p>
-          La categorizzazione la gestisce il tuo commercialista. Alcuni movimenti vengono
-          categorizzati automaticamente dal sistema (ad esempio gli stipendi ricorrenti), altri
-          vengono classificati manualmente.
-        </p>
-        <p>
-          Le categorie sono utili perché ti permettono di capire a colpo d&apos;occhio dove vanno i
-          soldi senza dover leggere ogni singola descrizione.
+          La gestione della categorizzazione è in capo al commercialista, sia nella sua parte
+          automatica (riconoscimento di pattern ricorrenti come stipendi o utenze) sia nelle
+          attribuzioni manuali sulle voci atipiche. La presenza delle categorie consente una lettura
+          immediata della distribuzione delle entrate e delle uscite, senza la necessità di
+          analizzare ogni singola descrizione.
         </p>
 
-        <h2>Cosa trovi in ogni riga</h2>
-        <p>Per ogni movimento vedi:</p>
+        <h2>Le colonne della tabella</h2>
         <ul>
           <li>
-            <strong>Data</strong> — quando è avvenuta l&apos;operazione
+            <strong>Data</strong>: data contabile dell&apos;operazione.
           </li>
           <li>
-            <strong>Descrizione</strong> — il testo del movimento bancario (causale)
+            <strong>Descrizione</strong>: causale del movimento, riportata come da estratto conto
+            bancario.
           </li>
           <li>
-            <strong>Importo</strong> — positivo se sono soldi in entrata, negativo se in uscita
+            <strong>Importo</strong>: positivo per le entrate, negativo per le uscite.
           </li>
           <li>
-            <strong>Categoria</strong> — il tipo di costo o ricavo a cui appartiene
+            <strong>Categoria</strong>: la classificazione gestionale assegnata al movimento.
           </li>
         </ul>
 
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Se noti un movimento che non riconosci o che ti sembra classificato nel modo sbagliato,
-            segnalalo al tuo commercialista. Lui può correggerlo e assicurarsi che i report siano
-            accurati.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Quando segnalare un'anomalia">
+          La revisione periodica dei movimenti è un controllo utile. In presenza di operazioni non
+          riconosciute, di importi anomali o di categorizzazioni che non corrispondono alla natura
+          della spesa, è opportuno segnalarle al commercialista, che provvederà alla correzione. Una
+          categorizzazione accurata si riflette direttamente sulla qualità dei report e degli
+          indicatori.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -100,48 +108,45 @@ export const sections: HelpSection[] = [
     keywords: ["password", "cambiare", "sicurezza", "profilo", "accesso"],
     content: () => (
       <>
-        <p>
-          Puoi cambiare la tua password in qualsiasi momento dal tuo profilo. Ecco come fare, passo
-          per passo.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          La modifica della password si effettua dalla pagina del proprio profilo, accessibile dal
+          menu utente in alto a destra.
         </p>
 
-        <h2>Come cambiare la password</h2>
+        <h2>Procedura</h2>
         <p>
-          Clicca sulla tua icona profilo (o sulle tue iniziali) in alto a destra nella barra
-          dell&apos;applicazione. Si apre un menu: seleziona la voce che porta al tuo profilo o alle
-          impostazioni dell&apos;account. Da lì trovi il campo per cambiare la password.
-        </p>
-        <p>
-          Ti verrà chiesto di inserire la password attuale e poi di scegliere una nuova password.
-          Conferma la nuova password scrivendola due volte e salva.
+          Cliccando sull&apos;icona o sulle iniziali del profilo nell&apos;intestazione si apre il
+          menu utente. La voce dedicata al profilo o alle impostazioni dell&apos;account contiene il
+          campo di cambio password. È richiesta l&apos;immissione della password attuale, seguita
+          dalla nuova password digitata due volte per conferma.
         </p>
 
-        <h2>Requisiti della password</h2>
-        <p>La password deve avere:</p>
+        <h2>Requisiti</h2>
+        <p>La nuova password deve rispettare i seguenti requisiti minimi:</p>
         <ul>
-          <li>Almeno 8 caratteri</li>
-          <li>Una combinazione di lettere e numeri</li>
+          <li>almeno 8 caratteri di lunghezza;</li>
+          <li>combinazione di lettere e numeri.</li>
         </ul>
         <p>
-          Evita password troppo semplici come &quot;12345678&quot; o &quot;password&quot;. Scegli
-          qualcosa che sia facile da ricordare per te ma difficile da indovinare per gli altri.
+          Sono da evitare sequenze elementari (es. <code>12345678</code>) o parole comuni
+          riconducibili al contesto aziendale. Una password di lunghezza maggiore, anche se
+          interamente alfabetica ma non riconducibile a frasi note, offre già un livello di
+          sicurezza adeguato per un&apos;area gestionale.
         </p>
 
         <h2>Password dimenticata</h2>
         <p>
-          Se hai dimenticato la password e non riesci ad accedere, contatta il tuo commercialista.
-          Lui può resettare l&apos;accesso e inviarti un nuovo link per impostare una nuova
-          password. Non esiste al momento un sistema automatico di recupero password: il riferimento
-          è sempre il tuo commercialista.
+          In caso di password dimenticata e impossibilità di accesso, il riferimento è il
+          commercialista, che può procedere al reset dell&apos;account e all&apos;invio di un nuovo
+          link per la creazione della password. Non è al momento disponibile un sistema automatico
+          di recupero.
         </p>
 
-        <div className="not-prose rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4 dark:border-amber-600 dark:bg-amber-950/30">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Attenzione</p>
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-            Non condividere la tua password con nessuno, nemmeno con il commercialista. Lui ha il
-            suo accesso separato e non ha bisogno della tua password per gestire i tuoi dati.
-          </p>
-        </div>
+        <HelpCallout variant="warning" title="Riservatezza delle credenziali">
+          Le credenziali di accesso non vanno condivise con terzi, incluso il commercialista, che
+          dispone di un proprio accesso separato e non ha necessità della password del cliente per
+          gestire i dati aziendali.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>
@@ -166,46 +171,51 @@ export const sections: HelpSection[] = [
     keywords: ["contattare", "commercialista", "supporto", "domande", "aiuto"],
     content: () => (
       <>
-        <p>
-          Finflow ti mostra i dati della tua azienda, ma la gestione dei dati è tutta in mano al tuo
-          commercialista. Se qualcosa non torna, se hai domande su un numero o se hai bisogno di un
-          chiarimento, il tuo riferimento è sempre lui.
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          Finflow rappresenta i dati aziendali; la loro gestione resta interamente in capo al
+          commercialista. Per qualunque richiesta di chiarimento, segnalazione di anomalia o
+          discussione dei risultati, il riferimento operativo è il professionista che cura la
+          contabilità dell&apos;azienda.
         </p>
 
-        <h2>Quando contattare il commercialista</h2>
-        <p>Ecco alcune situazioni in cui è il caso di sentirlo:</p>
+        <h2>Quando rivolgersi al commercialista</h2>
+        <p>Le situazioni più frequenti che giustificano un contatto:</p>
         <ul>
-          <li>Vedi un numero che ti sembra sbagliato o diverso da quello che ti aspettavi</li>
-          <li>Mancano dati recenti (ad esempio i movimenti dell&apos;ultimo mese non compaiono)</li>
-          <li>Un movimento bancario è categorizzato in modo sbagliato</li>
-          <li>Vuoi capire meglio cosa significa un indicatore o un grafico</li>
-          <li>Hai dimenticato la password e non riesci ad accedere</li>
-          <li>Vuoi discutere i risultati e capire cosa fare per migliorare la situazione</li>
+          <li>un dato visualizzato non coincide con le aspettative o appare incongruente;</li>
+          <li>
+            i dati recenti non risultano aggiornati (ad esempio mancano i movimenti dell&apos;ultimo
+            mese);
+          </li>
+          <li>un movimento bancario risulta categorizzato in modo non corretto;</li>
+          <li>è necessario un chiarimento sul significato di un indicatore o di un grafico;</li>
+          <li>occorre il reset della password per impossibilità di accesso;</li>
+          <li>
+            si vuole impostare un confronto sui risultati e sulle azioni di miglioramento possibili.
+          </li>
         </ul>
 
-        <h2>Tu non puoi modificare i dati</h2>
+        <h2>Sola lettura per il cliente</h2>
         <p>
-          Il tuo accesso a Finflow è in sola lettura. Non puoi aggiungere, modificare o cancellare
-          nessun dato. Questa scelta è voluta: garantisce che i numeri che vedi siano sempre
-          coerenti con la contabilità ufficiale gestita dal professionista. Se qualcosa va cambiato,
-          è il commercialista a farlo.
+          L&apos;accesso del cliente alla piattaforma è in modalità di sola lettura: non è
+          consentito aggiungere, modificare o eliminare dati. La scelta è voluta e garantisce la
+          coerenza tra i valori esposti in dashboard e la contabilità ufficiale gestita dallo
+          studio. Ogni intervento sui dati passa dal commercialista.
         </p>
 
-        <h2>Come raggiungerlo</h2>
+        <h2>Modalità di contatto</h2>
         <p>
-          Contatta il tuo commercialista con i canali che usate abitualmente: telefono, email,
-          WhatsApp o quello che preferite. Quando gli segnali qualcosa, cerca di essere specifico:
-          digli quale pagina stavi guardando, quale numero ti sembra strano e in quale periodo. Così
-          potrà verificare più velocemente.
+          Il contatto avviene attraverso i canali abitualmente concordati con lo studio (telefono,
+          email, messaggistica). Per agevolare la verifica è utile fornire al commercialista
+          riferimenti precisi: la pagina consultata, il valore segnalato e il periodo di
+          riferimento.
         </p>
 
-        <div className="not-prose rounded-lg border-l-4 border-indigo-400 bg-indigo-50 p-4 dark:border-indigo-600 dark:bg-indigo-950/30">
-          <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Suggerimento</p>
-          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
-            Quando segnali qualcosa al commercialista, fai uno screenshot della pagina.
-            Un&apos;immagine vale più di mille parole e gli farà capire subito cosa stai vedendo.
-          </p>
-        </div>
+        <HelpCallout variant="tip" title="Allegare lo screenshot">
+          Allegare uno screenshot della pagina o del dato segnalato accelera notevolmente la
+          verifica da parte del commercialista. Su macOS la cattura si effettua con la combinazione{" "}
+          <code>Cmd+Shift+4</code>; il file viene salvato sulla scrivania ed è pronto per essere
+          inviato.
+        </HelpCallout>
 
         <h3>Link correlati</h3>
         <ul>

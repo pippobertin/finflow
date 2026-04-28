@@ -12,16 +12,14 @@ import {
   FolderKanban,
   Upload,
   SlidersHorizontal,
-  LogOut,
   TableProperties,
   TrendingUp,
   Monitor,
   Terminal,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { useThemeStore } from "@/lib/stores/theme-store";
+import { UserProfileDropdown } from "@/components/shared/user-profile-dropdown";
 
 interface NavItem {
   href: string;
@@ -150,17 +148,9 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Logout */}
+      {/* Profile */}
       <div className="border-t border-[var(--sidebar-border)] p-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-3 text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-        >
-          <LogOut className="h-4 w-4" />
-          Esci
-        </Button>
+        <UserProfileDropdown />
       </div>
     </aside>
   );

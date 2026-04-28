@@ -1,35 +1,53 @@
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
+import crypto from "crypto";
+import { z } from "zod";
+
+const bodySchema = z.object({
+  token: z.string().min(1),
+  newPassword: z
+    .string()
+    .min(8, "Minimo 8 caratteri")
+    .regex(/[a-zA-Z]/, "Deve contenere almeno una lettera")
+    .regex(/[0-9]/, "Deve contenere almeno un numero"),
+});
+
+function sha256(input: string): string {
+  return crypto.createHash("sha256").update(input).digest("hex");
+}
 
 /**
  * POST /api/auth/reset-password
  *
- * Validates the reset token, updates the user's password, and deletes the token.
- * Body: { token, password }
+ * Validates the reset token (SHA-256), updates the user's password,
+ * and marks the token as used.
  */
 export async function POST(request: Request) {
   const body = await request.json();
-  const { token, password } = body;
+  const parsed = bodySchema.safeParse(body);
 
-  if (!token || !password || password.length < 6) {
+  if (!parsed.success) {
     return Response.json(
-      { error: "Token e password (min 6 caratteri) obbligatori" },
+      { error: "Token e password (min 8 caratteri, una lettera e un numero) obbligatori" },
       { status: 400 },
     );
   }
 
+  const { token, newPassword } = parsed.data;
+  const tokenHash = sha256(token);
+
   // Find valid token
-  const record = await prisma.verificationToken.findUnique({
-    where: { token },
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
   });
 
-  if (!record || record.expires < new Date()) {
+  if (!record || record.usedAt || record.expiresAt < new Date()) {
     return Response.json({ error: "Token non valido o scaduto" }, { status: 400 });
   }
 
-  // Find user by identifier (email)
+  // Find user
   const user = await prisma.user.findUnique({
-    where: { email: record.identifier },
+    where: { id: record.userId },
     select: { id: true, isActive: true },
   });
 
@@ -38,15 +56,16 @@ export async function POST(request: Request) {
   }
 
   // Update password
-  const passwordHash = await hash(password, 12);
+  const passwordHash = await hash(newPassword, 12);
   await prisma.user.update({
     where: { id: user.id },
     data: { passwordHash },
   });
 
-  // Delete used token
-  await prisma.verificationToken.delete({
-    where: { identifier_token: { identifier: record.identifier, token } },
+  // Mark token as used
+  await prisma.passwordResetToken.update({
+    where: { id: record.id },
+    data: { usedAt: new Date() },
   });
 
   return Response.json({ ok: true });

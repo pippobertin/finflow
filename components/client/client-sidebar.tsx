@@ -16,11 +16,9 @@ import {
   CalendarClock,
   FileText,
   ArrowDownUp,
-  LogOut,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { UserProfileDropdown } from "@/components/shared/user-profile-dropdown";
 
 const navSections = [
   {
@@ -149,17 +147,9 @@ export function ClientSidebar({ firmName, firmLogoUrl, userType }: ClientSidebar
         })}
       </nav>
 
-      {/* Logout */}
+      {/* Profile */}
       <div className="border-t border-slate-200 p-3 dark:border-slate-800">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-3 text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-        >
-          <LogOut className="h-4 w-4" />
-          Esci
-        </Button>
+        <UserProfileDropdown />
       </div>
     </aside>
   );
