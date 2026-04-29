@@ -5,7 +5,7 @@ import { HelpScreenshot } from "@/components/help/help-screenshot";
 import { HelpSteps, HelpStep } from "@/components/help/help-steps";
 
 const CH = 5;
-const CH_TITLE = "IVA, F24, prestiti";
+const CH_TITLE = "IVA, F24, prestiti e fatture";
 
 export const sections: HelpSection[] = [
   {
@@ -594,6 +594,114 @@ export const sections: HelpSection[] = [
           </li>
           <li>
             <Link href="/firm/aiuto/calendario-iva">Leggere il calendario IVA</Link>
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    slug: "caricare-fatture-excel",
+    title: "Caricare fatture da Excel",
+    chapter: CH,
+    chapterTitle: CH_TITLE,
+    section: 6,
+    keywords: ["fatture", "excel", "import", "caricamento", "xlsx", "gestionale"],
+    content: () => (
+      <>
+        <p className="lead text-lg text-slate-600 dark:text-slate-400">
+          L&apos;import Excel consente di caricare in massa le fatture attive e passive del cliente,
+          esportate dal gestionale fiscale (Profis, ProOffice, Fatture in Cloud o qualsiasi software
+          che generi un file Excel con le colonne standard).
+        </p>
+
+        <h2>Come importare le fatture in tre passi</h2>
+
+        <HelpSteps>
+          <HelpStep number={1} title="Esporta dal gestionale">
+            <p>
+              Dal tuo software contabile, esporta l&apos;elenco fatture del periodo come file{" "}
+              <strong>.xlsx</strong> (Excel). Il file deve avere una riga di intestazione con almeno
+              le colonne <strong>Numero</strong>, <strong>Data</strong> e{" "}
+              <strong>Imponibile</strong>. Le colonne opzionali (<em>Scadenza</em>,{" "}
+              <em>Direzione</em>, <em>IVA</em>, <em>Note</em>, <em>Stato</em>) arricchiscono
+              l&apos;import. Se il tuo gestionale usa nomi diversi, puoi scaricare il template di
+              Finflow e ricopiare i dati.
+            </p>
+          </HelpStep>
+
+          <HelpStep number={2} title="Carica in Finflow">
+            <p>
+              Dal dettaglio del cliente, seleziona la scheda <strong>Fatture</strong>. Clicca{" "}
+              <strong>Carica fatture da Excel</strong> in alto a destra. Trascina il file
+              nell&apos;area di upload oppure clicca per selezionarlo. Finflow mostra subito
+              un&apos;anteprima delle prime 10 righe e il conteggio totale: verifica che i dati
+              siano corretti prima di procedere.
+            </p>
+          </HelpStep>
+
+          <HelpStep number={3} title="Verifica e conferma">
+            <p>
+              Clicca <strong>Conferma e importa</strong>. Finflow processa tutte le righe e
+              restituisce un riepilogo: fatture importate, duplicati ignorati, eventuali errori (con
+              il numero di riga del file e il motivo). Le fatture importate sono immediatamente
+              visibili nella tabella e accessibili anche dal workspace del cliente.
+            </p>
+          </HelpStep>
+        </HelpSteps>
+
+        <h2>Le 8 colonne del template</h2>
+        <p>Il template scaricabile dalla pagina Fatture contiene queste colonne:</p>
+        <ul>
+          <li>
+            <strong>Numero</strong> (obbligatorio): il numero univoco della fattura (es.
+            FA-2025-0001).
+          </li>
+          <li>
+            <strong>Data</strong> (obbligatorio): la data di emissione, in formato gg/mm/aaaa oppure
+            aaaa-mm-gg.
+          </li>
+          <li>
+            <strong>Scadenza</strong>: la data di scadenza del pagamento.
+          </li>
+          <li>
+            <strong>Direzione</strong>: &quot;Attiva&quot; (fattura emessa al cliente) o
+            &quot;Passiva&quot; (fattura ricevuta dal fornitore). Se la colonna manca, tutte le
+            righe vengono importate come attive.
+          </li>
+          <li>
+            <strong>Imponibile</strong> (obbligatorio): l&apos;importo netto, senza IVA.
+          </li>
+          <li>
+            <strong>IVA</strong>: l&apos;importo dell&apos;IVA. Se assente, viene impostato a zero.
+          </li>
+          <li>
+            <strong>Note</strong>: testo libero per descrizione o controparte.
+          </li>
+          <li>
+            <strong>Stato</strong>: &quot;Pagata&quot; o vuoto (default: in attesa di pagamento).
+          </li>
+        </ul>
+
+        <HelpCallout variant="info" title="Logica di deduplicazione">
+          Finflow riconosce automaticamente i duplicati confrontando numero fattura, data e
+          direzione. Se una fattura con la stessa combinazione è già presente nel sistema, viene
+          ignorata. Questo ti permette di ricaricare tranquillamente lo stesso file (o un file che
+          include anche fatture già importate) senza generare doppioni.
+        </HelpCallout>
+
+        <HelpCallout variant="tip" title="Quando rifare l'import">
+          La prassi consigliata è importare le fatture dopo ogni chiusura mensile o trimestrale,
+          quando il gestionale contabile è allineato. Esporta l&apos;intero periodo (anche le
+          fatture già caricate): la dedup scarta i doppioni e importa solo le nuove.
+        </HelpCallout>
+
+        <h3>Link correlati</h3>
+        <ul>
+          <li>
+            <Link href="/firm/aiuto/scadenziario">Lo scadenziario unificato</Link>
+          </li>
+          <li>
+            <Link href="/firm/aiuto/caricare-bilancio">Caricare il bilancio di verifica</Link>
           </li>
         </ul>
       </>

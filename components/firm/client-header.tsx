@@ -54,6 +54,7 @@ const TAB_GROUPS: TabGroup[] = [
   {
     label: "Operativo",
     tabs: [
+      { href: "fatture", label: "Fatture", icon: Receipt },
       { href: "movimenti", label: "Movimenti", icon: ArrowUpDown },
       { href: "movimenti/patterns", label: "Pattern", icon: Sparkles },
       { href: "f24", label: "F24", icon: Landmark },
@@ -77,6 +78,7 @@ const TAB_HELP_SLUG: Record<string, string> = {
   bilanci: "caricare-bilancio",
   budget: "budget-excel",
   iva: "ricalcolo-iva",
+  fatture: "caricare-fatture-excel",
   movimenti: "caricare-csv",
   "movimenti/patterns": "pattern-riconoscimento",
   f24: "scadenze-f24",

@@ -13,7 +13,7 @@ export const chapters: HelpChapter[] = [
   { number: 2, title: "Gestione studio e clienti", sections: ch2 },
   { number: 3, title: "Bilanci e piano dei conti", sections: ch3 },
   { number: 4, title: "Budget e preconsuntivo", sections: ch4 },
-  { number: 5, title: "IVA, F24, prestiti", sections: ch5 },
+  { number: 5, title: "IVA, F24, prestiti e fatture", sections: ch5 },
   { number: 6, title: "Estratti conto e movimenti", sections: ch6 },
   { number: 7, title: "Report e comunicazione con il cliente", sections: ch7 },
   { number: 8, title: "Troubleshooting e FAQ", sections: ch8 },

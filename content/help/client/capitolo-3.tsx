@@ -231,9 +231,15 @@ export const sections: HelpSection[] = [
 
         <h2>Da dove arrivano le fatture</h2>
         <p>
-          Le fatture passate e correnti — quelle realmente emesse e ricevute — vengono caricate dal
-          commercialista, che le importa periodicamente dal proprio gestionale fiscale. Tu come
-          imprenditore puoi aggiungere fatture previste con data futura, per anticipare la
+          Le fatture passate e correnti — quelle realmente emesse e ricevute — vengono importate dal
+          commercialista tramite un caricamento Excel massivo: il commercialista esporta le fatture
+          dal proprio gestionale contabile (Profis, ProOffice, Fatture in Cloud o altro software) e
+          le carica in Finflow periodicamente, in genere dopo ogni chiusura mensile o trimestrale.
+          Questo è il canale principale di alimentazione dei dati fattura. In futuro sarà
+          disponibile anche l&apos;importazione diretta dal Sistema di Interscambio (SDI).
+        </p>
+        <p>
+          Tu come imprenditore puoi aggiungere fatture previste con data futura, per anticipare la
           pianificazione finanziaria: una fattura attiva da emettere a giugno, una passiva attesa da
           un fornitore, eventi che sai si verificheranno.
         </p>
