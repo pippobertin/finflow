@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ function PasswordField({
 const hasLetter = (s: string) => /[a-zA-Z]/.test(s);
 const hasNumber = (s: string) => /[0-9]/.test(s);
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
@@ -170,5 +170,23 @@ export default function ResetPasswordPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-muted/30 flex min-h-screen items-center justify-center px-4">
+          <Card className="w-full max-w-sm">
+            <CardContent className="pt-6 text-center">
+              <p className="text-muted-foreground text-sm">Caricamento...</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
