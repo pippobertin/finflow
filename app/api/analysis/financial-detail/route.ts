@@ -354,7 +354,10 @@ export async function GET(request: NextRequest) {
         status: inv.status,
       });
     }
-    return matching.reduce((sum, inv) => sum + Number(inv.grossAmount), 0);
+    return matching.reduce(
+      (sum: number, inv: (typeof matching)[number]) => sum + Number(inv.grossAmount),
+      0,
+    );
   });
 
   // ── Cost (PASSIVE invoices) ──
@@ -375,7 +378,10 @@ export async function GET(request: NextRequest) {
         status: inv.status,
       });
     }
-    return matching.reduce((sum, inv) => sum + Number(inv.grossAmount), 0);
+    return matching.reduce(
+      (sum: number, inv: (typeof matching)[number]) => sum + Number(inv.grossAmount),
+      0,
+    );
   });
 
   // ── Recurring expenses (with cost center grouping) ──
@@ -433,7 +439,10 @@ export async function GET(request: NextRequest) {
         status: exp.isPaid ? "PAID" : "PENDING",
       });
     }
-    return matching.reduce((sum, exp) => sum + Number(exp.amount), 0);
+    return matching.reduce(
+      (sum: number, exp: (typeof matching)[number]) => sum + Number(exp.amount),
+      0,
+    );
   });
 
   // ── Expected payables ──
@@ -503,7 +512,7 @@ export async function GET(request: NextRequest) {
         date: format(c.period.dueDate, "yyyy-MM-dd"),
       });
     }
-    return matching.reduce((sum, c) => sum + c.amountDue, 0);
+    return matching.reduce((sum: number, c: (typeof matching)[number]) => sum + c.amountDue, 0);
   });
 
   // ── Compute totals ──
@@ -524,7 +533,10 @@ export async function GET(request: NextRequest) {
     const matching = (futureReceivables ?? []).filter(
       (fr) => fr.expectedPaymentDate && new Date(fr.expectedPaymentDate).getMonth() === m,
     );
-    return matching.reduce((sum, fr) => sum + Number(fr.estimatedAmount), 0);
+    return matching.reduce(
+      (sum: number, fr: (typeof matching)[number]) => sum + Number(fr.estimatedAmount),
+      0,
+    );
   });
   const frEffective = frMonths.map((v, m) => (monthDataSource[m] === "projection" ? v : 0));
   const effectiveInflowWithFr = effectiveInflowMonths.map((v, m) => v + frEffective[m]);
@@ -566,7 +578,7 @@ export async function GET(request: NextRequest) {
     name: revenueRowName,
     type: "revenue",
     months: revenueMonths,
-    total: revenueMonths.reduce((a, b) => a + b, 0),
+    total: revenueMonths.reduce((a: number, b: number) => a + b, 0),
   });
 
   // Future receivables
@@ -591,7 +603,7 @@ export async function GET(request: NextRequest) {
       name: frRowName,
       type: "futureReceivable",
       months: frMonths,
-      total: frMonths.reduce((a, b) => a + b, 0),
+      total: frMonths.reduce((a: number, b: number) => a + b, 0),
     });
   }
 
@@ -599,7 +611,7 @@ export async function GET(request: NextRequest) {
     name: "TOTALE ENTRATE",
     type: "total",
     months: effectiveInflowWithFr,
-    total: effectiveInflowWithFr.reduce((a, b) => a + b, 0),
+    total: effectiveInflowWithFr.reduce((a: number, b: number) => a + b, 0),
   });
 
   rows.push({
@@ -613,14 +625,14 @@ export async function GET(request: NextRequest) {
     name: costInvRowName,
     type: "cost",
     months: costInvMonths,
-    total: costInvMonths.reduce((a, b) => a + b, 0),
+    total: costInvMonths.reduce((a: number, b: number) => a + b, 0),
   });
 
   rows.push({
     name: recurringRowName,
     type: "recurring",
     months: recurringMonths,
-    total: recurringMonths.reduce((a, b) => a + b, 0),
+    total: recurringMonths.reduce((a: number, b: number) => a + b, 0),
   });
 
   if (oneOffMonths.some((v) => v > 0)) {
@@ -628,7 +640,7 @@ export async function GET(request: NextRequest) {
       name: oneOffRowName,
       type: "cost",
       months: oneOffMonths,
-      total: oneOffMonths.reduce((a, b) => a + b, 0),
+      total: oneOffMonths.reduce((a: number, b: number) => a + b, 0),
     });
   }
 
@@ -637,7 +649,7 @@ export async function GET(request: NextRequest) {
       name: epRowName,
       type: "expectedPayable",
       months: epMonths,
-      total: epMonths.reduce((a, b) => a + b, 0),
+      total: epMonths.reduce((a: number, b: number) => a + b, 0),
     });
   }
 
@@ -645,21 +657,21 @@ export async function GET(request: NextRequest) {
     name: vatRowName,
     type: "vat",
     months: vatMonths,
-    total: vatMonths.reduce((a, b) => a + b, 0),
+    total: vatMonths.reduce((a: number, b: number) => a + b, 0),
   });
 
   rows.push({
     name: "TOTALE USCITE",
     type: "total",
     months: effectiveOutflowMonths,
-    total: effectiveOutflowMonths.reduce((a, b) => a + b, 0),
+    total: effectiveOutflowMonths.reduce((a: number, b: number) => a + b, 0),
   });
 
   rows.push({
     name: "SALDO MESE",
     type: "total",
     months: monthlyBalance,
-    total: monthlyBalance.reduce((a, b) => a + b, 0),
+    total: monthlyBalance.reduce((a: number, b: number) => a + b, 0),
   });
 
   rows.push({
