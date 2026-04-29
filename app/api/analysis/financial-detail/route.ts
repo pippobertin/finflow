@@ -340,7 +340,8 @@ export async function GET(request: NextRequest) {
   const revenueRowName = "Fatture attive";
   const revenueMonths = Array.from({ length: 12 }, (_, m) => {
     const matching = invoices.filter(
-      (inv) => inv.direction === "ACTIVE" && getInvoiceCashMonth(inv) === m,
+      (inv: (typeof invoices)[number]) =>
+        inv.direction === "ACTIVE" && getInvoiceCashMonth(inv) === m,
     );
     for (const inv of matching) {
       const cashDate = getInvoiceCashDate(inv);
@@ -360,7 +361,8 @@ export async function GET(request: NextRequest) {
   const costInvRowName = "Fatture passive";
   const costInvMonths = Array.from({ length: 12 }, (_, m) => {
     const matching = invoices.filter(
-      (inv) => inv.direction === "PASSIVE" && getInvoiceCashMonth(inv) === m,
+      (inv: (typeof invoices)[number]) =>
+        inv.direction === "PASSIVE" && getInvoiceCashMonth(inv) === m,
     );
     for (const inv of matching) {
       const cashDate = getInvoiceCashDate(inv);
@@ -477,7 +479,7 @@ export async function GET(request: NextRequest) {
   // ── IVA row ──
   const vatPeriodicity = (settings.vatPeriodicity as VatPeriodicity) ?? "quarterly";
   const vatPeriods = generateVatPeriods(year, vatPeriodicity);
-  const vatInvoices = invoices.map((inv) => ({
+  const vatInvoices = invoices.map((inv: (typeof invoices)[number]) => ({
     direction: inv.direction,
     vatAmount: Number(inv.vatAmount),
     date: new Date(inv.date),
