@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma";
  * - chart data (daily points, max 120 days)
  * - next upcoming cash events
  */
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;

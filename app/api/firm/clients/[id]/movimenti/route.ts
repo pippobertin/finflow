@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
  *
  * List bank statements for a client organization.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

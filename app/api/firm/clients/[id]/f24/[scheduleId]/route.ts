@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
  * Update an F24 schedule entry.
  * Body: { amount?, isPaid?, paidDate?, notes? }
  */
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; scheduleId: string }> },

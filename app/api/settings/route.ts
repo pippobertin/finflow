@@ -2,6 +2,8 @@ import { getAuthSession, getAdminSession } from "@/lib/helpers/auth-guard";
 import { getSettings, updateSettings } from "@/lib/queries/settings";
 import { organizationSettingsSchema } from "@/lib/validations/settings";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

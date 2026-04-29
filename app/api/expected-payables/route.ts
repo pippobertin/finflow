@@ -3,6 +3,8 @@ import { getAuthSession, getAdminSession } from "@/lib/helpers/auth-guard";
 import { listExpectedPayables, createExpectedPayable } from "@/lib/queries/expected-payables";
 import { expectedPayableCreateSchema } from "@/lib/validations/expected-payables";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

@@ -10,6 +10,8 @@ import { adaptV1ToDisplay } from "@/lib/parsers/pdf-parser-v1-adapter";
  * The profileId param is accepted for UI compatibility but the profile's
  * layout patterns are NOT used — V1 handles all Italian banks automatically.
  */
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   const { error } = await getFirmSession();
   if (error) return error;

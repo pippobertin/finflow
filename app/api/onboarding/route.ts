@@ -6,6 +6,8 @@ import { importBankStatements } from "@/lib/connectors/bank-statement-import";
 import type { BankStatementMapping } from "@/lib/validations/bank-statement-import";
 
 // GET: Fetch onboarding state
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

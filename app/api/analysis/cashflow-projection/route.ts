@@ -1,6 +1,8 @@
 import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { buildFullTimeline } from "@/lib/queries/cashflow-projection";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, session, organizationId } = await getAuthSession();
   if (error) return error;

@@ -6,6 +6,8 @@ import { getFirmPreconsuntivo } from "@/lib/queries/budget-variance";
  * GET /api/firm/clients/[id]/budget/preconsuntivo?year=YYYY
  * Returns preconsuntivo (full-year projection) for the given year.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

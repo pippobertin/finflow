@@ -6,6 +6,8 @@ import { getFirmBudget, deleteFirmBudgetYear, getBudgetYears } from "@/lib/queri
  * GET /api/firm/clients/[id]/budget?year=YYYY
  * Returns budget rows for the given year, or list of years with budget data.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

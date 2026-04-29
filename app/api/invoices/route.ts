@@ -3,6 +3,8 @@ import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { listInvoices } from "@/lib/queries/invoices";
 import type { InvoiceDirection, InvoiceStatus } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

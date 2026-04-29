@@ -14,6 +14,8 @@ export interface BrandingData {
  * GET /api/firm/branding
  * Returns the current branding configuration for the firm.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

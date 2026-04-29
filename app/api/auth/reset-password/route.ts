@@ -22,6 +22,8 @@ function sha256(input: string): string {
  * Validates the reset token (SHA-256), updates the user's password,
  * and marks the token as used.
  */
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const body = await request.json();
   const parsed = bodySchema.safeParse(body);

@@ -2,6 +2,8 @@ import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { importCsv } from "@/lib/connectors/csv-import";
 import { csvImportSchema } from "@/lib/validations/import";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const { error, session, organizationId } = await getAuthSession();
   if (error) return error;

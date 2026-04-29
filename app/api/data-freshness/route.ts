@@ -3,6 +3,8 @@ import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { analyzeDataFreshness, getLinkedEcs } from "@/lib/analysis/data-freshness";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

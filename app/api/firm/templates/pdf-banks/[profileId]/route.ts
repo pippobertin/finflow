@@ -3,6 +3,8 @@ import { getFirmSession } from "@/lib/helpers/auth-guard";
 import { updatePdfBankProfile, deletePdfBankProfile } from "@/lib/queries/pdf-bank-profiles";
 import { pdfBankProfileUpdateSchema } from "@/lib/validations/pdf-bank-profile";
 
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ profileId: string }> },

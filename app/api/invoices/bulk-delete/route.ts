@@ -3,6 +3,8 @@ import { getAdminSession } from "@/lib/helpers/auth-guard";
 import { bulkDeleteInvoices } from "@/lib/queries/invoices";
 import { invoiceBulkDeleteSchema } from "@/lib/validations/invoices";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   const { error, organizationId } = await getAdminSession();
   if (error) return error;

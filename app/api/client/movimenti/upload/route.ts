@@ -8,6 +8,8 @@ import { bankStatementImportSchema } from "@/lib/validations/bank-statement-impo
  * Upload bank statement file (CSV or PDF) for the client organization.
  * Same logic as /api/import/bank-statement but scoped to client auth.
  */
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const { error, organizationId } = await getClientSession();
   if (error) return error;

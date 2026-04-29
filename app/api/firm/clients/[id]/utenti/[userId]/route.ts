@@ -9,6 +9,8 @@ type RouteParams = { params: Promise<{ id: string; userId: string }> };
  *
  * Update user: change userType or isActive.
  */
+export const dynamic = "force-dynamic";
+
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

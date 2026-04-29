@@ -7,6 +7,8 @@ import { updateMovementPattern, deleteMovementPattern } from "@/lib/queries/move
  * PATCH /api/firm/clients/[id]/movimenti/patterns/[patternId]
  * Update a movement pattern.
  */
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; patternId: string }> },

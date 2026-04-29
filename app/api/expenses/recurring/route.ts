@@ -3,6 +3,8 @@ import { getAuthSession, getAdminSession } from "@/lib/helpers/auth-guard";
 import { listRecurringExpenses, createRecurringExpense } from "@/lib/queries/expenses";
 import { recurringExpenseCreateSchema } from "@/lib/validations/expenses";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

@@ -4,6 +4,8 @@ import { listCostCenters, createCostCenter } from "@/lib/queries/cost-centers";
 import { costCenterCreateSchema } from "@/lib/validations/cost-center";
 import type { CostCenterType } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

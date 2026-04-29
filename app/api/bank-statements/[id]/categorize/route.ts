@@ -12,6 +12,8 @@ type Params = { params: Promise<{ id: string }> };
  * PATCH /api/bank-statements/[id]/categorize
  * Assign a CDG category to a bank statement and compute the VAT split.
  */
+export const dynamic = "force-dynamic";
+
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { error, organizationId } = await getAdminSession();
   if (error) return error;

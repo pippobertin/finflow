@@ -6,6 +6,8 @@ import { getFirmVariance } from "@/lib/queries/budget-variance";
  * GET /api/firm/clients/[id]/budget/varianze?year=YYYY&upToMonth=M
  * Returns budget vs actual variance for the given year.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

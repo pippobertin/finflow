@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { listBankStatements } from "@/lib/queries/bank-statements";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

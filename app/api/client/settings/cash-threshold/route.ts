@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma";
  * - threshold === 0: disable threshold (no reference line shown)
  * - threshold === null: reset to default (5000)
  */
+export const dynamic = "force-dynamic";
+
 export async function PATCH(request: NextRequest) {
   const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;

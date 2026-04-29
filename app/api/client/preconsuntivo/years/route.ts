@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
  * Returns years that have budget and/or trusted snapshot data,
  * plus the current year as fallback.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;

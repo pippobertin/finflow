@@ -6,6 +6,8 @@ import { getVatSnapshots } from "@/lib/queries/vat-snapshots";
  * GET /api/client/iva?year=YYYY
  * Returns VAT snapshots for the logged-in client's organization (readonly).
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;

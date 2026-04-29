@@ -16,6 +16,8 @@ interface BrandingPayload {
  * POST /api/firm/onboarding
  * Handles wizard steps: "branding" and "complete".
  */
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

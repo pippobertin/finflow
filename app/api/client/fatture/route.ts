@@ -25,6 +25,8 @@ const patchSchema = z.object({
  * List invoices for the client organization.
  * Supports filtering by direction, status, search, date range, pagination.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getClientSession();
   if (error) return error;

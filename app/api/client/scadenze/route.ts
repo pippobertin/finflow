@@ -8,6 +8,8 @@ import { fetchScadenze } from "@/lib/queries/scadenze";
  * Returns a unified payment schedule for the client.
  * Query params: days=N (default 90, max 365)
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;

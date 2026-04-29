@@ -58,6 +58,8 @@ function sha256(input: string): string {
  * Sends a password reset email with a time-limited token.
  * Always returns { ok: true } to avoid leaking user existence.
  */
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const body = await request.json();
   const email = body.email?.trim()?.toLowerCase();

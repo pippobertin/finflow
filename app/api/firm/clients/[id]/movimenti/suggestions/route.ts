@@ -8,6 +8,8 @@ import { detectUncategorizedGroups } from "@/lib/analysis/recurring-detector";
  * Get uncategorized movements grouped by similar description,
  * with suggested CDG category and confidence.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

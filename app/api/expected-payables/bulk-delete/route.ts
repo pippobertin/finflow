@@ -3,6 +3,8 @@ import { getAdminSession } from "@/lib/helpers/auth-guard";
 import { bulkDeleteExpectedPayables } from "@/lib/queries/expected-payables";
 import { expectedPayableBulkDeleteSchema } from "@/lib/validations/expected-payables";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   const { error, organizationId } = await getAdminSession();
   if (error) return error;

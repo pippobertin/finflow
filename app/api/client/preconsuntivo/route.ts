@@ -7,6 +7,8 @@ import { getPreconsuntivo } from "@/lib/queries/budget-variance";
  * Returns preconsuntivo for the logged-in client's organization.
  * Uses trustedOnly=true so only validated data is shown.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;

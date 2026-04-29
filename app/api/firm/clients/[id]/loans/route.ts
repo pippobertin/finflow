@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
  * GET /api/firm/clients/[id]/loans
  * List loan schedules for an organization.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

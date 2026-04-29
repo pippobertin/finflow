@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
  * GET /api/firm/clients/[id]/f24
  * List F24 schedules for an organization, optionally filtered by year.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

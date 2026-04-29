@@ -22,6 +22,8 @@ function sha256(input: string): string {
  * Generates a token and sends the reset email to the user.
  * No rate limiting (controller action).
  */
+export const dynamic = "force-dynamic";
+
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; userId: string }> },

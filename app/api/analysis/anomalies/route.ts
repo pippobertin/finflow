@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { detectAnomalies } from "@/lib/analysis/forecasting-engine";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, session, organizationId } = await getAuthSession();
   if (error) return error;

@@ -33,6 +33,8 @@ interface CellDetail {
   isReconciled?: boolean;
 }
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, session, organizationId } = await getAuthSession();
   if (error) return error;

@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { toggleVatPaid } from "@/lib/queries/vat-snapshots";
 
+export const dynamic = "force-dynamic";
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await getAuthSession();
   if (error) return error;

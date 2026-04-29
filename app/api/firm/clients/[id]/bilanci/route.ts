@@ -3,6 +3,8 @@ import { getFirmSession } from "@/lib/helpers/auth-guard";
 import { listFirmSnapshots, createFirmSnapshot } from "@/lib/queries/firm";
 import { parseTrialBalanceExcel } from "@/lib/parsers/cdg-trial-balance-parser";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

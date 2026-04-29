@@ -7,6 +7,8 @@ import { getVatSnapshots, recalculateVatSnapshotsV2 } from "@/lib/queries/vat-sn
  * GET /api/firm/clients/[id]/iva?year=YYYY
  * Returns VAT snapshots for the given year.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

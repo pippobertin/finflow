@@ -17,6 +17,8 @@ import {
  *   list=true — returns available snapshots only
  *   snapshotId=xxx — use specific snapshot (defaults to most recent locked)
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getClientOwnerSession();
   if (error) return error;

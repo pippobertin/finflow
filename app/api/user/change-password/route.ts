@@ -12,6 +12,8 @@ const bodySchema = z.object({
     .regex(/[0-9]/, "Deve contenere almeno un numero"),
 });
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {

@@ -9,6 +9,8 @@ import { prisma } from "@/lib/prisma";
  * Ref: docs/adr/005-data-freezing-strategy.md
  */
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; snapshotId: string }> },

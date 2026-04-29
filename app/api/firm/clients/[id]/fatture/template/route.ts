@@ -1,6 +1,8 @@
 import * as XLSX from "xlsx";
 import { getFirmSession } from "@/lib/helpers/auth-guard";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error } = await getFirmSession();
   if (error) return error;

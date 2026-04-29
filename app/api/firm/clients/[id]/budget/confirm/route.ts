@@ -9,6 +9,8 @@ import type { CdgCategory } from "@prisma/client";
  *
  * Body: { year: number, rows: Array<{ cdgCategory: string, month: number, amount: number }> }
  */
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

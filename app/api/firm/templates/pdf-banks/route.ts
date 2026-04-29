@@ -3,6 +3,8 @@ import { getFirmSession } from "@/lib/helpers/auth-guard";
 import { listPdfBankProfiles, createPdfBankProfile } from "@/lib/queries/pdf-bank-profiles";
 import { pdfBankProfileCreateSchema } from "@/lib/validations/pdf-bank-profile";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

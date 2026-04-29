@@ -6,6 +6,8 @@ import { suggestCategory } from "@/lib/queries/category-suggestion";
  * GET /api/bank-statements/suggest-category?description=...
  * Returns a category suggestion based on previously categorized movements.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

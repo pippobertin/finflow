@@ -11,6 +11,8 @@ import { listBankStatements } from "@/lib/queries/bank-statements";
  * Query params:
  *   search, startDate, endDate, page, pageSize, categorized
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, organizationId } = await getClientSession();
   if (error) return error;

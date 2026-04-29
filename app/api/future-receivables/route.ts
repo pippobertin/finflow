@@ -3,6 +3,8 @@ import { getAuthSession, getAdminSession } from "@/lib/helpers/auth-guard";
 import { listFutureReceivables, createFutureReceivable } from "@/lib/queries/future-receivables";
 import { futureReceivableCreateSchema } from "@/lib/validations/future-receivables";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

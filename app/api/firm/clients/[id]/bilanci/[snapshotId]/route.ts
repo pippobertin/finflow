@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { getFirmSession } from "@/lib/helpers/auth-guard";
 import { getFirmSnapshot, deleteFirmSnapshot } from "@/lib/queries/firm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; snapshotId: string }> },

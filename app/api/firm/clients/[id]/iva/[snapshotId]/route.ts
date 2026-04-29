@@ -9,6 +9,8 @@ import { toggleVatPaid } from "@/lib/queries/vat-snapshots";
  *
  * Body: { isPaid: boolean, paidDate?: string | null }
  */
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; snapshotId: string }> },

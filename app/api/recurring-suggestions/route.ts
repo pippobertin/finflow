@@ -1,6 +1,8 @@
 import { getAuthSession } from "@/lib/helpers/auth-guard";
 import { detectRecurringExpenses } from "@/lib/analysis/recurring-detector";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

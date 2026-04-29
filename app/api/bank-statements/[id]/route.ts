@@ -6,6 +6,8 @@ import { bankStatementReassignSchema } from "@/lib/validations/bank-statements";
 
 type Params = { params: Promise<{ id: string }> };
 
+export const dynamic = "force-dynamic";
+
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { error, organizationId } = await getAdminSession();
   if (error) return error;

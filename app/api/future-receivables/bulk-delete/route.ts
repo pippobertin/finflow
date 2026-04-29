@@ -3,6 +3,8 @@ import { getAdminSession } from "@/lib/helpers/auth-guard";
 import { bulkDeleteFutureReceivables } from "@/lib/queries/future-receivables";
 import { futureReceivableBulkDeleteSchema } from "@/lib/validations/future-receivables";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   const { error, organizationId } = await getAdminSession();
   if (error) return error;

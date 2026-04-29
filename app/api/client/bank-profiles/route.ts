@@ -8,6 +8,8 @@ import { listPdfBankProfiles } from "@/lib/queries/pdf-bank-profiles";
  * List available PDF bank profiles for the client's organization.
  * Returns firm-specific profiles + system defaults (deduped by bankName).
  */
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;

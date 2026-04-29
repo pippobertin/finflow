@@ -5,6 +5,8 @@ import {
   bulkDeleteBankStatements,
 } from "@/lib/queries/bank-statements";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   const { error, organizationId } = await getAdminSession();
   if (error) return error;

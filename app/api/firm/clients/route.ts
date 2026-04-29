@@ -6,6 +6,8 @@ import {
   type CreateOrganizationInput,
 } from "@/lib/queries/firm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

@@ -9,6 +9,8 @@ import { getIncomeStatement, listSnapshots } from "@/lib/queries/income-statemen
  *   snapshotId? — specific snapshot (defaults to most recent locked)
  *   list=true   — return available snapshots instead
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { error, session, organizationId } = await getAuthSession();
   if (error) return error;

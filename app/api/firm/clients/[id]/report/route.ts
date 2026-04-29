@@ -23,6 +23,8 @@ const VALID_SECTIONS = new Set(["ce", "health", "scadenze", "iva"]);
  * Generate a branded PDF report for the client.
  * Body: { year: number, sections: string[] }
  */
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, accountingFirmId } = await getFirmSession();
   if (error) return error;

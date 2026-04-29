@@ -6,6 +6,8 @@ import { oneOffExpenseUpdateSchema } from "@/lib/validations/expenses";
 
 type Params = { params: Promise<{ id: string }> };
 
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: NextRequest, { params }: Params) {
   const { error, organizationId } = await getAuthSession();
   if (error) return error;
