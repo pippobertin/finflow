@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { LayoutDashboard, Users, Palette, FileText, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserProfileDropdown } from "@/components/shared/user-profile-dropdown";
@@ -16,29 +17,62 @@ const navItems = [
 export function FirmSidebar() {
   const pathname = usePathname();
 
+  const { data: brandingData } = useQuery({
+    queryKey: ["firm-branding"],
+    queryFn: async () => {
+      const res = await fetch("/api/firm/branding");
+      if (!res.ok) return null;
+      return res.json() as Promise<{
+        branding: {
+          logoDataUrl?: string;
+          brandColor?: string;
+          accentColor?: string;
+          displayName?: string;
+        };
+        firmName: string;
+      }>;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const branding = brandingData?.branding;
+  const hasLogo = !!branding?.logoDataUrl;
+  const displayName = branding?.displayName || null;
+
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)]">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-[var(--sidebar-border)] px-6">
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white"
-          style={{ background: "linear-gradient(135deg, var(--primary), var(--ring))" }}
-        >
-          F
-        </div>
-        <div className="flex flex-col">
+        {hasLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={branding.logoDataUrl}
+            alt="Logo"
+            className="h-8 w-8 shrink-0 rounded-lg object-contain"
+          />
+        ) : (
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
+            style={{ background: "linear-gradient(135deg, var(--primary), var(--ring))" }}
+          >
+            F
+          </div>
+        )}
+        <div className="flex min-w-0 flex-col">
           <span
             className="text-lg leading-tight font-bold"
             style={{
-              background: "linear-gradient(135deg, #818CF8, #22D3EE)",
+              backgroundImage: "linear-gradient(135deg, #818CF8, #22D3EE)",
+              backgroundClip: "text",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              color: "transparent",
             }}
           >
             FinFlow
           </span>
-          <span className="text-[10px] font-medium tracking-wider text-[#94a3b8] uppercase">
-            Studio
+          <span className="truncate text-[10px] font-medium tracking-wider text-[#94a3b8] uppercase">
+            {displayName || "Studio"}
           </span>
         </div>
       </div>
