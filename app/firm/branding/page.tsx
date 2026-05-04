@@ -254,9 +254,11 @@ function BrandingForm({
             <span
               className="text-lg font-bold"
               style={{
-                background: `linear-gradient(135deg, ${form.brandColor || "#0b4d8a"}, ${form.accentColor || "#0e7c66"})`,
+                backgroundImage: `linear-gradient(135deg, ${form.brandColor || "#0b4d8a"}, ${form.accentColor || "#0e7c66"})`,
+                backgroundClip: "text",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
+                color: "transparent",
               }}
             >
               {form.displayName || firmName || "FinFlow"}
