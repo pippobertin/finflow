@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatEUR, formatPercent } from "@/lib/helpers/format";
+import { formatEUR, formatPercent, formatDate } from "@/lib/helpers/format";
 import { cn } from "@/lib/utils";
 import type { IncomeStatementQueryResult } from "@/lib/queries/income-statement";
 import type { CECategoryDetail } from "@/lib/analysis/income-statement";
@@ -123,7 +123,7 @@ export default function FirmCdgPage({ params }: { params: Promise<{ id: string }
     <div className="mx-auto max-w-4xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          {periodStart} → {periodEnd} · {sourceFilename}
+          {formatDate(periodStart)} → {formatDate(periodEnd)} · {sourceFilename}
         </p>
         {snapshots.length > 1 && (
           <Select
@@ -131,12 +131,19 @@ export default function FirmCdgPage({ params }: { params: Promise<{ id: string }
             onValueChange={handleSnapshotChange}
           >
             <SelectTrigger className="w-[260px]">
-              <SelectValue placeholder="Seleziona periodo" />
+              <SelectValue>
+                {(() => {
+                  const currentId = selectedSnapshotId ?? data.snapshotId;
+                  const snap = snapshots.find((s) => s.id === currentId);
+                  if (!snap) return "Seleziona periodo";
+                  return `${formatDate(snap.periodStart)} → ${formatDate(snap.periodEnd)}`;
+                })()}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {snapshots.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {s.periodStart.slice(0, 10)} → {s.periodEnd.slice(0, 10)} ({s._count.lines} conti)
+                  {formatDate(s.periodStart)} → {formatDate(s.periodEnd)}
                 </SelectItem>
               ))}
             </SelectContent>
