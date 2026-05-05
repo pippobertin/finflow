@@ -336,7 +336,7 @@ export async function buildDailyProjection(
         id: inv.id,
         type: "passiveInvoice",
         label: inv.number,
-        amount,
+        amount: -amount,
       });
     }
   }
@@ -361,7 +361,7 @@ export async function buildDailyProjection(
           id: exp.id,
           type: "recurringExpense",
           label: exp.name,
-          amount,
+          amount: -amount,
         });
       }
     }
@@ -379,7 +379,7 @@ export async function buildDailyProjection(
         id: exp.id,
         type: "oneOffExpense",
         label: exp.name,
-        amount,
+        amount: -amount,
       });
     }
   }
@@ -432,7 +432,7 @@ export async function buildDailyProjection(
           type: "expectedPayable",
           label: ep.description,
           counterpart: ep.counterpart,
-          amount: amt,
+          amount: -amt,
         });
       }
     }
@@ -459,7 +459,7 @@ export async function buildDailyProjection(
             id: vs.id,
             type: "vatPayment",
             label: `IVA ${vs.periodType}`,
-            amount: amt,
+            amount: -amt,
           });
         }
       }
@@ -505,7 +505,7 @@ export async function buildDailyProjection(
           id: `vat-${vat.date}`,
           type: "vatPayment",
           label: vat.label,
-          amount: vat.amount,
+          amount: -vat.amount,
         });
       }
     }
@@ -528,7 +528,7 @@ export async function buildDailyProjection(
           id: f.id,
           type: "f24Payment",
           label: `F24 ${f.periodLabel}${f.codiceTributo ? ` (${f.codiceTributo})` : ""}`,
-          amount: amt,
+          amount: -amt,
         });
       }
     }
@@ -571,7 +571,7 @@ export async function buildDailyProjection(
             id: loan.id,
             type: "loanPayment",
             label: `Rata ${loan.loanName}${loan.bankName ? ` — ${loan.bankName}` : ""}`,
-            amount: amt,
+            amount: -amt,
           });
         }
       }
@@ -725,7 +725,7 @@ async function buildHistoricalTimeline(
         id: inv.id,
         type: "passiveInvoice",
         label: inv.number,
-        amount,
+        amount: -amount,
       });
     }
   }
@@ -751,7 +751,7 @@ async function buildHistoricalTimeline(
           id: exp.id,
           type: "recurringExpense",
           label: exp.name,
-          amount,
+          amount: -amount,
         });
       }
     }
@@ -768,7 +768,7 @@ async function buildHistoricalTimeline(
         id: exp.id,
         type: "oneOffExpense",
         label: exp.name,
-        amount,
+        amount: -amount,
       });
     }
   }
