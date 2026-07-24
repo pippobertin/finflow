@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getFirmSession } from "@/lib/helpers/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { getAppUrl } from "@/lib/app-url";
 import { sendEmail } from "@/lib/email/send-email";
 import { renderPasswordResetEmail } from "@/lib/email/templates";
 import crypto from "crypto";
@@ -76,8 +77,7 @@ export async function POST(
   const branding = (org.accountingFirm?.branding as BrandingJson) ?? {};
   const firmName = branding.displayName || org.accountingFirm?.name || "FinFlow";
   const firmColor = branding.brandColor || "#0b4d8a";
-  const appUrl = process.env.APP_URL || "http://localhost:3000";
-  const resetUrl = `${appUrl}/login/reset-password?token=${tokenPlain}`;
+  const resetUrl = `${getAppUrl()}/login/reset-password?token=${tokenPlain}`;
 
   sendEmail({
     to: user.email,

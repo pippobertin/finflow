@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getAppUrl } from "@/lib/app-url";
 import crypto from "crypto";
 import { sendEmail } from "@/lib/email/send-email";
 import { renderPasswordResetEmail } from "@/lib/email/templates";
@@ -116,8 +117,7 @@ export async function POST(request: Request) {
   const branding = (user.organization?.accountingFirm?.branding as BrandingJson) ?? {};
   const firmName = branding.displayName || user.organization?.accountingFirm?.name || "FinFlow";
   const firmColor = branding.brandColor || "#0b4d8a";
-  const appUrl = process.env.APP_URL || "http://localhost:3000";
-  const resetUrl = `${appUrl}/login/reset-password?token=${tokenPlain}`;
+  const resetUrl = `${getAppUrl()}/login/reset-password?token=${tokenPlain}`;
 
   await sendEmail({
     to: user.email,

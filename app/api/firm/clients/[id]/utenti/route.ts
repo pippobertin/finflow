@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getFirmSession } from "@/lib/helpers/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { getAppUrl } from "@/lib/app-url";
 import { hash } from "bcryptjs";
 import crypto from "crypto";
 import { sendEmail } from "@/lib/email/send-email";
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const branding = (org.accountingFirm?.branding as BrandingJson) ?? {};
   const firmName = branding.displayName || org.accountingFirm?.name || "FinFlow";
   const firmColor = branding.brandColor || "#0b4d8a";
-  const loginUrl = `${process.env.APP_URL || "http://localhost:3000"}/login`;
+  const loginUrl = `${getAppUrl()}/login`;
 
   sendEmail({
     to: user.email,
